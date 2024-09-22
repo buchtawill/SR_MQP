@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
@@ -53,43 +55,45 @@ class ImageDataset(Dataset):
         return image, self.image_files[idx]
 
 
-def crop_tiles(input_dir: str, output_dir: str, upscale_size: int, aspect_ratio: tuple, min_tile_size: int = 32):
+def crop_tiles(input_dir: str, output_dir: str, tile_size: int = 64):
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
         print(f"Error creating output directory: {e}")
         return
 
-    dataset = ImageDataset(input_dir)
+    for filename in os.listdir(input_dir):
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            input_path = os.path.join(input_dir, filename)
+            image = Image.open(input_path)
+            width, height = image.size
 
-    for idx in range(len(dataset)):
-        image, file_name = dataset[idx]
+            # Calculate the number of tiles needed to cover the image
+            num_tiles_h = (width + tile_size - 1) // tile_size
+            num_tiles_v = (height + tile_size - 1) // tile_size
 
-        # Extract image size from filename or use actual image size
-        try:
-            image_width = int(file_name.split('_')[0])
-        except (IndexError, ValueError):
-            image_width = image.shape[2]  # Assuming image is already a tensor
+            for i in range(num_tiles_v):
+                for j in range(num_tiles_h):
+                    # Calculate tile coordinates with potential overlap
+                    left = min(j * tile_size, width - tile_size)
+                    top = min(i * tile_size, height - tile_size)
+                    right = left + tile_size
+                    bottom = top + tile_size
 
-        tile_info = calculate_tiles(image_width, aspect_ratio, min_tile_size)
-        tile_size = tile_info['tile_size']
+                    # Crop the tile
+                    tile = image.crop((left, top, right, bottom))
 
-        num_tiles_h = image.shape[2] // tile_size
-        num_tiles_v = image.shape[1] // tile_size
+                    tile_filename = f"{os.path.splitext(filename)[0]}_tile_{i}_{j}.png"
+                    tile.save(os.path.join(output_dir, tile_filename))
 
-        print(f"Processing {file_name}")
-
-        for i in range(num_tiles_v):
-            for j in range(num_tiles_h):
-                tile = image[:, i * tile_size:(i + 1) * tile_size, j * tile_size:(j + 1) * tile_size]
-
-                tile_img = transforms.ToPILImage()(tile)
-
-                tile_filename = f"{os.path.splitext(file_name)[0]}_tile_{i}_{j}.png"
-                try:
-                    tile_img.save(os.path.join(output_dir, tile_filename))
-                except OSError as e:
-                    print(f"Error saving tile {tile_filename}: {e}")
+            # Save tile info
+            tile_info = {
+                'original_size': (width, height),
+                'tile_size': tile_size,
+                'num_tiles': (num_tiles_h, num_tiles_v)
+            }
+            with open(os.path.join(output_dir, f"{os.path.splitext(filename)[0]}_info.txt"), 'w') as f:
+                f.write(str(tile_info))
 
     print(f"Tiles saved in {output_dir}")
 
@@ -102,12 +106,11 @@ def downscale_cropped_tiles(input_dir: str, output_dir: str):
         return
 
     for filename in os.listdir(input_dir):
-        if filename.endswith(('.png')):
+        if filename.endswith('.png') and 'tile' in filename:
             input_path = os.path.join(input_dir, filename)
 
             # Create the new filename
-            name, ext = os.path.splitext(filename)
-            new_filename = f"{name}_downscaled{ext}"
+            new_filename = f"{os.path.splitext(filename)[0]}_downscaled.png"
             output_path = os.path.join(output_dir, new_filename)
 
             try:
@@ -123,76 +126,74 @@ def downscale_cropped_tiles(input_dir: str, output_dir: str):
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
 
+    # Copy tile info files
+    for filename in os.listdir(input_dir):
+        if filename.endswith('_info.txt'):
+            input_path = os.path.join(input_dir, filename)
+            output_path = os.path.join(output_dir, filename)
+            with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
+                f_out.write(f_in.read())
+
+
 def repatch_downscaled_tiles(downscaled_dir, input_dir):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     repatched_dir = os.path.join(current_dir, '1280_16x9_repatched')
     os.makedirs(repatched_dir, exist_ok=True)
 
-    # Group tiles by their original image
-    tile_groups = {}
-    for filename in os.listdir(downscaled_dir):
-        if filename.endswith('_downscaled.png'):
-            parts = filename.split('_')
-            if len(parts) < 4:
-                print(f"Skipping file with unexpected format: {filename}")
+    for filename in os.listdir(input_dir):
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            original_name = os.path.splitext(filename)[0]
+
+            # Load tile info
+            info_file = os.path.join(downscaled_dir, f"{original_name}_info.txt")
+            if not os.path.exists(info_file):
+                print(f"Tile info not found for {original_name}")
                 continue
-            original_name = '_'.join(parts[:-4])  # Exclude 'tile', row, column, and 'downscaled' info
-            if not original_name:
-                print(f"Skipping file with empty original name: {filename}")
-                continue
-            if original_name not in tile_groups:
-                tile_groups[original_name] = []
-            tile_groups[original_name].append(filename)
+            with open(info_file, 'r') as f:
+                tile_info = eval(f.read())
 
-    # Repatch each group
-    for original_name, tiles in tile_groups.items():
-        if not tiles:
-            print(f"No tiles found for {original_name}")
-            continue
+            original_width, original_height = tile_info['original_size']
+            tile_size = tile_info['tile_size'] // 2  # Downscaled tile size
+            num_tiles_h, num_tiles_v = tile_info['num_tiles']
 
-        # Sort tiles by row and column
-        sorted_tiles = sorted(tiles, key=lambda x: (
-            int(x.split('_')[-3]),  # Row
-            int(x.split('_')[-2])   # Column
-        ))
+            # Create numpy arrays to hold the repatched image and weights
+            repatched_array = np.zeros((original_height // 2, original_width // 2, 3), dtype=np.float32)
+            weight_array = np.zeros((original_height // 2, original_width // 2), dtype=np.float32)
 
-        # Open first tile to get dimensions
-        first_tile = Image.open(os.path.join(downscaled_dir, sorted_tiles[0]))
-        tile_width, tile_height = first_tile.size
+            for i in range(num_tiles_v):
+                for j in range(num_tiles_h):
+                    tile_filename = f"{original_name}_tile_{i}_{j}_downscaled.png"
+                    tile_path = os.path.join(downscaled_dir, tile_filename)
 
-        # Determine the number of tiles in each dimension
-        num_tiles_vertical = max(int(x.split('_')[-3]) for x in sorted_tiles) + 1
-        num_tiles_horizontal = max(int(x.split('_')[-2]) for x in sorted_tiles) + 1
+                    if os.path.exists(tile_path):
+                        tile = Image.open(tile_path)
+                        tile_array = np.array(tile, dtype=np.float32) / 255.0
 
-        # Calculate the dimensions of the repatched image
-        repatched_width = tile_width * num_tiles_horizontal
-        repatched_height = tile_height * num_tiles_vertical
+                        # Calculate position to paste the tile
+                        left = min(j * tile_size, repatched_array.shape[1] - tile_size)
+                        top = min(i * tile_size, repatched_array.shape[0] - tile_size)
 
-        # Create a new image for the repatched result
-        repatched_img = Image.new('RGB', (repatched_width, repatched_height))
+                        # Create a weight mask for smooth blending
+                        weight_mask = np.ones((tile_size, tile_size), dtype=np.float32)
+                        weight_mask = np.minimum(weight_mask, np.arange(tile_size) + 1)
+                        weight_mask = np.minimum(weight_mask, np.arange(tile_size)[:, np.newaxis] + 1)
+                        weight_mask = np.minimum(weight_mask, np.arange(tile_size)[::-1] + 1)
+                        weight_mask = np.minimum(weight_mask, np.arange(tile_size)[::-1][:, np.newaxis] + 1)
 
-        # Place each tile in the correct position
-        for tile_name in sorted_tiles:
-            tile = Image.open(os.path.join(downscaled_dir, tile_name))
-            row = int(tile_name.split('_')[-3])
-            col = int(tile_name.split('_')[-2])
-            repatched_img.paste(tile, (col * tile_width, row * tile_height))
+                        # Add the tile to the repatched array with blending
+                        repatched_array[top:top + tile_size, left:left + tile_size] += tile_array * weight_mask[:, :,
+                                                                                                    np.newaxis]
+                        weight_array[top:top + tile_size, left:left + tile_size] += weight_mask
 
-        # Get the dimensions of the original image
-        original_image_path = os.path.join(input_dir, f"{original_name}.png")
-        if not os.path.exists(original_image_path):
-            print(f"Original image not found for {original_name}")
-            continue
+            # Normalize the repatched array
+            weight_array = np.maximum(weight_array, 1e-6)[:, :, np.newaxis]
+            repatched_array /= weight_array
+            repatched_array = np.clip(repatched_array * 255, 0, 255).astype(np.uint8)
 
-        original_img = Image.open(original_image_path)
-        original_width, original_height = original_img.size
-
-        # Upscale the repatched image to match the original dimensions
-        repatched_img_upscaled = repatched_img.resize((original_width, original_height), Image.NEAREST)
-
-        # Save the upscaled repatched image
-        repatched_img_upscaled.save(os.path.join(repatched_dir, f"{original_name}_repatched.png"))
-        print(f"Saved upscaled repatched image: {original_name}_repatched.png")
+            # Convert the numpy array back to an image and save
+            repatched_img = Image.fromarray(repatched_array)
+            repatched_img.save(os.path.join(repatched_dir, f"{original_name}_repatched.png"))
+            print(f"Saved repatched image: {original_name}_repatched.png")
 
 def create_vertical_comparison(input_dir, repatched_dir, output_dir):
     try:
@@ -214,10 +215,12 @@ def create_vertical_comparison(input_dir, repatched_dir, output_dir):
             if os.path.exists(repatched_path):
                 repatched_img = Image.open(repatched_path)
 
+                # Resize repatched image to match original size
+                repatched_img = repatched_img.resize(original_img.size, Image.LANCZOS)
+
                 # Create a new image with the height of both images
                 total_height = original_img.height + repatched_img.height
-                max_width = max(original_img.width, repatched_img.width)
-                comparison_img = Image.new('RGB', (max_width, total_height))
+                comparison_img = Image.new('RGB', (original_img.width, total_height))
 
                 # Paste the images vertically
                 comparison_img.paste(original_img, (0, 0))
@@ -241,15 +244,9 @@ def create_tile_vertical_comparisons(input_dir, tiles_dir, downscaled_tiles_dir,
     # Group tiles by their original image
     tile_groups = {}
     for filename in os.listdir(tiles_dir):
-        if filename.endswith('_downscaled.png'):
+        if filename.endswith('.png') and 'tile' in filename:
             parts = filename.split('_')
-            if len(parts) < 4:
-                print(f"Skipping file with unexpected format: {filename}")
-                continue
-            original_name = '_'.join(parts[:-4])  # Exclude 'tile', row, column, and 'downscaled' info
-            if not original_name:
-                print(f"Skipping file with empty original name: {filename}")
-                continue
+            original_name = '_'.join(parts[:-3])  # Exclude 'tile', row, and column
             if original_name not in tile_groups:
                 tile_groups[original_name] = []
             tile_groups[original_name].append(filename)
@@ -264,22 +261,20 @@ def create_tile_vertical_comparisons(input_dir, tiles_dir, downscaled_tiles_dir,
         original_img = Image.open(original_image_path)
 
         for tile_name in tiles:
+            # Open original tile
+            original_tile_path = os.path.join(tiles_dir, tile_name)
+            original_tile = Image.open(original_tile_path)
+
             # Open downscaled tile
-            downscaled_tile_path = os.path.join(downscaled_tiles_dir, tile_name)
+            downscaled_tile_name = f"{os.path.splitext(tile_name)[0]}_downscaled.png"
+            downscaled_tile_path = os.path.join(downscaled_tiles_dir, downscaled_tile_name)
+            if not os.path.exists(downscaled_tile_path):
+                print(f"Downscaled tile not found: {downscaled_tile_name}")
+                continue
             downscaled_tile = Image.open(downscaled_tile_path)
 
-            # Calculate the position of the tile in the original image
-            parts = tile_name.split('_')
-            row = int(parts[-3])
-            col = int(parts[-2])
-            tile_size = downscaled_tile.width * 2  # Assuming downscaled tiles are half the size
-
-            # Crop the corresponding area from the original image
-            original_tile = original_img.crop((col * tile_size, row * tile_size,
-                                               (col + 1) * tile_size, (row + 1) * tile_size))
-
             # Upscale the downscaled tile to match the original tile size
-            downscaled_tile_upscaled = downscaled_tile.resize(original_tile.size, Image.NEAREST)
+            downscaled_tile_upscaled = downscaled_tile.resize(original_tile.size, Image.LANCZOS)
 
             # Create a new image for the vertical comparison
             comparison_img = Image.new('RGB', (original_tile.width, original_tile.height * 2))
@@ -324,15 +319,23 @@ def generate_artifacts(input_dir, downscaled_dir):
     # Step 3: Create vertical comparisons for individual tiles
     create_tile_vertical_comparisons(input_dir, downscaled_dir, downscaled_dir, tile_comparison_dir)
 
+
 if __name__ == '__main__':
     # Set parameters here
     current_dir = os.path.dirname(os.path.abspath(__file__))
     input_dir = os.path.join(current_dir, '1280_16x9_test')
+    output_dir = os.path.join(current_dir, '1280_16x9_cropped')
     downscaled_dir = os.path.join(current_dir, '1280_16x9_cropped_downscaled')
-    upscale_size = 2
-    aspect_ratio = (16, 9)
-    min_tile_size = 79
+
+    # Crop tiles to 32x32
+    crop_tiles(input_dir, output_dir, tile_size=64)
+
+    # Downscale cropped tiles (if needed)
+    downscale_cropped_tiles(output_dir, downscaled_dir)
+
+    create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
 
     print("Starting artifact generation process...")
     generate_artifacts(input_dir, downscaled_dir)
+
     print("Artifact generation completed!")
