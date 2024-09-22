@@ -94,11 +94,42 @@ def crop_tiles(input_dir: str, output_dir: str, upscale_size: int, aspect_ratio:
 
     print(f"Tiles saved in {output_dir}")
 
+
+def downscale_cropped_tiles(input_dir: str, output_dir: str):
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        print(f"Error creating output directory: {e}")
+        return
+
+    for filename in os.listdir(input_dir):
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            input_path = os.path.join(input_dir, filename)
+
+            # Create the new filename
+            name, ext = os.path.splitext(filename)
+            new_filename = f"{name}_downscaled{ext}"
+            output_path = os.path.join(output_dir, new_filename)
+
+            try:
+                with Image.open(input_path) as img:
+                    # Calculate new dimensions (half of the original)
+                    new_width = img.width // 2
+                    new_height = img.height // 2
+
+                    # Resize and save the image
+                    resized_img = img.resize((new_width, new_height), Image.LANCZOS)
+                    resized_img.save(output_path)
+                print(f"Saved downscaled image: {new_filename}")
+            except Exception as e:
+                print(f"Error processing {filename}: {e}")
+
 if __name__ == '__main__':
-    # Set your parameters here
+    # Set parameters here
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    input_dir = os.path.join(current_dir, '1280_16x9_1000')
+    input_dir = os.path.join(current_dir, '1280_16x9_test')
     output_dir = os.path.join(current_dir, '1280_16x9_1000_cropped')
+    downscaled_output_dir = os.path.join(current_dir, '1280_16x9_cropped_downscaled')
     upscale_size = 2
     aspect_ratio = (16, 9)
     min_tile_size = 79
@@ -110,31 +141,35 @@ if __name__ == '__main__':
     print(f"Minimum tile size: {min_tile_size}")
 
     crop_tiles(input_dir, output_dir, upscale_size, aspect_ratio, min_tile_size)
-
     print("Cropping completed!")
 
+    print(f"Downscaling cropped tiles from {output_dir}")
+    print(f"Downscaled output directory: {downscaled_output_dir}")
+    downscale_cropped_tiles(output_dir, downscaled_output_dir)
+    print("Downscaling completed!")
 
 
 
 
-def downscale_cropped_tiles():
-    # function call to crop_tiles to downscale them one at a time with a for loop.
-    # use an array through the file and save the new images
 
-    path = "1280_16x9_1000_cropped"
-    output_path = "1280_16x9_cropped_downscaled"
-    dirs = os.listdir(path)
-    output = os.listdir(output_path)
+#def downscale_cropped_tiles():
+    #function call to crop_tiles to downscale them one at a time with a for loop.
+    #use an array through the file and save the new images
 
-    for item in dirs:
-        if os.path.isfile(path + item):
-            im = Image.open(path + item)
-            f, e = os.path.splitext(path + item)
-            imResize = im.resize((40, 40), Image.ANTIALIAS)
-            imResize.save(f + ' downscaled.png', 'PNG', quality=90)
+    #path = "1280_16x9_1000_cropped"
+    #output_path = "1280_16x9_cropped_downscaled"
+    #dirs = os.listdir(path)
+    #output = os.listdir(output_path)
+
+    #for item in dirs:
+        #if os.path.isfile(path + item):
+    #        im = Image.open(path + item)
+    #        f, e = os.path.splitext(path + item)
+    #        imResize = im.resize((40, 40), Image.ANTIALIAS)
+    #       imResize.save(f + ' downscaled.png', 'PNG', quality=90)
 
 
-    downscale_cropped_tiles()
+   # downscale_cropped_tiles()
 
 
 #def png_output():
