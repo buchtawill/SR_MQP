@@ -1,0 +1,170 @@
+from FSRCNN import *
+import sys
+import time
+import torch
+import numpy as np
+from tqdm import tqdm
+from PIL import Image
+import torch.nn as nn
+import torch.optim as optim
+# import torch.nn.functional as F
+from matplotlib import pyplot as plt
+# from torch.optim.lr_scheduler import StepLR
+import torchvision.transforms as transforms
+from low_hi_res_dataset import SR_image_dataset
+from torch.utils.tensorboard import SummaryWriter
+
+NUM_EPOCHS = 100
+BATCH_SIZE = 8
+LEARN_RATE = 0.0001
+
+def tensor_to_image(tensor:torch.tensor) -> Image:
+    return transforms.ToPILImage()(tensor)
+
+def plot_images(low_res, inference, truths, title):
+    fig, axs = plt.subplots(3, 3, figsize=(8, 8))
+    for i in range(3):
+        axs[0, i].imshow(tensor_to_image(low_res[i].cpu()), cmap='gray')
+        axs[0, i].axis('off')
+        axs[0, i].set_title('Low Res')
+        
+        axs[1, i].imshow(tensor_to_image(inference[i].cpu()))
+        axs[1, i].axis('off')
+        axs[1, i].set_title('Upscaled')
+        
+        axs[2, i].imshow(tensor_to_image(truths[i].cpu()))
+        axs[2, i].axis('off')
+        axs[2, i].set_title('Truth')
+    plt.tight_layout()
+    #plt.savefig(title)
+    plt.show()
+    plt.close()
+
+
+def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
+    """
+    Run the forward pass of model on all samples in dataloader with criterion loss. If optimizer is set to None,
+    this function will NOT perform gradient updates or optimizations.
+    Args:
+        model(nn.Module): The neural network model
+        dataloader(torch.utils.data.DataLoader): PyTorch dataloader 
+        criterion(): Loss criterion (e.g. MSE loss)
+        optimizer(torch.optim): Optimizer for NN
+    """
+    running_loss = 0.0
+    for batch in dataloader:
+    
+        low_res, hi_res_truth = batch
+        low_res = low_res.to(device)
+        hi_res_truth = hi_res_truth.to(device)
+        
+        inference = model(low_res)
+        loss = criterion(inference, hi_res_truth)
+        
+        if(optimzer is not None):
+            loss.backward()
+            optimizer.step()
+            
+        running_loss += loss.item()
+    loss = running_loss / float(len(dataloader.dataset))
+    return loss
+
+
+def train_normal(model:FSRCNN, 
+                 train_dataloader:torch.utils.data.DataLoader, 
+                 test_dataloader:torch.utils.data.DataLoader,
+                 optimizer:torch.optim, 
+                 tb_writer:torch.utils.tensorboard.SummaryWriter, 
+                 scheduler:torch.optim.lr_scheduler.StepLR, 
+                 criterion, 
+                 device):
+    for epoch in range(NUM_EPOCHS):
+        running_loss = 0.0
+
+        # Set optimizer to None to run in 
+        model.train()
+        train_loss = model_dataloader_inference(model=model, dataloader=train_dataloader, device=device, criterion=criterion, optimzer=optimizer)
+        model.eval()
+        test_loss  = model_dataloader_inference(model=model, dataloader=valid_dataloader, device=device, criterion=criterion, optimzer=None)
+        
+        tb_writer.add_scalar("Loss/train", train_loss, epoch + 1)
+        tb_writer.add_scalar("Loss/test",  test_loss, epoch + 1)
+        
+        print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.6f} | Test Loss: {test_loss:.6f}')
+        
+        if(epoch % 1 == 0):
+            low_res, hi_res_truth = next(iter(train_dataloader)) #get first images
+            low_res = low_res.to(device)
+            hi_res_truth = hi_res_truth.to(device)
+            inference = model(low_res)
+            loss = criterion(inference, hi_res_truth)
+            
+            plot_images(low_res, inference, hi_res_truth, f"epoch_results/epoch{epoch}.png")
+
+def sec_to_human(seconds):
+    """Return a number of seconds to hours, minutes, and seconds"""
+    seconds = seconds % (24 * 3600)
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return "%d:%02d:%02d" % (hours, minutes, seconds)
+
+if __name__ == '__main__':
+    tstart = time.time()
+    print(f"INFO [train.py] Starting script at {tstart}")
+    
+    #Set up device, model, and optimizer
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
+    print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
+    model = FSRCNN(upscale_factor=2).to(device)
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE)
+    
+    # Get dataset
+    seed = 50  # Set the seed for reproducibility
+    torch.manual_seed(seed)
+    # print("INFO [train.py] Loading Tensor pair dataset")
+    # full_dataset = GrayscaleTensorPair('../colorization_data/tensors')
+    print("INFO [train.py] Loading image pair dataset")
+    transform = transforms.Compose([transforms.ToTensor()])
+    #full_dataset = GrayscaleImagePair("../colorization_data/images", transform=transform)
+    full_dataset = SR_image_dataset(lowres_path  = '../../temp_data/1280_16x9_cropped_downscaled', 
+                                    highres_path = '../../temp_data/1280_16x9_cropped',
+                                    transform    = transform)
+    
+    # Create train and test datasets. Set small train set for faster training
+
+    train_dataset, valid_dataset, test_dataset = \
+            torch.utils.data.random_split(full_dataset, [0.85, 0.10, 0.05], generator=torch.Generator())
+    num_train_samples = len(train_dataset)
+    print(f'INFO [train.py] Total num data samples:    {len(full_dataset)}')
+    print(f'INFO [train.py] Num of training samples:   {num_train_samples}')
+    print(f'INFO [train.py] Num of validation samples: {len(valid_dataset)}')
+    print(f'INFO [train.py] Num of test samples:       {len(test_dataset)}')
+    
+    # Get Dataloader
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
+    print(f'INFO [train.py] Num training batches: {len(train_dataloader)}')
+    #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
+    tb_writer = SummaryWriter()
+    
+    train_normal(model=model, 
+                 train_dataloader=train_dataloader, 
+                 test_dataloader=test_dataloader,
+                 optimizer=optimizer, 
+                 tb_writer=tb_writer, 
+                 scheduler=None, 
+                 criterion=criterion, 
+                 device=device)
+                
+    tb_writer.flush()
+    torch.save(model.state_dict(), './test.pth')
+    
+    tEnd = time.time()
+    print(f"INFO [train.py] Ending script. Took {tEnd-tstart} seconds.")
+    print(f"INFO [train.py] HH:MM:SS --> {sec_to_human(tEnd-tstart)}")
