@@ -8,6 +8,10 @@ from torchvision import transforms
 import math
 
 
+#TODO
+"""Add composite video artifacts (ie. add filters rotate etc) so that the image processing can look for that
+ and fix it if there are any issues in the video feed later."""
+
 def calculate_tiles(width: int, aspect_ratio: tuple, min_tile_size: int = 32) -> dict:
     height = int(width / (aspect_ratio[0] / aspect_ratio[1]))
 
@@ -68,7 +72,6 @@ def crop_tiles(input_dir: str, output_dir: str, tile_size: int = 64):
             image = Image.open(input_path)
             width, height = image.size
 
-            # Calculate the number of tiles needed to cover the image
             num_tiles_h = (width + tile_size - 1) // tile_size
             num_tiles_v = (height + tile_size - 1) // tile_size
 
@@ -80,7 +83,6 @@ def crop_tiles(input_dir: str, output_dir: str, tile_size: int = 64):
                     right = left + tile_size
                     bottom = top + tile_size
 
-                    # Crop the tile
                     tile = image.crop((left, top, right, bottom))
 
                     tile_filename = f"{os.path.splitext(filename)[0]}_tile_{i}_{j}.png"
@@ -115,7 +117,7 @@ def downscale_cropped_tiles(input_dir: str, output_dir: str):
 
             try:
                 with Image.open(input_path) as img:
-                    # Calculate new dimensions (half of the original)
+                    # Calculate new dimensions
                     new_width = img.width // 2
                     new_height = img.height // 2
 
@@ -204,7 +206,6 @@ def create_vertical_comparison(input_dir, repatched_dir, output_dir):
 
     for filename in os.listdir(input_dir):
         if filename.endswith(('.png')):
-            # Open original image
             original_path = os.path.join(input_dir, filename)
             original_img = Image.open(original_path)
 
@@ -215,7 +216,6 @@ def create_vertical_comparison(input_dir, repatched_dir, output_dir):
             if os.path.exists(repatched_path):
                 repatched_img = Image.open(repatched_path)
 
-                # Resize repatched image to match original size
                 repatched_img = repatched_img.resize(original_img.size, Image.LANCZOS)
 
                 # Create a new image with the height of both images
@@ -226,7 +226,7 @@ def create_vertical_comparison(input_dir, repatched_dir, output_dir):
                 comparison_img.paste(original_img, (0, 0))
                 comparison_img.paste(repatched_img, (0, original_img.height))
 
-                # Save the vertical comparison
+                # Save comparison
                 comparison_filename = f"{os.path.splitext(filename)[0]}_comparison.png"
                 comparison_path = os.path.join(output_dir, comparison_filename)
                 comparison_img.save(comparison_path)
@@ -310,13 +310,10 @@ def generate_artifacts(input_dir, downscaled_dir):
     tile_comparison_dir = os.path.join(current_dir, '1280_16x9_tile_vertical_comparison')
     repatched_dir = os.path.join(current_dir, '1280_16x9_repatched')
 
-    # Step 1: Repatch downscaled tiles
     repatch_downscaled_tiles(downscaled_dir, input_dir)
 
-    # Step 2: Create vertical comparisons for full images
     create_vertical_comparison(input_dir, repatched_dir, comparison_dir)
 
-    # Step 3: Create vertical comparisons for individual tiles
     create_tile_vertical_comparisons(input_dir, downscaled_dir, downscaled_dir, tile_comparison_dir)
 
 
@@ -327,10 +324,9 @@ if __name__ == '__main__':
     output_dir = os.path.join(current_dir, '1280_16x9_cropped')
     downscaled_dir = os.path.join(current_dir, '1280_16x9_cropped_downscaled')
 
-    # Crop tiles to 32x32
+    # Crop tiles to 64x46
     crop_tiles(input_dir, output_dir, tile_size=64)
 
-    # Downscale cropped tiles (if needed)
     downscale_cropped_tiles(output_dir, downscaled_dir)
 
     create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
