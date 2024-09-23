@@ -58,14 +58,17 @@ def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
         low_res = low_res.to(device)
         hi_res_truth = hi_res_truth.to(device)
         
+        optimizer.zero_grad()
+        
         inference = model(low_res)
         loss = criterion(inference, hi_res_truth)
         
         if(optimzer is not None):
             loss.backward()
             optimizer.step()
-            
+        
         running_loss += loss.item()
+        # print(f"INFO LOSS ITEM: {loss.item() / len(batch)}")
     loss = running_loss / float(len(dataloader.dataset))
     return loss
 
@@ -92,7 +95,7 @@ def train_normal(model:FSRCNN,
         
         print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.6f} | Test Loss: {test_loss:.6f}')
         
-        if(epoch % 1 == 0):
+        if(epoch % 10 == 0):
             low_res, hi_res_truth = next(iter(train_dataloader)) #get first images
             low_res = low_res.to(device)
             hi_res_truth = hi_res_truth.to(device)

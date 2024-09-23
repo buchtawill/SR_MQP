@@ -40,6 +40,7 @@ class FSRCNN(nn.Module):
         )
 
         # Mapping layer.
+        # 'm' mapping layers - paper uses 4 for best results
         self.map = nn.Sequential(
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
             nn.PReLU(12),
