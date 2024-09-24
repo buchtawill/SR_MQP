@@ -11,7 +11,8 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 # from torch.optim.lr_scheduler import StepLR
 import torchvision.transforms as transforms
-from low_hi_res_dataset import SR_image_dataset
+# from low_hi_res_dataset import SR_image_dataset
+from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
 NUM_EPOCHS = 100
@@ -95,7 +96,7 @@ def train_normal(model:FSRCNN,
         
         print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.6f} | Test Loss: {test_loss:.6f}')
         
-        if(epoch % 10 == 0):
+        if(epoch % 20 == 0):
             low_res, hi_res_truth = next(iter(train_dataloader)) #get first images
             low_res = low_res.to(device)
             hi_res_truth = hi_res_truth.to(device)
@@ -134,9 +135,7 @@ if __name__ == '__main__':
     print("INFO [train.py] Loading image pair dataset")
     transform = transforms.Compose([transforms.ToTensor()])
     #full_dataset = GrayscaleImagePair("../colorization_data/images", transform=transform)
-    full_dataset = SR_image_dataset(lowres_path  = '../../temp_data/1280_16x9_cropped_downscaled', 
-                                    highres_path = '../../temp_data/1280_16x9_cropped',
-                                    transform    = transform)
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/...', low_res_tensors_path='../data/...')
     
     # Create train and test datasets. Set small train set for faster training
 

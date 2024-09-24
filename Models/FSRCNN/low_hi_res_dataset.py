@@ -97,3 +97,28 @@ class SR_image_dataset(Dataset):
             lowres_image  = self.transform(lowres_image)
             
         return lowres_image, highres_image
+    
+class SR_tensor_dataset(Dataset):
+    """
+    This dataset will load tensor representations of the images. Using tensors will speed up the training process, but will require more memory.
+    """
+    def __init__(self, high_res_tensors_path:str, low_res_tensors_path:str):
+        
+        if(not os.path.exists(high_res_tensors_path)):
+            raise Exception(f"Cannot find high res tensor path: {high_res_tensors_path}")
+        
+        if(not os.path.exists(low_res_tensors_path)):
+            raise Exception(f"Cannot find low res tensor path: {low_res_tensors_path}")
+        
+        print("INFO [SR_tensor_dataset::__init__()] Loading tensors...")
+        self.high_res_tensors = torch.load(high_res_tensors_path)
+        self.low_res_tensors  = torch.load(low_res_tensors_path)
+        
+        if(len(self.high_res_tensors) != len(self.low_res_tensors)):
+            raise Exception("The number of low res and high res tensors must be the same.")
+             
+    def __len__(self):
+        return len(self.high_res_tensors)
+
+    def __getitem__(self, idx):
+        return self.low_res_tensors[idx], self.high_res_tensors[idx] 
