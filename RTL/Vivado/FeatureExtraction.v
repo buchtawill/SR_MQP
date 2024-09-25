@@ -14,6 +14,7 @@ module FeatureExtraction #(
 
     input clk_in;
     input rst_in;
+    //if image is 32x32 and has 3 aspects per frame then map is 3072
     input signed [127:0] map_in; //map size will need to change
     input start;
 
@@ -25,7 +26,7 @@ module FeatureExtraction #(
     parameter num_mult = 5'd25; //number of multiplications with kernal required to produce output feature map
 
 
-    //assign kernal values. Eventually pull from board mem, so doesn't require resynthesis
+    //assign kernal values. Eventually pull from board mem, so doesn't require re-synthesis
     assign k1[0];
     assign k1[1];
     assign k1[2];
@@ -51,6 +52,5 @@ module FeatureExtraction #(
     assign k1[22];
     assign k1[23];
     assign k1[24];
-    assign k1[25];
 
 endmodule
