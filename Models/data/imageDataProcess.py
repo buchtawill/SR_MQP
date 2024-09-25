@@ -1,12 +1,12 @@
 import os
-
-import numpy as np
-from PIL import Image
-import torch
-from torch.utils.data import Dataset
-from torchvision import transforms
 import math
-
+import torch
+import threading
+import numpy as np
+from tqdm import tqdm
+from PIL import Image
+from torchvision import transforms
+from torch.utils.data import Dataset
 
 #TODO
 """Add composite video artifacts (ie. add filters rotate etc) so that the image processing can look for that
@@ -58,21 +58,15 @@ class ImageDataset(Dataset):
             image = self.transform(image)
         return image, self.image_files[idx]
 
-
-def crop_tiles(input_dir: str, output_dir: str, tile_size: int = 64):
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-    except OSError as e:
-        print(f"Error creating output directory: {e}")
-        return
-
-    for filename in os.listdir(input_dir):
+def crop_and_save_image(filenames: list, input_dir:str, output_dir: str, tile_size:int):
+    for filename in filenames:
         if filename.endswith(('.png', '.jpg', '.jpeg')):
+            
             input_path = os.path.join(input_dir, filename)
             image = Image.open(input_path)
             width, height = image.size
 
-            num_tiles_h = (width + tile_size - 1) // tile_size
+            num_tiles_h = (width  + tile_size - 1) // tile_size
             num_tiles_v = (height + tile_size - 1) // tile_size
 
             for i in range(num_tiles_v):
@@ -88,26 +82,38 @@ def crop_tiles(input_dir: str, output_dir: str, tile_size: int = 64):
                     tile_filename = f"{os.path.splitext(filename)[0]}_tile_{i}_{j}.png"
                     tile.save(os.path.join(output_dir, tile_filename))
 
-            # Save tile info
-            tile_info = {
-                'original_size': (width, height),
-                'tile_size': tile_size,
-                'num_tiles': (num_tiles_h, num_tiles_v)
-            }
-            with open(os.path.join(output_dir, f"{os.path.splitext(filename)[0]}_info.txt"), 'w') as f:
-                f.write(str(tile_info))
 
-    print(f"Tiles saved in {output_dir}")
-
-
-def downscale_cropped_tiles(input_dir: str, output_dir: str):
+def crop_tiles(input_dir: str, output_dir: str, tile_size: int, n_threads:int):
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
         print(f"Error creating output directory: {e}")
         return
 
-    for filename in os.listdir(input_dir):
+    filenames = os.listdir(input_dir)
+    
+    chunk_size = len(filenames) // n_threads
+    threads = []
+    
+    total_handled = 0
+    for i in range(n_threads):
+        start = i * chunk_size
+        end = start + chunk_size if i < n_threads - 1 else len(filenames)
+        chunk = filenames[start:end]
+
+        total_handled += len(chunk)
+
+        thread = threading.Thread(target=crop_and_save_image, args=(chunk,input_dir, output_dir, tile_size))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+        
+    print(f"Total files handled: {total_handled}")
+
+def downscale_cropped_tile(filenames:list, input_dir:str, output_dir:str):
+    for filename in filenames:
         if filename.endswith('.png') and 'tile' in filename:
             input_path = os.path.join(input_dir, filename)
 
@@ -118,23 +124,55 @@ def downscale_cropped_tiles(input_dir: str, output_dir: str):
             try:
                 with Image.open(input_path) as img:
                     # Calculate new dimensions
-                    new_width = img.width // 2
+                    new_width  = img.width  // 2
                     new_height = img.height // 2
 
                     # Resize and save the image
                     resized_img = img.resize((new_width, new_height), Image.LANCZOS)
                     resized_img.save(output_path)
-                print(f"Saved downscaled image: {new_filename}")
+                #print(f"Saved downscaled image: {new_filename}")
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
 
+def downscale_cropped_tiles(input_dir: str, output_dir: str, n_threads:int):
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        print(f"Error creating output directory: {e}")
+        return
+
+    print()
+    print("Downscaling cropped tiles...")
+    
+    filenames = os.listdir(input_dir)
+    chunk_size = len(filenames) // n_threads
+    threads = []
+    
+    total_handled = 0
+    for i in range(n_threads):
+        start = i * chunk_size
+        end = start + chunk_size if i < n_threads - 1 else len(filenames)
+        chunk = filenames[start:end]
+
+        total_handled += len(chunk)
+
+        thread = threading.Thread(target=downscale_cropped_tile, args=(chunk,input_dir, output_dir))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+        
+    print(f"Total files handled: {total_handled}")
+    
+
     # Copy tile info files
-    for filename in os.listdir(input_dir):
-        if filename.endswith('_info.txt'):
-            input_path = os.path.join(input_dir, filename)
-            output_path = os.path.join(output_dir, filename)
-            with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
-                f_out.write(f_in.read())
+    # for filename in os.listdir(input_dir):
+    #     if filename.endswith('_info.txt'):
+    #         input_path = os.path.join(input_dir, filename)
+    #         output_path = os.path.join(output_dir, filename)
+    #         with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
+    #             f_out.write(f_in.read())
 
 
 def repatch_downscaled_tiles(downscaled_dir, input_dir):
@@ -320,18 +358,21 @@ def generate_artifacts(input_dir, downscaled_dir):
 if __name__ == '__main__':
     # Set parameters here
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    input_dir = os.path.join(current_dir, '1280_16x9_test')
-    output_dir = os.path.join(current_dir, '1280_16x9_cropped')
-    downscaled_dir = os.path.join(current_dir, '1280_16x9_cropped_downscaled')
+    input_dir = os.path.join(current_dir, '1280_16x9')
+    output_dir = os.path.join(current_dir, '1280_16x9_tiles')
+    downscaled_dir = os.path.join(current_dir, '1280_16x9_tiles_downscaled')
+    # input_dir = os.path.join(current_dir, '10_images')
+    # output_dir = os.path.join(current_dir, '10_image_tiles')
+    # downscaled_dir = os.path.join(current_dir, '10_image_tiles_downscaled')
 
-    # Crop tiles to 64x46
-    crop_tiles(input_dir, output_dir, tile_size=64)
+    # Crop tiles to 64x64
+    #crop_tiles(input_dir, output_dir, tile_size=64, n_threads=10)
 
-    downscale_cropped_tiles(output_dir, downscaled_dir)
+    downscale_cropped_tiles(output_dir, downscaled_dir, 10)
 
-    create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
+    #create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
 
-    print("Starting artifact generation process...")
-    generate_artifacts(input_dir, downscaled_dir)
+    #print("Starting artifact generation process...")
+    #generate_artifacts(input_dir, downscaled_dir)
 
-    print("Artifact generation completed!")
+    #print("Artifact generation completed!")
