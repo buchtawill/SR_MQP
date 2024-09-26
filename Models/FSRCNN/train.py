@@ -7,17 +7,16 @@ from tqdm import tqdm
 from PIL import Image
 import torch.nn as nn
 import torch.optim as optim
-# import torch.nn.functional as F
 from matplotlib import pyplot as plt
 # from torch.optim.lr_scheduler import StepLR
 import torchvision.transforms as transforms
-# from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
+from low_hi_res_dataset import SR_image_dataset
 from torch.utils.tensorboard import SummaryWriter
 
-NUM_EPOCHS = 100
-BATCH_SIZE = 8
-LEARN_RATE = 0.0001
+NUM_EPOCHS = 200
+BATCH_SIZE = 16
+LEARN_RATE = 0.0005
 
 def tensor_to_image(tensor:torch.tensor) -> Image:
     return transforms.ToPILImage()(tensor)
@@ -37,8 +36,8 @@ def plot_images(low_res, inference, truths, title):
         axs[2, i].axis('off')
         axs[2, i].set_title('Truth')
     plt.tight_layout()
-    #plt.savefig(title)
-    plt.show()
+    plt.savefig(title)
+    # plt.show()
     plt.close()
 
 
@@ -54,14 +53,20 @@ def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
     """
     running_loss = 0.0
     for batch in dataloader:
-    
         low_res, hi_res_truth = batch
+        
+        # print(f"INFO [model_dataloader_inference()] high_res shape: {hi_res_truth.shape}")
+        # print(f"INFO [model_dataloader_inference()] low_res  shape: {low_res.shape}")
+        
         low_res = low_res.to(device)
         hi_res_truth = hi_res_truth.to(device)
         
         optimizer.zero_grad()
         
         inference = model(low_res)
+        
+        # print(f"INFO [model_dataloader_inference()] inference shape: {inference.shape}")
+        
         loss = criterion(inference, hi_res_truth)
         
         if(optimzer is not None):
@@ -92,18 +97,18 @@ def train_normal(model:FSRCNN,
         test_loss  = model_dataloader_inference(model=model, dataloader=valid_dataloader, device=device, criterion=criterion, optimzer=None)
         
         tb_writer.add_scalar("Loss/train", train_loss, epoch + 1)
-        tb_writer.add_scalar("Loss/test",  test_loss, epoch + 1)
+        tb_writer.add_scalar("Loss/test",  test_loss,  epoch + 1)
         
-        print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.6f} | Test Loss: {test_loss:.6f}')
+        print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.8f} | Test Loss: {test_loss:.8f}')
         
-        if(epoch % 20 == 0):
+        if(epoch % 1 == 0):
             low_res, hi_res_truth = next(iter(train_dataloader)) #get first images
             low_res = low_res.to(device)
             hi_res_truth = hi_res_truth.to(device)
             inference = model(low_res)
             loss = criterion(inference, hi_res_truth)
             
-            plot_images(low_res, inference, hi_res_truth, f"epoch_results/epoch{epoch}.png")
+            plot_images(low_res, inference, hi_res_truth, f"epoch_results_full_img/epoch{epoch+1}.png")
 
 def sec_to_human(seconds):
     """Return a number of seconds to hours, minutes, and seconds"""
@@ -123,6 +128,7 @@ if __name__ == '__main__':
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2).to(device)
+    # model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
     
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE)
@@ -134,8 +140,8 @@ if __name__ == '__main__':
     # full_dataset = GrayscaleTensorPair('../colorization_data/tensors')
     print("INFO [train.py] Loading image pair dataset")
     transform = transforms.Compose([transforms.ToTensor()])
-    #full_dataset = GrayscaleImagePair("../colorization_data/images", transform=transform)
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/...', low_res_tensors_path='../data/...')
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/1280p_tensors.pt', low_res_tensors_path='../data/640p_tensors.pt')
+    # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
     
     # Create train and test datasets. Set small train set for faster training
 
@@ -165,8 +171,10 @@ if __name__ == '__main__':
                  device=device)
                 
     tb_writer.flush()
-    torch.save(model.state_dict(), './test.pth')
+    torch.save(model.state_dict(), './200E_5em4_b16_full_1280_img.pth')
     
     tEnd = time.time()
-    print(f"INFO [train.py] Ending script. Took {tEnd-tstart} seconds.")
+    print(f"INFO [train.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
     print(f"INFO [train.py] HH:MM:SS --> {sec_to_human(tEnd-tstart)}")
+    
+    
