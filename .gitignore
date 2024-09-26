@@ -4,3 +4,5 @@ Models/FSRCNN/runs
 *.code-workspace
 Models/data/1280_16x9*
 *.pt
+*.pth
+*.png
