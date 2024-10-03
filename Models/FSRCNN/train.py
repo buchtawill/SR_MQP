@@ -2,6 +2,7 @@ from FSRCNN import *
 import sys
 import time
 import torch
+import torchinfo
 import numpy as np
 from tqdm import tqdm
 from PIL import Image
@@ -10,8 +11,8 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 # from torch.optim.lr_scheduler import StepLR
 import torchvision.transforms as transforms
-from low_hi_res_dataset import SR_tensor_dataset
 from low_hi_res_dataset import SR_image_dataset
+from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
 NUM_EPOCHS = 200
@@ -119,6 +120,9 @@ def sec_to_human(seconds):
     seconds %= 60
     return "%d:%02d:%02d" % (hours, minutes, seconds)
 
+def print_model_summary(model, batch_size, in_channels, height, width):
+    torchinfo.summary(model, input_size=(batch_size, in_channels, height, width))
+
 if __name__ == '__main__':
     tstart = time.time()
     print(f"INFO [train.py] Starting script at {tstart}")
@@ -127,8 +131,11 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
-    model = FSRCNN(upscale_factor=2).to(device)
+    model = FSRCNN(upscale_factor=3).to(device)
     # model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
+    
+    # print_model_summary(model, 1, 3, 32, 32)
+    # exit()
     
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE)
