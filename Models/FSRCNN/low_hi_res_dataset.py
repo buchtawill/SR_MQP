@@ -111,8 +111,8 @@ class SR_tensor_dataset(Dataset):
             raise Exception(f"Cannot find low res tensor path: {low_res_tensors_path}")
         
         print("INFO [SR_tensor_dataset::__init__()] Loading tensors...")
-        self.high_res_tensors = torch.load(high_res_tensors_path)
-        self.low_res_tensors  = torch.load(low_res_tensors_path)
+        self.high_res_tensors = torch.load(high_res_tensors_path, weights_only=True)
+        self.low_res_tensors  = torch.load(low_res_tensors_path, weights_only=True)
         
         if(len(self.high_res_tensors) != len(self.low_res_tensors)):
             raise Exception("The number of low res and high res tensors must be the same.")

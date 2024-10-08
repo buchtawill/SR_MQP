@@ -23,16 +23,23 @@ class FSRCNN(nn.Module):
 
     Args:
         upscale_factor (int): Image magnification factor.
+        color_space (str): 'yuv' or 'rgb'. Expects YUV tensor to have luminance as first channel
     """
 
-    def __init__(self, upscale_factor: int) -> None:
+    def __init__(self, upscale_factor: int, color_space = 'rgb') -> None:
         
         mid_f_maps = 56
         
         super(FSRCNN, self).__init__()
+        
+        self.color_space = color_space
+        self.input_channels = 3 if (color_space == 'rgb') else 1
+        
+        print("INFO [FSRCNN.py::__init__()] Num input channels:", self.input_channels)
+        
         # Feature extraction layer.
         self.feature_extraction = nn.Sequential(
-            nn.Conv2d(3, mid_f_maps, (5, 5), (1, 1), (2, 2)),
+            nn.Conv2d(self.input_channels, mid_f_maps, (5, 5), (1, 1), (2, 2)),
             nn.PReLU(mid_f_maps)
         )
 
@@ -62,16 +69,50 @@ class FSRCNN(nn.Module):
         )
 
         # Deconvolution layer.
-        self.deconv = nn.ConvTranspose2d(mid_f_maps, 3, (9, 9), (upscale_factor, upscale_factor), (4, 4), (upscale_factor - 1, upscale_factor - 1))
+        self.deconv = nn.ConvTranspose2d(mid_f_maps, self.input_channels, (9, 9), (upscale_factor, upscale_factor), (4, 4), (upscale_factor - 1, upscale_factor - 1))
+
+        #nearest or bilinear
+        self.simple_upscale = nn.Upsample(scale_factor=upscale_factor, mode='nearest')
 
         # Initialize model weights.
         self._initialize_weights()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self._forward_impl(x)
+        if(self.color_space == 'rgb'):
+            return self._forward_impl_rgb(x)
 
+        elif(self.color_space == 'yuv'):
+            return self._forward_impl_yuv(x)
+        
+        else:
+            raise Exception("ERROR [FSRCNN::forward()] Unkown color space:", self.color_space)
+        
     # Support torch.script function.
-    def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
+    def _forward_impl_yuv(self, x: torch.Tensor) -> torch.Tensor:
+        
+        # x is of shape [batch size, channels, H, W]
+        # channels[0] is Y, which is what we want to upscale
+        y_channel_only = x[:, 0, :, :]                 # shape = [batch size, 1, H, W]
+        y_channel_only = y_channel_only.unsqueeze(1)   # shape = [batch size, 1, H, W]
+        uv_channels    = x[:, 1:, :, :]
+        # u_channel_only = x[:, 1, :, :]
+        # v_channel_only = x[:, 2, :, :]
+        
+        out_y = self.feature_extraction(y_channel_only)
+        out_y = self.shrink(out_y)
+        out_y = self.map(out_y)
+        out_y = self.expand(out_y)
+        out_y = self.deconv(out_y)
+        
+        upscaled_uv = self.simple_upscale(uv_channels)
+        
+        merged_yuv = torch.cat((out_y, upscaled_uv), dim=1)
+
+        return merged_yuv
+    
+    # Support torch.script function.
+    def _forward_impl_rgb(self, x: torch.Tensor) -> torch.Tensor:
+        
         out = self.feature_extraction(x)
         out = self.shrink(out)
         out = self.map(out)

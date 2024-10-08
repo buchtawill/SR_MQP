@@ -15,25 +15,54 @@ from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
-NUM_EPOCHS = 200
+NUM_EPOCHS = 100
 BATCH_SIZE = 16
 LEARN_RATE = 0.0005
+COLOR_SPACE = 'yuv'
+
+# Define the RGB to YUV conversion matrix and its inverse (YUV to RGB)
+rgb_to_yuv = torch.tensor([[ 0.299,  0.587,  0.114],
+                           [-0.14713, -0.28886,  0.436],
+                           [ 0.615,  -0.51499, -0.10001]])
+
+yuv_to_rgb = torch.inverse(rgb_to_yuv)
+
+def yuv_to_rgb_batch(yuv_batch):
+    # yuv_batch: (N, 3, H, W)
+    # Step 1: Permute to (N, H, W, 3) for matrix multiplication
+    yuv_batch = yuv_batch.permute(0, 2, 3, 1)  # Shape (N, H, W, 3)
+    
+    # Step 2: Apply YUV to RGB conversion
+    rgb_batch = torch.matmul(yuv_batch, yuv_to_rgb.T)  # Shape (N, H, W, 3)
+    
+    # Step 3: Permute back to (N, 3, H, W)
+    return rgb_batch.permute(0, 3, 1, 2)
 
 def tensor_to_image(tensor:torch.tensor) -> Image:
     return transforms.ToPILImage()(tensor)
 
 def plot_images(low_res, inference, truths, title):
+    
+    low_res = low_res.cpu()
+    inference = inference.cpu()
+    truths = truths.cpu()
+    
+    if(COLOR_SPACE == 'yuv'):
+        low_res = yuv_to_rgb_batch(low_res)
+        inference = yuv_to_rgb_batch(inference)
+        truths = yuv_to_rgb_batch(truths)
+
     fig, axs = plt.subplots(3, 3, figsize=(8, 8))
     for i in range(3):
-        axs[0, i].imshow(tensor_to_image(low_res[i].cpu()), cmap='gray')
+        axs[0, i].imshow(tensor_to_image(low_res[i]), cmap='gray')
         axs[0, i].axis('off')
         axs[0, i].set_title('Low Res')
         
-        axs[1, i].imshow(tensor_to_image(inference[i].cpu()))
+        axs[1, i].imshow(tensor_to_image(inference[i]))
         axs[1, i].axis('off')
         axs[1, i].set_title('Upscaled')
         
-        axs[2, i].imshow(tensor_to_image(truths[i].cpu()))
+        axs[2, i].imshow(tensor_to_image(truths[i]))
         axs[2, i].axis('off')
         axs[2, i].set_title('Truth')
     plt.tight_layout()
@@ -109,7 +138,7 @@ def train_normal(model:FSRCNN,
             inference = model(low_res)
             loss = criterion(inference, hi_res_truth)
             
-            plot_images(low_res, inference, hi_res_truth, f"epoch_results_full_img/epoch{epoch+1}.png")
+            plot_images(low_res, inference, hi_res_truth, f"epoch_results/epoch{epoch+1}.png")
 
 def sec_to_human(seconds):
     """Return a number of seconds to hours, minutes, and seconds"""
@@ -131,7 +160,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
-    model = FSRCNN(upscale_factor=2).to(device)
+    model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
     # model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
     
     # print_model_summary(model, 1, 3, 32, 32)
@@ -144,7 +173,7 @@ if __name__ == '__main__':
     seed = 50  # Set the seed for reproducibility
     torch.manual_seed(seed)
     print("INFO [train.py] Loading Tensor pair dataset")
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/1280p_tensors.pt', low_res_tensors_path='../data/640p_tensors.pt')
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/yuv_test/yuv_5k_images_64x64.pt', low_res_tensors_path='../data/yuv_test/yuv_5k_images_32x32.pt')
     # print("INFO [train.py] Loading image pair dataset")
     # transform = transforms.Compose([transforms.ToTensor()])
     # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
@@ -177,7 +206,7 @@ if __name__ == '__main__':
                  device=device)
                 
     tb_writer.flush()
-    torch.save(model.state_dict(), './200E_5em4_b16_full_1280_img.pth')
+    torch.save(model.state_dict(), './test_yuv.pth')
     
     tEnd = time.time()
     print(f"INFO [train.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
