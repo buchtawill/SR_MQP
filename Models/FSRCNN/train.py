@@ -131,7 +131,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
-    model = FSRCNN(upscale_factor=3).to(device)
+    model = FSRCNN(upscale_factor=2).to(device)
     # model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
     
     # print_model_summary(model, 1, 3, 32, 32)
@@ -143,11 +143,10 @@ if __name__ == '__main__':
     # Get dataset
     seed = 50  # Set the seed for reproducibility
     torch.manual_seed(seed)
-    # print("INFO [train.py] Loading Tensor pair dataset")
-    # full_dataset = GrayscaleTensorPair('../colorization_data/tensors')
-    print("INFO [train.py] Loading image pair dataset")
-    transform = transforms.Compose([transforms.ToTensor()])
+    print("INFO [train.py] Loading Tensor pair dataset")
     full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/1280p_tensors.pt', low_res_tensors_path='../data/640p_tensors.pt')
+    # print("INFO [train.py] Loading image pair dataset")
+    # transform = transforms.Compose([transforms.ToTensor()])
     # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
     
     # Create train and test datasets. Set small train set for faster training
