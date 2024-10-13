@@ -6,13 +6,35 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 from torchvision import transforms
-from torch.utils.data import Dataset
 
 #TODO
-"""Add composite video artifacts (ie. add filters rotate etc) so that the image processing can look for that
- and fix it if there are any issues in the video feed later."""
+"""
+
+Add composite video artifacts (ie. add filters rotate etc) so that the image processing can look for that
+and fix it if there are any issues in the video feed later.
+ 
+ """
 
 def calculate_tiles(width: int, aspect_ratio: tuple, min_tile_size: int = 32) -> dict:
+    """
+    Calculate the optimal tile size and number of tiles for a given width and aspect ratio.
+    This function determines the best tile size that can evenly divide the given width and height,
+    which is derived from the aspect ratio. It returns a dictionary containing the optimal tile size,
+    the total number of tiles, and the number of tiles horizontally and vertically.
+    Args:
+        width (int): The width of the area to be tiled.
+        aspect_ratio (tuple): A tuple representing the aspect ratio (width, height).
+        min_tile_size (int, optional): The minimum allowable tile size. Defaults to 32.
+    Returns:
+        dict: A dictionary containing the following keys:
+            - "tile_size" (int): The optimal tile size.
+            - "tile_count" (int): The total number of tiles.
+            - "tiles_horizontal" (int): The number of tiles horizontally.
+            - "tiles_vertical" (int): The number of tiles vertically.
+    Raises:
+        ValueError: If no valid tile size is found that can evenly divide the width and height.
+    
+    """
     height = int(width / (aspect_ratio[0] / aspect_ratio[1]))
 
     best_tile_size = 0
@@ -38,27 +60,22 @@ def calculate_tiles(width: int, aspect_ratio: tuple, min_tile_size: int = 32) ->
         "tiles_vertical": height // best_tile_size
     }
 
-
-class ImageDataset(Dataset):
-    def __init__(self, input_dir, transform=None):
-        self.input_dir = input_dir
-        self.image_files = [f for f in os.listdir(input_dir) if f.endswith(('.png'))]
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            *([transform] if transform else [])
-        ])
-
-    def __len__(self):
-        return len(self.image_files)
-
-    def __getitem__(self, idx):
-        img_name = os.path.join(self.input_dir, self.image_files[idx])
-        image = Image.open(img_name).convert('RGB')
-        if self.transform:
-            image = self.transform(image)
-        return image, self.image_files[idx]
-
 def crop_and_save_image(filenames: list, input_dir:str, output_dir: str, tile_size:int):
+    """
+    Crops images into smaller tiles and saves them to the specified output directory.
+    
+    Args:
+        filenames (list): List of image filenames to be processed.
+        input_dir (str): Directory where the input images are located.
+        output_dir (str): Directory where the cropped image tiles will be saved.
+        tile_size (int): Size of each tile (both width and height are the same).
+    Returns:
+        None
+    Notes:
+        - Only images with extensions '.png', '.jpg', and '.jpeg' are processed.
+        - The tiles are saved with filenames indicating their position in the original image.
+    """
+    
     for filename in filenames:
         if filename.endswith(('.png', '.jpg', '.jpeg')):
             
@@ -71,7 +88,8 @@ def crop_and_save_image(filenames: list, input_dir:str, output_dir: str, tile_si
 
             for i in range(num_tiles_v):
                 for j in range(num_tiles_h):
-                    # Calculate tile coordinates with potential overlap
+                    
+                    # Calculate tile coordinates\
                     left = min(j * tile_size, width - tile_size)
                     top = min(i * tile_size, height - tile_size)
                     right = left + tile_size
@@ -84,6 +102,18 @@ def crop_and_save_image(filenames: list, input_dir:str, output_dir: str, tile_si
 
 
 def crop_tiles(input_dir: str, output_dir: str, tile_size: int, n_threads:int):
+    """
+    From images in input_dir, crop tiles of size tile_size and save them to output_dir. Run with n_threads
+    
+    Args:
+        input_dir(str): Directory containing images to tile
+        output_dir(str): Directory to save tiles. Create directory if doesn't exist
+        tile_size(int): Size of tiles to crop. Square tiles.
+        n_threads(int): Number of threads to process.
+        
+    Returns:
+        None
+    """
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
@@ -107,14 +137,27 @@ def crop_tiles(input_dir: str, output_dir: str, tile_size: int, n_threads:int):
         threads.append(thread)
         thread.start()
 
+    # Wait for all threads to finish
     for thread in threads:
         thread.join()
         
     print(f"Total files handled: {total_handled}")
 
-def downscale_cropped_tile(filenames:list, input_dir:str, output_dir:str):
-    for filename in filenames:
-        if filename.endswith('.png') and 'tile' in filename:
+def downscale_image(filenames:list, input_dir:str, output_dir:str, with_tqdm = False):
+    """
+    Given a list of image filenames and their parent directory, downscale each and put into output_dir
+    
+    Args:
+        filenames(list): List of filenames to process
+        input_dir(str): Directory where filenames can be found
+        output_dir(str): Directory of where to save downscaled images
+        with_tqdm(bool): Set to true to print with tqdm
+        
+    Returns: 
+        None
+    """
+    for filename in tqdm(filenames, disable=(not with_tqdm)):
+        if filename.endswith('.png'):
             input_path = os.path.join(input_dir, filename)
 
             # Create the new filename
@@ -134,48 +177,73 @@ def downscale_cropped_tile(filenames:list, input_dir:str, output_dir:str):
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
 
-def downscale_cropped_tiles(input_dir: str, output_dir: str, n_threads:int):
+
+def downscale_images_from_dir(input_dir: str, output_dir: str, n_threads:int, factor:int = 2):
+    """
+    For each image in input_dir, downscale it and save it to output dir. Run this method with n_threads
+    to help alleviate I/O constraints. If n_threads is 0 or 1, do not make threads
+    
+    Args:
+        input_dir(str): Path to directory containing images to crop
+        output_dir(str): Directory to put downscaled images. Create directory if doesn't exist
+        n_threads(int): Number of threads to process input dir
+        factor(int): Downscale factor. Default: 2
+        
+    Returns:
+        None
+    """
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
-        print(f"Error creating output directory: {e}")
+        print(f"ERROR [gen_training_data.py::downscale_images_from_dir()] Error creating output directory: {e}")
         return
 
-    print()
-    print("Downscaling cropped tiles...")
-    
-    filenames = os.listdir(input_dir)
-    chunk_size = len(filenames) // n_threads
-    threads = []
-    
-    total_handled = 0
-    for i in range(n_threads):
-        start = i * chunk_size
-        end = start + chunk_size if i < n_threads - 1 else len(filenames)
-        chunk = filenames[start:end]
-
-        total_handled += len(chunk)
-
-        thread = threading.Thread(target=downscale_cropped_tile, args=(chunk,input_dir, output_dir))
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
+    try:
+        filenames = os.listdir(input_dir)
+    except OSError as e:
+        print(f"ERROR [gen_training_data.py::downscale_images_from_dir()] Error opening input directory: {e}")
         
-    print(f"Total files handled: {total_handled}")
     
+    print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Downscaling images from dir '{input_dir}'")
+    
+    if(n_threads < 2):
+        print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Running 1 thread of execution")
+        downscale_image(filenames, input_dir, output_dir, with_tqdm=True)
+    
+    else:
+        chunk_size = len(filenames) // n_threads
+        threads = []
+        
+        total_handled = 0
+        for i in range(n_threads):
+            start = i * chunk_size
+            end = start + chunk_size if i < n_threads - 1 else len(filenames)
+            chunk = filenames[start:end]
 
-    # Copy tile info files
-    # for filename in os.listdir(input_dir):
-    #     if filename.endswith('_info.txt'):
-    #         input_path = os.path.join(input_dir, filename)
-    #         output_path = os.path.join(output_dir, filename)
-    #         with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
-    #             f_out.write(f_in.read())
+            total_handled += len(chunk)
 
+            thread = threading.Thread(target=downscale_image, args=(chunk,input_dir, output_dir))
+            threads.append(thread)
+            thread.start()
 
+        for thread in threads:
+            thread.join()
+        
+        print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Total files handled: {total_handled}")
+    
+    # If the input directory has _info.txt files, copy them to the output directory
+    for filename in os.listdir(input_dir):
+        if filename.endswith('_info.txt'):
+            input_path = os.path.join(input_dir, filename)
+            output_path = os.path.join(output_dir, filename)
+            with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
+                f_out.write(f_in.read())
+
+#TODO: Refactor this function
 def repatch_downscaled_tiles(downscaled_dir, input_dir):
+    """
+    
+    """
     current_dir = os.path.dirname(os.path.abspath(__file__))
     repatched_dir = os.path.join(current_dir, '1280_16x9_repatched')
     os.makedirs(repatched_dir, exist_ok=True)
@@ -236,6 +304,9 @@ def repatch_downscaled_tiles(downscaled_dir, input_dir):
             print(f"Saved repatched image: {original_name}_repatched.png")
 
 def create_vertical_comparison(input_dir, repatched_dir, output_dir):
+    """
+    
+    """
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
@@ -273,6 +344,9 @@ def create_vertical_comparison(input_dir, repatched_dir, output_dir):
                 print(f"Repatched image not found for {filename}")
 
 def create_tile_vertical_comparisons(input_dir, tiles_dir, downscaled_tiles_dir, output_dir):
+    """
+    
+    """
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
@@ -327,48 +401,113 @@ def create_tile_vertical_comparisons(input_dir, tiles_dir, downscaled_tiles_dir,
             comparison_img.save(comparison_path)
             print(f"Saved tile vertical comparison: {comparison_filename}")
 
-def create_artifact_folders():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    folders = [
-        '1280_16x9_vertical_comparison',
-        '1280_16x9_tile_vertical_comparison',
-        '1280_16x9_repatched'
-    ]
+# def create_artifact_folders():
+#     """
+    
+#     """
+#     current_dir = os.path.dirname(os.path.abspath(__file__))
+#     folders = [
+#         '1280_16x9_vertical_comparison',
+#         '1280_16x9_tile_vertical_comparison',
+#         '1280_16x9_repatched'
+#     ]
 
-    for folder in folders:
-        path = os.path.join(current_dir, folder)
-        os.makedirs(path, exist_ok=True)
-        print(f"Created folder: {path}")
+#     for folder in folders:
+#         path = os.path.join(current_dir, folder)
+#         os.makedirs(path, exist_ok=True)
+#         print(f"Created folder: {path}")
 
-def generate_artifacts(input_dir, downscaled_dir):
-    create_artifact_folders()
+# def generate_artifacts(input_dir, downscaled_dir):
+#     create_artifact_folders()
 
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    comparison_dir = os.path.join(current_dir, '1280_16x9_vertical_comparison')
-    tile_comparison_dir = os.path.join(current_dir, '1280_16x9_tile_vertical_comparison')
-    repatched_dir = os.path.join(current_dir, '1280_16x9_repatched')
+#     current_dir = os.path.dirname(os.path.abspath(__file__))
+#     comparison_dir = os.path.join(current_dir, '1280_16x9_vertical_comparison')
+#     tile_comparison_dir = os.path.join(current_dir, '1280_16x9_tile_vertical_comparison')
+#     repatched_dir = os.path.join(current_dir, '1280_16x9_repatched')
 
-    repatch_downscaled_tiles(downscaled_dir, input_dir)
+#     repatch_downscaled_tiles(downscaled_dir, input_dir)
 
-    create_vertical_comparison(input_dir, repatched_dir, comparison_dir)
+#     create_vertical_comparison(input_dir, repatched_dir, comparison_dir)
 
-    create_tile_vertical_comparisons(input_dir, downscaled_dir, downscaled_dir, tile_comparison_dir)
+#     create_tile_vertical_comparisons(input_dir, downscaled_dir, downscaled_dir, tile_comparison_dir)
 
+def compute_image_variance_pil(pil_image):
+    """
+    Compute the variance of a PIL image.
+    
+    Args:
+        pil_image (PIL.Image): Input image in PIL format (can be grayscale or RGB)
+    
+    Returns:
+        variance (float): The variance of the image's pixel values
+    """
+    # Convert the PIL image to a NumPy array
+    image = np.array(pil_image)
+    
+    # If the image is RGB, convert it to grayscale
+    if len(image.shape) == 3:  # If the image has 3 channels (RGB)
+        image = np.dot(image[..., :3], [0.299, 0.587, 0.114])  # Standard grayscale conversion
 
+    # Normalize pixel values to the range [0, 1]
+    image = image / 255.0
+    
+    # Compute the mean and variance
+    variance = np.var(image)
+    
+    return variance
+
+def create_challenge_tiles(input_dir:str, output_dir:str, info_file_path:str):
+    """
+    For every image in input dir, crop the 3 locations that FSRCNN has trouble upscaling into 64x64 tiles.
+    Save to output_dir if the variance is high enough
+    """
+    try:
+        os.makedirs(output_dir, exist_ok=False)
+    except OSError as e:
+        print(f"Error creating output directory: {e}")
+        raise e
+    
+    with open("./challenge/tile_variance.txt", 'w') as frame_var:
+        for filename in tqdm(os.listdir(input_dir)):
+            path = os.path.join(input_dir, filename)
+            image = Image.open(path)
+            tiles = []
+            tiles.append(image.crop((84, 42, 84 + 64, 42 + 64)))
+            tiles.append(image.crop((52, 95, 52 + 64, 95 + 64)))
+            tiles.append(image.crop((1150, 42, 1150 + 64, 42 + 64)))
+
+            for i in range(len(tiles)):
+                tile_filename = f"{os.path.splitext(filename)[0]}_tile_{i}.png"
+                tile_variance = compute_image_variance_pil(tiles[i])
+                if(tile_variance > 0.01):
+                    frame_var.write(f"{tile_filename:<22}: {tile_variance}\n")
+                    tiles[i].save(os.path.join(output_dir, tile_filename))
+    
 if __name__ == '__main__':
     # Set parameters here
     current_dir = os.path.dirname(os.path.abspath(__file__))
     input_dir = os.path.join(current_dir, '1280_16x9')
-    output_dir = os.path.join(current_dir, '1280_16x9_tiles')
-    downscaled_dir = os.path.join(current_dir, '1280_16x9_tiles_downscaled')
-    # input_dir = os.path.join(current_dir, '10_images')
-    # output_dir = os.path.join(current_dir, '10_image_tiles')
-    # downscaled_dir = os.path.join(current_dir, '10_image_tiles_downscaled')
+    output_dir = os.path.join(current_dir, 'challenge/challenge_64x64')
+    downscaled_dir = os.path.join(current_dir, 'challenge/challenge_32x32')
 
     # Crop tiles to 64x64
-    #crop_tiles(input_dir, output_dir, tile_size=64, n_threads=10)
-
-    downscale_cropped_tiles(output_dir, downscaled_dir, 10)
+    # crop_tiles(input_dir, output_dir, tile_size=64, n_threads=10)
+    
+    # For every image in input dir, crop a 64x64 tile and save to a new dir.
+    # Each tile will be of the start coins and timer to highlight issues with FSRCNN
+    # From each image, take the following image coordinates:
+    # (84,42)
+    # (52,95)
+    # (1150,42)
+    
+    # Example to use image variance measurement
+    # low_var_path = "C:/Users/bucht/OneDrive/Desktop/SR_MQP/Models/data/1280_16x9/frame14.png"
+    # high_var_path = "C:/Users/bucht/OneDrive/Desktop/SR_MQP/Models/data/1280_16x9/frame2683.png"
+    # print(compute_image_variance_pil(Image.open(low_var_path)))
+    # print(compute_image_variance_pil(Image.open(high_var_path)))
+    # exit()
+    
+    downscale_images_from_dir(output_dir, downscaled_dir, n_threads=1, factor=2)
 
     #create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
 
