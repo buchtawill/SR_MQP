@@ -1,6 +1,6 @@
 import os
 import torch
-#from tqdm import tqdm
+from tqdm import tqdm
 from PIL import Image
 from torchvision import transforms
 
@@ -18,8 +18,8 @@ def make_low_res_filename(high_res_filename:str):
     return low_res_filename
 
 if __name__ == '__main__':
-    high_res_dir = './1280_16x9'
-    low_res_dir = './640_16x9'
+    high_res_dir = './challenge/challenge_64x64'
+    low_res_dir = './challenge/challenge_32x32'
 
     high_res_list = []
     low_res_list  = []
@@ -29,12 +29,11 @@ if __name__ == '__main__':
     ])
 
     print("Starting...")
-    for high_res_filename in os.listdir(high_res_dir):
+    for high_res_filename in tqdm(os.listdir(high_res_dir)):
         high_res_file_path = os.path.join(high_res_dir, high_res_filename)
         high_res_image = Image.open(os.path.join(high_res_dir, high_res_filename))
         
-        # low_res_filename = make_low_res_filename(high_res_filename)
-        low_res_filename = high_res_filename
+        low_res_filename = make_low_res_filename(high_res_filename)
         low_res_file_path = os.path.join(low_res_dir, low_res_filename)
         low_res_image = Image.open(low_res_file_path)
         #print(low_res_filename)
@@ -61,5 +60,5 @@ if __name__ == '__main__':
     print(f"INFO [create_pt.py] High res tensor shape: {high_res_tensors.shape}")
     print(f"INFO [create_pt.py] Low res tensor shape:  {low_res_tensors.shape}")
 
-    torch.save(low_res_tensors, "./640p_tensors.pt")
-    torch.save(high_res_tensors, "./1280p_tensors.pt")
+    torch.save(low_res_tensors, "./challenge/challenge_low_res.pt")
+    torch.save(high_res_tensors, "./challenge/challenge_high_res.pt")
