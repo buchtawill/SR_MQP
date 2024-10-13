@@ -114,6 +114,10 @@ class SR_tensor_dataset(Dataset):
         self.high_res_tensors = torch.load(high_res_tensors_path, weights_only=True)
         self.low_res_tensors  = torch.load(low_res_tensors_path, weights_only=True)
         
+        print(f"INFO [SR_tensor_dataset::__init__()] High res shape: {self.high_res_tensors.shape}")
+        print(f"INFO [SR_tensor_dataset::__init__()] Low  res shape: {self.low_res_tensors.shape}")
+        
+        
         if(len(self.high_res_tensors) != len(self.low_res_tensors)):
             raise Exception("The number of low res and high res tensors must be the same.")
              
