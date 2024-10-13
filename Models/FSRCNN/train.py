@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 NUM_EPOCHS = 100
 BATCH_SIZE = 16
 LEARN_RATE = 0.0005
-COLOR_SPACE = 'yuv'
+COLOR_SPACE = 'rgb'
 
 # Define the RGB to YUV conversion matrix and its inverse (YUV to RGB)
 rgb_to_yuv = torch.tensor([[ 0.299,  0.587,  0.114],
@@ -161,9 +161,9 @@ if __name__ == '__main__':
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    # model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
+    model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
     
-    # print_model_summary(model, 1, 3, 32, 32)
+    # print_model_summary(model, 1, 3, 28, 28)
     # exit()
     
     criterion = nn.MSELoss()
