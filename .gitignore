@@ -2,7 +2,8 @@
 temp_data
 Models/FSRCNN/runs
 *.code-workspace
-Models/data/1280_16x9*
+Models/data/data
+Models/FSRCNN/tensor_test.py
 *.pt
 *.pth
 *.png
