@@ -4,8 +4,8 @@ import time
 import torch
 import torchinfo
 import numpy as np
-from tqdm import tqdm
 from PIL import Image
+from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
@@ -16,8 +16,8 @@ from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
 NUM_EPOCHS = 100
-BATCH_SIZE = 16
-LEARN_RATE = 0.0005
+BATCH_SIZE = 64
+LEARN_RATE = 0.0002
 COLOR_SPACE = 'rgb'
 
 # Define the RGB to YUV conversion matrix and its inverse (YUV to RGB)
@@ -41,8 +41,35 @@ def yuv_to_rgb_batch(yuv_batch):
 def tensor_to_image(tensor:torch.tensor) -> Image:
     return transforms.ToPILImage()(tensor)
 
-def plot_images(low_res, inference, truths, title):
+
+def normalize_tensor_image(rgb_tensor):
+    """
+    Expects rgb_tensor to be of shape (C, H, W)
+    """
     
+    # rgb_tensor = rgb_tensor.permute(2, 1, 0) # From (C,H,W) to (H,W,C)
+    rgb_min = rgb_tensor.min()
+    rgb_max = rgb_tensor.max()
+
+    # For every pixel
+    # for i in range(len(rgb_tensor)):
+    #     for j in range(len(rgb_tensor[0])):
+    #         largest = torch.max(rgb_tensor[i,j])
+    #         smallest = torch.min(rgb_tensor[i,j])
+    #         if(largest > 1.0 or smallest < 0):
+                # rgb_tensor[i,j] -= smallest
+                # rgb_tensor[i,j] /= (largest - smallest)
+                # print(f"HAHAH I FOUND ONE:", rgb_tensor[i,j])
+                # rgb_tensor[i,j] /= largest
+                # rgb_tensor[i,j] = (rgb_tensor[i,j] - rgb_min) / (rgb_max - rgb_min)
+    # rgb_tensor = rgb_tensor.permute(2, 1, 0) # From (H,W,C) to (C,H,W)
+    
+    rgb_tensor = (rgb_tensor - rgb_min) / (rgb_max - rgb_min)
+                
+    return rgb_tensor
+
+def plot_images(low_res, inference, truths, title):
+    #plot low res, non-normalized, normalized, nearest neighbor, truth
     low_res = low_res.cpu()
     inference = inference.cpu()
     truths = truths.cpu()
@@ -52,19 +79,23 @@ def plot_images(low_res, inference, truths, title):
         inference = yuv_to_rgb_batch(inference)
         truths = yuv_to_rgb_batch(truths)
 
-    fig, axs = plt.subplots(3, 3, figsize=(8, 8))
+    fig, axs = plt.subplots(3, 4, figsize=(12, 8))
     for i in range(3):
-        axs[0, i].imshow(tensor_to_image(low_res[i]), cmap='gray')
-        axs[0, i].axis('off')
-        axs[0, i].set_title('Low Res')
+        axs[i, 0].set_title('Low Res')
+        axs[i, 0].imshow(tensor_to_image(normalize_tensor_image(low_res[i])))
+        axs[i, 0].axis('off')
         
-        axs[1, i].imshow(tensor_to_image(inference[i]))
-        axs[1, i].axis('off')
-        axs[1, i].set_title('Upscaled')
+        axs[i, 1].set_title('Upscaled')
+        axs[i, 1].imshow(tensor_to_image(inference[i]))
+        axs[i, 1].axis('off')
         
-        axs[2, i].imshow(tensor_to_image(truths[i]))
-        axs[2, i].axis('off')
-        axs[2, i].set_title('Truth')
+        axs[i, 2].set_title('Normalized')
+        axs[i, 2].imshow(tensor_to_image(normalize_tensor_image(inference[i])))
+        axs[i, 2].axis('off')
+        
+        axs[i, 3].set_title('Truth')
+        axs[i, 3].imshow(tensor_to_image(normalize_tensor_image(truths[i])))
+        axs[i, 3].axis('off')
     plt.tight_layout()
     plt.savefig(title)
     # plt.show()
@@ -124,19 +155,19 @@ def train_normal(model:FSRCNN,
         model.train()
         train_loss = model_dataloader_inference(model=model, dataloader=train_dataloader, device=device, criterion=criterion, optimzer=optimizer)
         model.eval()
-        test_loss  = model_dataloader_inference(model=model, dataloader=valid_dataloader, device=device, criterion=criterion, optimzer=None)
+        test_loss  = model_dataloader_inference(model=model, dataloader=test_dataloader, device=device, criterion=criterion, optimzer=None)
         
         tb_writer.add_scalar("Loss/train", train_loss, epoch + 1)
         tb_writer.add_scalar("Loss/test",  test_loss,  epoch + 1)
         
-        print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.8f} | Test Loss: {test_loss:.8f}')
+        print(f'Epoch {epoch:>{6}} | Train loss: {train_loss:.8f} | Test Loss: {test_loss:.8f}', flush=True)
         
         if(epoch % 1 == 0):
-            low_res, hi_res_truth = next(iter(train_dataloader)) #get first images
+            low_res, hi_res_truth = next(iter(test_dataloader)) #get first images
             low_res = low_res.to(device)
             hi_res_truth = hi_res_truth.to(device)
             inference = model(low_res)
-            loss = criterion(inference, hi_res_truth)
+            # loss = criterion(inference, hi_res_truth)
             
             plot_images(low_res, inference, hi_res_truth, f"epoch_results/epoch{epoch+1}.png")
 
@@ -161,7 +192,7 @@ if __name__ == '__main__':
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./100E_5em4_b64.pth', weights_only=True))
+    model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
     
     # print_model_summary(model, 1, 3, 28, 28)
     # exit()
@@ -173,7 +204,8 @@ if __name__ == '__main__':
     seed = 50  # Set the seed for reproducibility
     torch.manual_seed(seed)
     print("INFO [train.py] Loading Tensor pair dataset")
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/yuv_test/yuv_5k_images_64x64.pt', low_res_tensors_path='../data/yuv_test/yuv_5k_images_32x32.pt')
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors.pt', low_res_tensors_path='../data/data/low_res_tensors.pt')
+    # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/challenge/challenge_high_res.pt', low_res_tensors_path='../data/data/challenge/challenge_low_res.pt')
     # print("INFO [train.py] Loading image pair dataset")
     # transform = transforms.Compose([transforms.ToTensor()])
     # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
@@ -192,7 +224,7 @@ if __name__ == '__main__':
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
-    print(f'INFO [train.py] Num training batches: {len(train_dataloader)}')
+    print(f'INFO [train.py] Num training batches: {len(train_dataloader)}', flush = True)
     #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
     tb_writer = SummaryWriter()
     
@@ -206,7 +238,7 @@ if __name__ == '__main__':
                  device=device)
                 
     tb_writer.flush()
-    torch.save(model.state_dict(), './test_yuv.pth')
+    torch.save(model.state_dict(), './saved_weights/weights.pth')
     
     tEnd = time.time()
     print(f"INFO [train.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
