@@ -1,12 +1,36 @@
-#include <iostream>
-#include <cmath>
+//These will need to be uncommented and the appropriate libraries added to overall design
+//#include <iostream>
+//#include <cmath>
+//#include <hls_stream.h>
+//#include <ap_axi_sdata.h>
+
+//8-bit interger with side-channel, used for the TLAST signal which indicates streaming is done
+typedef ap_axis<8, 2, 5, 6> intSdCh;
 
 //based off of this https://gist.github.com/folkertdev/6b930c7a7856e36dcad0a72a03e66716
-void interp_top(int image[], int featureMap[]){
+void interp_top(hls::stream<int8> &image, hls::stream<intSdCh> &featureMap){
+    #pragma HLS INTERFACE axis port=featureMap
+    #pragma HLS INTERFACE axi port=image
+    #pragma HLS INTERFACE s_axilite port=return bundle=CRTL_BUS //allows Zynq/Microblaze to control IP core
+
     const int imageWidth = 28;
     const int imageHeight = 28;
     const int featureMapWidth = 56;
     const int featureMapHeight = 56;
+
+    
+
+    //need to store image value streamed in so that it can be used for bilin interpolation 
+
+    int8 imageStored;
+    intSdCh featureMapStored;
+
+    for(int i = 0; i < imageWidth * imageHeight; i++){
+    //#pragma HLS PIPELINE
+        imageStored = image.read();
+    }
+
+    //generate interpolated feature map
 
     float x_ratio = (imageWidth - 1) / (featureMapWidth - 1);
     float y_ratio = (imageHeight - 1) / (featureMapHeight - 1);
@@ -17,7 +41,7 @@ void interp_top(int image[], int featureMap[]){
         //iterate through each of the output columns
         for(int j = 0; j < featureMapWidth; j++){
 
-                        float x_l = floor(x_ratio * (float)j);
+            float x_l = floor(x_ratio * (float)j);
             float x_h = ceil(x_ratio * (float)j);
 
             float y_l = floor(x_ratio * (float)i);
@@ -26,19 +50,33 @@ void interp_top(int image[], int featureMap[]){
             float x_weight = (x_ratio * (float)j) - x_l;
             float y_weight = (y_ratio * (float)i) - y_l;
 
-            float a = image[(int)y_l * imageWidth + int(x_l)];
-            float b = image[(int)y_l * imageWidth + int(x_h)];
-            float c = image[(int)y_h * imageWidth + int(x_l)];
-            float d = image[(int)y_h * imageWidth + int(x_h)];
+            float a = imageStored[(int)y_l * imageWidth + int(x_l)];
+            float b = imageStored[(int)y_l * imageWidth + int(x_h)];
+            float c = imageStored[(int)y_h * imageWidth + int(x_l)];
+            float d = imageStored[(int)y_h * imageWidth + int(x_h)];
 
             float pixel = (a + b + c + d)/4;
 
-            featureMap[i * featureMapWidth + j] = pixel;
+            featureMapStored[i * featureMapWidth + j].data = pixel;
 
         }
     }
 
+    //pass interpolated feature map out through stream
+    for(int i = 0; i < featureMapWidth * featureMapHeight; i++){
+        featureMapStored[i].keep; //indicates whether content of byte of data is processed
+        featureMapStored[i].strb; //indicates whether content of byte of data is processed as data or as position
+        featureMapStored[i].user; //not entirely sure what this is used for
+        featureMapStored[i].last = 0;
+        featureMapStored[i].id; //identifier (not sure if it is byte or stream)
+        featureMapStored[i].dest; //destination
 
+        //if last byte being sent indicate that in streamed value
+        if(i == featureMapWidth * featureMapHeight - 1){
+            featureMapStored[i].last = 1;
+        }
+    }
 
-    
+    featureMap.write(featureMapStored);
+
 }
