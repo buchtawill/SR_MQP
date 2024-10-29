@@ -12,10 +12,14 @@
 # limitations under the License.
 # ============================================================================
 """Realize the model definition function."""
+import os
 from math import sqrt
 
 import torch
 from torch import nn
+import sys
+from PIL import Image
+import torchvision.transforms as transforms
 
 
 class FSRCNN(nn.Module):
@@ -130,3 +134,49 @@ class FSRCNN(nn.Module):
 
         nn.init.normal_(self.deconv.weight.data, mean=0.0, std=0.001)
         nn.init.zeros_(self.deconv.bias.data)
+
+
+def process_image(input_path):
+    # Initialize model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = FSRCNN(upscale_factor=2, color_space='rgb').to(device)
+
+    # Load pretrained weights
+    weights_path = '100E_5em4_b64_CPU.pth'  # Update this path to your weights file
+    if not os.path.exists(weights_path):
+        raise Exception(f"Model weights not found at {weights_path}")
+
+    model.load_state_dict(torch.load(weights_path, map_location=device))
+    model.eval()
+
+    print(f"Loaded model weights from {weights_path}")
+
+    # Load and process image
+    img = Image.open(input_path).convert('RGB')
+    transform = transforms.ToTensor()
+    input_tensor = transform(img).unsqueeze(0).to(device)
+
+    print(f"Processing image of size: {img.size}")
+    print(f"Input tensor shape: {input_tensor.shape}")
+
+    # Process through model
+    with torch.no_grad():
+        output = model(input_tensor)
+
+    print(f"Output tensor shape: {output.shape}")
+    print(f"Output tensor range: [{output.min().item():.3f}, {output.max().item():.3f}]")
+
+    # Save output
+    output = output.cpu().squeeze(0).clamp(0, 1)
+    output_img = transforms.ToPILImage()(output)
+    output_img.save('upscaled_image.png', 'PNG')
+    print(f"Saved output image of size: {output_img.size}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python FSRCNN.py <input_image>")
+        sys.exit(1)
+    
+    input_path = sys.argv[1]
+    process_image(input_path)
