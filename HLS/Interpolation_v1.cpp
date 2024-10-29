@@ -1,29 +1,31 @@
-//These will need to be uncommented and the appropriate libraries added to overall design
+//throwing errors in VS Code, but I think thats because its not referencing what was downloaded in Vitis HLS
+//#include "hls_math.h"
+//#include "hlslib.h"
+#include “ap_int.h”
+//TAMD documentation didn't mention these libraries, but they were used in various tutorials I found
 //#include <iostream>
 //#include <cmath>
 //#include <hls_stream.h>
-//#include <ap_axi_sdata.h>
+//#include "ap_axi_sdata.h"
 
 //8-bit interger with side-channel, used for the TLAST signal which indicates streaming is done
 typedef ap_axis<8, 2, 5, 6> intSdCh;
 
 //based off of this https://gist.github.com/folkertdev/6b930c7a7856e36dcad0a72a03e66716
-void interp_top(hls::stream<int8> &image, hls::stream<intSdCh> &featureMap){
+void interp_top(hls::stream<int8_t> &image, hls::stream<intSdCh> &featureMap){
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axi port=image
     #pragma HLS INTERFACE s_axilite port=return bundle=CRTL_BUS //allows Zynq/Microblaze to control IP core
 
+    //parameterize
     const int imageWidth = 28;
     const int imageHeight = 28;
     const int featureMapWidth = 56;
-    const int featureMapHeight = 56;
+    const int featureMapHeight = 56;   
 
-    
-
-    //need to store image value streamed in so that it can be used for bilin interpolation 
-
-    int8 imageStored;
-    intSdCh featureMapStored;
+    //need to store image value streamed in so that it can be used for bilinear interpolation 
+    int8 imageStored[imageWidth*imageHeight];
+    intSdCh featureMapStored[featureMapWidth*featureMapHeight];
 
     for(int i = 0; i < imageWidth * imageHeight; i++){
     //#pragma HLS PIPELINE
@@ -66,10 +68,10 @@ void interp_top(hls::stream<int8> &image, hls::stream<intSdCh> &featureMap){
     for(int i = 0; i < featureMapWidth * featureMapHeight; i++){
         featureMapStored[i].keep; //indicates whether content of byte of data is processed
         featureMapStored[i].strb; //indicates whether content of byte of data is processed as data or as position
-        featureMapStored[i].user; //not entirely sure what this is used for
+        //featureMapStored[i].user; //not entirely sure what this is used for
         featureMapStored[i].last = 0;
-        featureMapStored[i].id; //identifier (not sure if it is byte or stream)
-        featureMapStored[i].dest; //destination
+        //featureMapStored[i].id; //identifier (not sure if it is byte or stream)
+        //featureMapStored[i].dest; //destination
 
         //if last byte being sent indicate that in streamed value
         if(i == featureMapWidth * featureMapHeight - 1){
