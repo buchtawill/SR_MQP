@@ -140,48 +140,7 @@ def normalize_tensor_image(rgb_tensor):
     return rgb_tensor
 
 
-if __name__ == '__main__':
-    tstart = time.time()
-    print(f"INFO [inference.py] Starting script at {tstart}")
-    
-    # Set up device, model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'INFO [inference.py] Using device: {device} [torch version: {torch.__version__}]')
-    print(f'INFO [inference.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
-    model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
-    
-    # print_model_summary(model, 1, 3, 32, 32)
-    # exit()
-    
-    criterion = nn.MSELoss()
-    
-    # Get dataset
-    seed = 50  # Set the seed for reproducibility
-    torch.manual_seed(seed)
-    # print("INFO [inference.py] Loading Tensor pair dataset")
-    # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/high_res_tensors.pt', low_res_tensors_path='../data/low_res_tensors.pt')
-    # print("INFO [inference.py] Loading image pair dataset")
-    # transform = transforms.Compose([transforms.ToTensor()])
-    # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
-    
-    # Create train and test datasets. Set small train set for faster training
-
-    # train_dataset, valid_dataset, test_dataset = \
-    #         torch.utils.data.random_split(full_dataset, [0.85, 0.10, 0.05], generator=torch.Generator())
-    # num_train_samples = len(train_dataset)
-    # print(f'INFO [inference.py] Total num data samples:    {len(full_dataset)}')
-    # print(f'INFO [inference.py] Num of training samples:   {num_train_samples}')
-    # print(f'INFO [inference.py] Num of validation samples: {len(valid_dataset)}')
-    # print(f'INFO [inference.py] Num of test samples:       {len(test_dataset)}')
-    
-    # Get Dataloader
-    # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    # valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    # test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
-    # print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
-    #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
-
+def plot_inference_times():
     inference = None
     truths = None
     
@@ -212,6 +171,52 @@ if __name__ == '__main__':
 
     plt.plot(batch_sizes, inference_times)
     plt.savefig('./inference_times.png')
+
+if __name__ == '__main__':
+    tstart = time.time()
+    print(f"INFO [inference.py] Starting script at {tstart}")
+    
+    # Set up device, model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'INFO [inference.py] Using device: {device} [torch version: {torch.__version__}]')
+    print(f'INFO [inference.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
+    model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
+    model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
+    
+    # print_model_summary(model, 1, 3, 32, 32)
+    # exit()
+    
+    criterion = nn.MSELoss()
+    
+    # Get dataset
+    seed = 50  # Set the seed for reproducibility
+    torch.manual_seed(seed)
+    print("INFO [inference.py] Loading Tensor pair dataset")
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/high_res_tensors.pt', low_res_tensors_path='../data/low_res_tensors.pt')
+    
+    # Create train and test datasets. Set small train set for faster training
+
+    train_dataset, valid_dataset, test_dataset = \
+            torch.utils.data.random_split(full_dataset, [0.85, 0.10, 0.05], generator=torch.Generator())
+    num_train_samples = len(train_dataset)
+    print(f'INFO [inference.py] Total num data samples:    {len(full_dataset)}')
+    print(f'INFO [inference.py] Num of training samples:   {num_train_samples}')
+    print(f'INFO [inference.py] Num of validation samples: {len(valid_dataset)}')
+    print(f'INFO [inference.py] Num of test samples:       {len(test_dataset)}')
+    
+    # Get Dataloader
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
+    print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
+    #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
+
+    low_res, hi_res_truth = next(iter(test_dataloader)).to(device)
+    
+    inference = model(low_res)
+    
+    # loss = criterion(inference, hi_res_truth)
+
     tEnd = time.time()
     print(f"INFO [inference.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
     print(f"INFO [inference.py] HH:MM:SS --> {sec_to_human(tEnd-tstart)}")
