@@ -11,21 +11,35 @@ OPENCV_LIBS = -L$(OPENCV_PREFIX)/lib \
               -lopencv_imgproc \
               -lopencv_imgcodecs
 
+# PyTorch/LibTorch settings (using Conda path)
+TORCH_PREFIX = $(shell python3 -c "import torch; print(torch.__path__[0])")
+TORCH_CFLAGS = -I$(TORCH_PREFIX)/include \
+               -I$(TORCH_PREFIX)/include/torch/csrc/api/include \
+               -D_GLIBCXX_USE_CXX11_ABI=0
+
+TORCH_LIBS = -L$(TORCH_PREFIX)/lib \
+             -ltorch \
+             -ltorch_cpu \
+             -lc10
+
 # Project settings
 TARGET = fsrcnn
 SRCS = main.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Combined flags
-ALL_CXXFLAGS = $(CXXFLAGS) $(OPENCV_CFLAGS)
-ALL_LIBS = $(OPENCV_LIBS)
+ALL_CXXFLAGS = $(CXXFLAGS) $(OPENCV_CFLAGS) $(TORCH_CFLAGS)
+ALL_LIBS = $(OPENCV_LIBS) $(TORCH_LIBS)
+
+# Rpath settings for macOS
+RPATH_FLAGS = -Wl,-rpath,$(OPENCV_PREFIX)/lib -Wl,-rpath,$(TORCH_PREFIX)/lib
 
 # Default target
 all: $(TARGET)
 
 # Linking
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(ALL_LIBS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(ALL_LIBS) $(RPATH_FLAGS)
 
 # Compilation
 %.o: %.cpp
@@ -39,16 +53,4 @@ clean:
 run: $(TARGET)
 	./$(TARGET)
 
-# Install dependencies (macOS)
-install-deps:
-	brew update
-	brew install opencv
-	brew install pkg-config
-	pip install torch torchvision
-
-# Create test directory and download sample image
-setup-test:
-	mkdir -p testImage
-	curl -o testImage/img.jpg https://raw.githubusercontent.com/xinntao/Real-ESRGAN/master/inputs/00003.jpg
-
-.PHONY: all clean run install-deps setup-test
+.PHONY: all clean run
