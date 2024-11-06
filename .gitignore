@@ -2,7 +2,6 @@
 temp_data
 Models/FSRCNN/runs
 *.code-workspace
-Models/data/data
 Models/FSRCNN/tensor_test.py
 *.pt
 *.pth
