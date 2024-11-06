@@ -15,7 +15,7 @@ typedef ap_int<32> lite_data_t;
 
 //based off of this https://gist.github.com/folkertdev/6b930c7a7856e36dcad0a72a03e66716
 //assumes that image and feature map will always be squares, otherwise would need to take in imageHeight
-void interp_top(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
+void interpolator(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axis port=image
     #pragma HLS INTERFACE s_axilite port=imageWidth
