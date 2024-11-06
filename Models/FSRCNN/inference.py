@@ -85,7 +85,7 @@ def plot_images(low_res, inference, truths, title:str=None):
     plt.close()
 
 
-def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
+def model_dataloader_inference(model, dataloader, device, criterion, optimizer):
     """
     Run the forward pass of model on all samples in dataloader with criterion loss. If optimizer is set to None,
     this function will NOT perform gradient updates or optimizations.
@@ -113,7 +113,7 @@ def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
         
         loss = criterion(inference, hi_res_truth)
         
-        if(optimzer is not None):
+        if(optimizer is not None):
             loss.backward()
             optimizer.step()
         
