@@ -1,0 +1,1 @@
+{"original_size": [1280, 720], "tile_size": 64, "num_tiles": [20, 12]}
