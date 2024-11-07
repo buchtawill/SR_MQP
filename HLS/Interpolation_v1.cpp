@@ -15,37 +15,38 @@ typedef ap_int<32> lite_data_t;
 
 //based off of this https://gist.github.com/folkertdev/6b930c7a7856e36dcad0a72a03e66716
 //assumes that image and feature map will always be squares, otherwise would need to take in imageHeight
-void interpolator(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
+void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axis port=image
-    #pragma HLS INTERFACE s_axilite port=imageWidth
-    #pragma HLS INTERFACE s_axilite port=scalingFactor
+    #pragma HLS INTERFACE s_axilite port=loadedInfo
     #pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
 
     /*
     const int imageWidth = 28;
     const int imageHeight = 28;
     const int featureMapWidth = 56;
-    const int featureMapHeight = 56;  
-    */  
+    const int featureMapHeight = 56;
+    */
 
     //we should be able to parameterize this, but starting with constant for now because I don't want to mess up data type
-    const uint8_t pixelsPerStream = 128;
+    const ap_uint<8> pixelsPerStream = 128;
 
     //store value from axi stream
-    uint8_t loadValue = loadedInfo.read();
+    ap_uint<8> loadValue = loadedInfo.read();
 
     //mask and store values for image width and scaling factor when image width is the LSByte and scaling factor is next LSByte
-    uint8_t imageWdith = loadValue & 0377;
-    uint8_t scalingFactor = loadValue & 0177400;
+    ap_uint<8> imageWidth = loadValue & 0377;
+    ap_uint<8> scalingFactor = loadValue & 0177400;
 
     //calculate size of image and feature map
-    uint8_t imageSize = imageWidth*imageWidth;
-    uint8_t featureMapWidth = imageWidth*scalingFactor;   
+    ap_uint<8> imageSize = imageWidth*imageWidth;
+    ap_uint<8> featureMapWidth = imageWidth*scalingFactor;
 
-    //need to store image value streamed in so that it can be used for bilinear interpolation 
-    uint8_t imageStored[imageWidth*imageWidth];
-    uint8_t featureMapStored[imageWidth*scalingFactor*imageWidth*scalingFactor];
+    //need to store image value streamed in so that it can be used for bilinear interpolation
+    //ap_uint<8> imageStored[imageWidth*imageWidth];
+    ap_uint<8> imageStored[32*32];
+    //ap_uint<8> featureMapStored[imageWidth*scalingFactor*imageWidth*scalingFactor];
+    ap_uint<8> featureMapStored[28*2*28*2];
 
     //store input image and feature maps in URAM
     #pragma HLS RESOURCE variable=imageStored core=XPM_MEMORY uram
@@ -53,9 +54,12 @@ void interpolator(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> 
 
     //arrays to temporarily store image values for processing, need 2 rows to complete interpolation
     //then toss out the first, move up the second, and replace the second
-    uint8_t tempRed[imageWidth*2];
-    uint8_t tempGreen[imageWidth*2];
-    uint8_t tempBlue[imageWidth*2];
+    //ap_uint<8> tempRed[imageWidth*2];
+    //ap_uint<8> tempGreen[imageWidth*2];
+    //ap_uint<8> tempBlue[imageWidth*2];
+    ap_uint<8> tempRed[28*2];
+    ap_uint<8> tempGreen[28*2];
+    ap_uint<8> tempBlue[28*2];
 
     while(true){
 
@@ -73,7 +77,7 @@ void interpolator(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> 
         //perform operations
         //load back into URAM and pull more out
         //store both input and output image in URAM
-    
+
 
         //integer intervals: determines the location of the interpolated points
         float ratio = (imageWidth - 1) / (featureMapWidth - 1);
@@ -85,19 +89,19 @@ void interpolator(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> 
 
                 //determies x values for the coordinates to the left and right of the pixel being interpolated
                 //uint_8
-                uint8_t x_l = floor(ratio * (float)j);
-                uint8_t x_h = ceil(ratio * (float)j);
+            	ap_uint<8> x_l = floor(ratio * (float)j);
+            	ap_uint<8> x_h = ceil(ratio * (float)j);
 
                 //determines the y values for the coordinate to the top and bottom of the pixel being interpolated
-                uint8_t y_l = floor(ratio * (float)i);
-                uint8_t y_h = ceil(ratio * (float)i);
+            	ap_uint<8> y_l = floor(ratio * (float)i);
+            	ap_uint<8> y_h = ceil(ratio * (float)i);
 
 
                 //gets the values from the four pixels you are interpolating from
-                uint8_t a = imageStored[y_l * imageWidth + x_l];
-                uint8_t b = imageStored[y_l * imageWidth + x_h];
-                uint8_t c = imageStored[y_h * imageWidth + x_l];
-                uint8_t d = imageStored[y_h * imageWidth + x_h];
+            	ap_uint<8> a = imageStored[y_l * imageWidth + x_l];
+            	ap_uint<8> b = imageStored[y_l * imageWidth + x_h];
+            	ap_uint<8> c = imageStored[y_h * imageWidth + x_l];
+            	ap_uint<8> d = imageStored[y_h * imageWidth + x_h];
 
                 //don't need to multiply by weights since they are all equadistant
                 int pixel = int((a + b + c + d)/4);
