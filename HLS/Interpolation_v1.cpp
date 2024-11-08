@@ -35,6 +35,7 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
     ap_uint<8> loadValue = loadedInfo.read();
 
     //mask and store values for image width and scaling factor when image width is the LSByte and scaling factor is next LSByte
+    //0 in front indicates that its in hex
     ap_uint<8> imageWidth = loadValue & 0377;
     ap_uint<8> scalingFactor = loadValue & 0177400;
 
@@ -63,9 +64,10 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
     while(true){
 
-        //128 bits, 16 pixel values, 5 images and an extra
-        //might be easier to only use 120
+        //128 bits, 16 values (128/8), 5 pixels (16/3) and an extra
+        //might be easier to only use 120 bits of the 128
         //read in and store the image values in staging ground
+        //28 * 2 / 5 = need 12 reads in order to get two rows
         for(int i = 0; i < pixelsPerStream / (8*3); i++){
             tempRed[i] = (image.read() >> i*8) & 0377;
             tempGreen[i] = (image.read() >> i*8*2) & 0377;
