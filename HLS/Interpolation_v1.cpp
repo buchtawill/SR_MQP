@@ -2,6 +2,7 @@
 #include <hls_stream.h>
 #include <ap_int.h>
 #include <cmath>
+#include <iostream>
 
 //creates data type that data will be streamed in through
 typedef ap_int<128> stream_data_t;
@@ -21,23 +22,25 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
     #pragma HLS INTERFACE s_axilite port=loadedInfo
     #pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
 
-    /*
-    const int imageWidth = 28;
-    const int imageHeight = 28;
-    const int featureMapWidth = 56;
-    const int featureMapHeight = 56;
-    */
+
+	ap_uint<8> imageWidth = 28;
+	ap_uint<8> scalingFactor = 2;
+    //const int imageHeight = 28;
+    //const int featureMapWidth = 56;
+    //const int featureMapHeight = 56;
+
 
     //we should be able to parameterize this, but starting with constant for now because I don't want to mess up data type
     const ap_uint<8> bitsPerStream = 128;
 
     //store value from axi stream
-    ap_uint<8> loadValues[32] = loadedInfo.read();
+    ap_uint<8> loadValues[32];
+    //loadValues = loadedInfo.read();
 
     //mask and store values for image width and scaling factor when image width is the LSByte and scaling factor is next LSByte
     //0 in front indicates that its in hex
-    ap_uint<8> imageWidth = loadValue & 0xFF;
-    ap_uint<8> scalingFactor = loadValue & 0xFF00;
+    //ap_uint<8> imageWidth = loadValues & 0xFF;
+    //ap_uint<8> scalingFactor = loadValues & 0xFF00;
 
     //calculate size of image and feature map
     ap_uint<8> imageSize = imageWidth*imageWidth;
@@ -66,32 +69,40 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
     unsigned char tempRed[28*2];
     unsigned char tempGreen[28*2];
     unsigned char tempBlue[28*2];
+
+    unsigned char imageLoadIn;
+    unsigned char imageLoadInArray[16];
+
     //number of pixels stored, 2^10 = 1024, first power of 2 greater than 28*28*3
     ap_uint<12> valueStored = 0;
     ap_uint<12> fullRowsStored = 0;
-    up_uint<12> fullRowsUpscaled = 0;
+    ap_uint<12> fullRowsUpscaled = 0;
 
     while(true){
 
-        unsigned char imageLoadIn[16] = image.read();
+        imageLoadIn = image.read();
         
+        auto loadResult = std::to_chars(imageLoadInArray, imageLoadInArray + sizeof(imageLoadInArray), imageLoadIn);
+
         //could go up to i < 16, but not sure how to handle storing one extra color value
         for(int i = i; i < 15; i++){
 
+        	ap_uint<12> loadIndex = floor(i/3);
+
             if(i % 3 == 0){
-                tempRed[valueStored + i] = imageLoadIn[floor(i/3)];
+                tempRed[valueStored + i] = imageLoadInArray[loadIndex];
             }
             else if(i % 3 == 1){
-                tempGreen[valuedStored + i] = imageLoadIn[floor(i/3)];
+                tempGreen[valueStored + i] = imageLoadInArray[loadIndex];
             }
             else if(i % 3 == 2){
-                tempBlue[valueStored + i] == imageLoadIn[floor(i/3)];
+                tempBlue[valueStored + i] == imageLoadInArray[loadIndex];
             }
         }
 
         //it seems like this will work in the way C++ is compiled/exectuted but might break it
         valueStored += 5;
-        fullRowsStored = fullRowsStored + floor(valuedStore / 28)
+        fullRowsStored = fullRowsStored + floor(valueStored / 28);
 
         //once two rows have been stored
         if(fullRowsStored == 2){
