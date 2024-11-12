@@ -47,22 +47,29 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
     //ap_uint<8> imageStored[imageWidth*imageWidth];
     ap_uint<8> imageStored[32*32];
     //ap_uint<8> featureMapStored[imageWidth*scalingFactor*imageWidth*scalingFactor];
-    ap_uint<8> featureMapStored[28*2*28*2];
+    //storing the feature maps separately allows for more pipelining
+    ap_uint<8> featureMapStoredRed[28*2*28*2];
+    ap_uint<8> featureMapStoredGreen[28*2*28*2];
+    ap_uint<8> featureMapStoredBlue[28*2*28*2];
 
     //integer intervals: determines the location of the interpolated points
     float ratio = (imageWidth - 1) / (featureMapWidth - 1);
 
     //store input image and feature maps in URAM
     #pragma HLS RESOURCE variable=imageStored core=XPM_MEMORY uram
-    #pragma HLS RESOURCE variable=featureMapStored code=XPM_MEMORY uram
+    #pragma HLS RESOURCE variable=featureMapStoredRed code=XPM_MEMORY uram
+    #pragma HLS RESOURCE variable=featureMapStoredGreen code=XPM_MEMORY uram
+    #pragma HLS RESOURCE variable=featureMapStoredBlue code=XPM_MEMORY uram
 
     //arrays to temporarily store image values for processing, need 2 rows to complete interpolation
     //then toss out the first, move up the second, and replace the second
     unsigned char tempRed[28*2];
     unsigned char tempGreen[28*2];
     unsigned char tempBlue[28*2];
-    //2^10 = 1024, first power of 2 greater than 28*28*3
-    ap_uint<12> valueStored;
+    //number of pixels stored, 2^10 = 1024, first power of 2 greater than 28*28*3
+    ap_uint<12> valueStored = 0;
+    ap_uint<12> fullRowsStored = 0;
+    up_uint<12> fullRowsUpscaled = 0;
 
     while(true){
 
@@ -72,23 +79,25 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
         for(int i = i; i < 15; i++){
 
             if(i % 3 == 0){
-                tempRed[i] = imageLoadIn[floor(i/3)];
+                tempRed[valueStored + i] = imageLoadIn[floor(i/3)];
             }
             else if(i % 3 == 1){
-                tempGreen[i] = imageLoadIn[floor(i/3)];
+                tempGreen[valuedStored + i] = imageLoadIn[floor(i/3)];
             }
             else if(i % 3 == 2){
-                tempBlue[i] == imageLoadIn[floor(i/3)];
+                tempBlue[valueStored + i] == imageLoadIn[floor(i/3)];
             }
         }
 
         //it seems like this will work in the way C++ is compiled/exectuted but might break it
-        valueStored += 1;
+        valueStored += 5;
+        fullRowsStored = fullRowsStored + floor(valuedStore / 28)
 
         //once two rows have been stored
-        if(valueStored == 12){
+        if(fullRowsStored == 2){
 
-
+            //makes the loops execute concurrently
+            #pragma HLS DATAFLOW
 
             //iterate through the two stored rows
             for(int i = 0; i < 2; i++){
@@ -114,7 +123,7 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
                     //don't need to multiply by weights since they are all equadistant
                     int pixel = int((a + b + c + d)/4);
 
-                    featureMapStored[i * featureMapWidth + j] = pixel;
+                    featureMapStoredRed[i * featureMapWidth + j] = pixel;
                 }
             }
 
@@ -142,7 +151,7 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
                     //don't need to multiply by weights since they are all equadistant
                     int pixel = int((a + b + c + d)/4);
 
-                    featureMapStored[i * featureMapWidth + j] = pixel;
+                    featureMapStoredGreen[i * featureMapWidth + j] = pixel;
                 }
             }
 
@@ -170,21 +179,30 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
                     //don't need to multiply by weights since they are all equadistant
                     int pixel = int((a + b + c + d)/4);
 
-                    featureMapStored[i * featureMapWidth + j] = pixel;
+                    featureMapStoredBlue[i * featureMapWidth + j] = pixel;
                 }
             }
+
+            fullRowsUpscaled += 1;
         }
 
-        //staging areas for each RGB
-        //read URAM to populate staging areas
-        //perform operations
-        //load back into URAM and pull more out
-        //store both input and output image in URAM
 
+        if(fullRowsUpscaled == featureMapWidth){
 
-        //pass interpolated feature map out through stream
-        for(int i = 0; i < featureMapWidth * featureMapWidth; i++){
-            featureMap.write(featureMapStored[i]);
+            for(int i = 0; i < featureMapWidth; i++){
+
+                for(int j = 0; j < featureMapWidth; j++){
+                    if(j % 3 == 0){
+                        featureMap.write(tempRed[i*featureMapWidth + j]);
+                    }
+                    else if(i % 3 == 1){
+                        featureMap.write(tempGreen[i*featureMapWidth + j]);
+                    }
+                    else if(i % 3 == 2){
+                        featureMap.write(tempBlue[i*featureMapWidth + j]);
+                    }
+                }
+            }
         }
 
     } //while true
