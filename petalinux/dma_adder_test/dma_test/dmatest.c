@@ -35,6 +35,7 @@ Modified by Will Buchta 11/12/2024
 #include <string.h>
 #include <termios.h>
 #include <sys/mman.h>
+#include <stdint.h>
 
 #define MM2S_CONTROL_REGISTER       0x00
 #define MM2S_STATUS_REGISTER        0x04
@@ -69,6 +70,12 @@ Modified by Will Buchta 11/12/2024
 #define ENABLE_DELAY_IRQ            0x00002000
 #define ENABLE_ERR_IRQ              0x00004000
 #define ENABLE_ALL_IRQ              0x00007000
+
+#define DMA_AXI_LITE_BASE			0xA0010000
+#define ADD_MULT_BASE_ADDR  		0xA0000000
+
+#define VIRTUAL_SRC_ADDR 			0x0e000000
+#define VIRTUAL_DST_ADDR 			0x0f000000
 
 unsigned int write_dma(unsigned int *virtual_addr, int offset, unsigned int value)
 {
@@ -248,29 +255,35 @@ void print_mem(void *virtual_address, int byte_count)
 
 int main()
 {
+
+	// FIFO is configured to be 256 entries deep.
+	// AXIS FPU configured to calculate float of input.
+
     printf("Hello World! - Running DMA transfer test application.\n");
+    printf("DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
 
 	printf("Opening a character device file of the Arty's DDR memeory...\n");
 	int ddr_memory = open("/dev/mem", O_RDWR | O_SYNC);
 
-	printf("Memory map the address of the DMA AXI IP via its AXI lite control interface register block.\n");
-    unsigned int *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x40400000);
+	printf("Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
+    uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
 
-	printf("Memory map the MM2S source address register block.\n");
-    unsigned int *virtual_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x0e000000);
+	printf("Memory mapping the MM2S source address register block.\n");
+    float *virtual_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_SRC_ADDR);
 
-	printf("Memory map the S2MM destination address register block.\n");
-    unsigned int *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x0f000000);
+	printf("Memory mapping the S2MM destination address register block.\n");
+    uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
 
 	printf("Writing random data to source register block...\n");
-	virtual_src_addr[0]= 0xEFBEADDE;
-	virtual_src_addr[1]= 0x11223344;
-	virtual_src_addr[2]= 0xABABABAB;
-	virtual_src_addr[3]= 0xCDCDCDCD;
-	virtual_src_addr[4]= 0x00001111;
-	virtual_src_addr[5]= 0x22223333;
-	virtual_src_addr[6]= 0x44445555;
-	virtual_src_addr[7]= 0x66667777;
+
+	virtual_src_addr[0] = 1.0f;
+	virtual_src_addr[1] = 2.0f;
+	virtual_src_addr[2] = 3.0f;
+	virtual_src_addr[3] = 4.0f;
+	virtual_src_addr[4] = 10.0f;
+	virtual_src_addr[5] = 100.0f;
+	virtual_src_addr[6] = 256.0f;
+	virtual_src_addr[7] = 482.0;
 
 	printf("Clearing the destination register block...\n");
     memset(virtual_dst_addr, 0, 32);
@@ -300,11 +313,11 @@ int main()
     dma_mm2s_status(dma_virtual_addr);
 
     printf("Writing source address of the data from MM2S in DDR...\n");
-    write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, 0x0e000000);
+    write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, VIRTUAL_SRC_ADDR);
     dma_mm2s_status(dma_virtual_addr);
 
     printf("Writing the destination address for the data from S2MM in DDR...\n");
-    write_dma(dma_virtual_addr, S2MM_DST_ADDRESS_REGISTER, 0x0f000000);
+    write_dma(dma_virtual_addr, S2MM_DST_ADDRESS_REGISTER, VIRTUAL_DST_ADDR);
     dma_s2mm_status(dma_virtual_addr);
 
 	printf("Run the MM2S channel.\n");
@@ -336,6 +349,15 @@ int main()
 	print_mem(virtual_dst_addr, 32);
 
 	printf("\n");
+
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[0], ((float*)virtual_dst_addr)[0]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[1], ((float*)virtual_dst_addr)[1]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[2], ((float*)virtual_dst_addr)[2]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[3], ((float*)virtual_dst_addr)[3]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[4], ((float*)virtual_dst_addr)[4]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[5], ((float*)virtual_dst_addr)[5]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[6], ((float*)virtual_dst_addr)[6]);
+	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[7], ((float*)virtual_dst_addr)[7]);
 
     return 0;
 }
