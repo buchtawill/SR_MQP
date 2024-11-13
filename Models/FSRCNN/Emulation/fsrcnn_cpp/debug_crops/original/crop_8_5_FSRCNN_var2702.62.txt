@@ -1,0 +1,5 @@
+Method: FSRCNN
+Variance: 2702.62
+Position: (140,224)
+Size: 28x28
+Threshold: 1000.00

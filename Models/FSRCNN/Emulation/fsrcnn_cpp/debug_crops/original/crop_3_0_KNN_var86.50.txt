@@ -1,0 +1,5 @@
+Method: KNN
+Variance: 86.50
+Position: (0,84)
+Size: 28x28
+Threshold: 1000.00
