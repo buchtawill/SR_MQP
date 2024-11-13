@@ -260,38 +260,34 @@ int main()
 	// FIFO is configured to be 256 entries deep.
 	// AXIS FPU configured to calculate float of input.
 
-    printf("INFO [dmatest.c] Running DMA transfer test application.\n");
+    printf("INFO [dmatest.c] Running DMA transfer test application\n");
     printf("INFO [dmatest.c] DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
 
 	printf("INFO [dmatest.c] Opening a character device file of the Arty's DDR memeory...\n");
 	int ddr_memory = open("/dev/mem", O_RDWR | O_SYNC);
 	if(ddr_memory < 0){
-		printf("ERROR [dmatest.c] Failed to open /dev/mem\n");
-		printf("ERROR [dmatest.c] %s\n", strerror(errno));
+		printf("ERROR [dmatest.c] Failed to open /dev/mem: %s\n", strerror(errno));
 		return -1;
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
     uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
 	if(dma_virtual_addr == MAP_FAILED){
-		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block.\n");
-		printf("ERROR [dmatest.c] %s\n", strerror(errno));
+		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
 		return -1;
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the MM2S source address register block.\n");
     float *virtual_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_SRC_ADDR);
 	if(virtual_src_addr == MAP_FAILED){
-		printf("ERROR [dmatest.c] Failed to map MM2S source address register block.\n");
-		printf("ERROR [dmatest.c] %s\n", strerror(errno));
+		printf("ERROR [dmatest.c] Failed to map MM2S source address register block: %s\n", strerror(errno));
 		return -1;
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the S2MM destination address register block.\n");
     uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
 	if(virtual_dst_addr == MAP_FAILED){
-		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block.\n");
-		printf("ERROR [dmatest.c] %s\n", strerror(errno));
+		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block: %s\n", strerror(errno));
 		return -1;
 	}
 
