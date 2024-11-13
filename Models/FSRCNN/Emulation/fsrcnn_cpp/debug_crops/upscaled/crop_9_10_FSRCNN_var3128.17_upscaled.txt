@@ -1,5 +1,0 @@
-Method: FSRCNN
-Variance: 3128.17
-Position: (280,252)
-Size: 28x28
-Threshold: 1000.00
