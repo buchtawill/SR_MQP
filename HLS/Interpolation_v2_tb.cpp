@@ -79,38 +79,72 @@ int main(){
 		image.write(valueIn);
 	}
 
+
 	//run interpolation block
 	Interpolation_v2(image, featureMap, loadedInfo);
 
+
 	/*
-	 * Read output from Interpolation block axi stream
+	 * Read output from Interpolation block axi-stream
 	 */
-	//9408 pixels values (56x56x3), 16 pixel values per read, 588 reads
+
+	//75264 bits in feature map, 588 reads
 	for(int i = 0; i < 588; i++){
 
 		ap_uint<128> tempRead;
-		unsigned char tempChar;
+		uint8_t tempChar;
 
 		tempRead = featureMap.read();
 
-		//j < 16 because 16 chars in 128 bit transfer
+		//16, 8-bit values per transfer
 		for(int j = 0; j < 16; j++){
 
-			//get bottom 8 bits
-			tempChar = tempRead & 0xF;
-			//store in output image (getting in reverse order than we want them to be stored)
-			outputImageAll[i*15 - j] = tempChar;
-			//shift for next read
-			tempRead = tempRead >> 8;
+			tempChar = (tempRead & (0xFF << (15 - j))) >> ((15 - j) * 8);
+			outputImageAll[i*16 + j] = tempChar;
 		}
 	}
 
-	//run bilinear interpolation from testbench
+	/*
+	 * Run bilinear interpolation to test again
+	 */
 	bilinear_interpolation(inputImageRed, outputImageRed);
 	bilinear_interpolation(inputImageGreen, outputImageGreen);
 	bilinear_interpolation(inputImageBlue, outputImageBlue);
 
-	//verify result
+	/*
+	 * Verify results
+	 */
+
+	int errors = 0;
+	uint8_t blockValue;
+	uint8_t tbValue;
+
+	//9408 values to compare
+	for(int i = 0; i < 9408; i++){
+		blockValue = outputImageAll[i];
+		if(i % 3 == 0){
+			tbValue = outputImageRed[std::floor(i / 3)];
+		}
+		else if(i % 3 == 1){
+			tbValue = outputImageGreen[std::floor(i / 3)];
+		}
+		else if(i % 3 == 2){
+			tbValue = outputImageBlue[std::floor(i / 3)];
+		}
+
+		if(blockValue != tbValu){
+			errors++;
+			cout << "Error: value from block = " << blockValue << ", value from tb = " << tbValue;
+		}
+
+		//gives it chance to interpolate 2 full rows
+		if(errors >= 112){
+			break;
+		}
+
+	}
+
+
 
 }
 
