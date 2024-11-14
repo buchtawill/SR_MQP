@@ -4,6 +4,9 @@
 #include <iostream>
 #include <random>
 
+typedef ap_int<128> stream_data_t;
+typedef ap_int<32> lite_data_t;
+
 void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo);
 
 int main(){
@@ -47,6 +50,8 @@ int main(){
 
 		//used for block being tested
 		inputImageAll[i] = temp;
+
+		//INPUT IMAGES ARE 2D ARRAYS
 
 		//used for block comparing against one being tested
 		if(i % 3 == 0){
@@ -118,6 +123,8 @@ int main(){
 	int errors = 0;
 	uint8_t blockValue;
 	uint8_t tbValue;
+
+	//OUTPUT IMAGES ARE 2D ARRAYS
 
 	//9408 values to compare
 	for(int i = 0; i < 9408; i++){
