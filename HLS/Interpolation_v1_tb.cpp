@@ -96,11 +96,13 @@ int main(){
 	}
 
 	//run interpolation block
-	Interpolation_v1(image, featureMap, loadedInfo);
+	Interpolation_v2(image, featureMap, loadedInfo);
 
-	//takes 1182 reads to get full upscaled image (5 pixels per read),
-	//9408 pixels, 1881 reads gives 9405
-	for(int i = 0; i < 1882; i++){
+	/*
+	 * Read output from Interpolation block axi stream
+	 */
+	//9408 pixels values (56x56x3), 16 pixel values per read, 588 reads
+	for(int i = 0; i < 588; i++){
 
 		ap_uint<128> tempRead;
 		unsigned char tempChar;
@@ -117,28 +119,12 @@ int main(){
 			//shift for next read
 			tempRead = tempRead >> 8;
 		}
-
-
-
-
-
-		//if last read only read in 3
-		if(i == 1881){
-	        for(int j = 0; j <3; j++){
-	        	tempPixel = (tempRead & (0xFF << j*8)) >> j*8;
-	        	outputImageAll[i*5 + j] = tempPixel;
-	        }
-		}
-		//if not last read in 5
-		else {
-	        for(int j = 0; j <5; j++){
-	        	tempPixel = (tempRead & (0xFF << j*8)) >> j*8;
-	        	outputImageAll[i*5 + j] = tempPixel;
-	        }
-		}
 	}
 
-	//read data from output stream
+	//run bilinear interpolation from testbench
+	bilinear_interpolation(inputImageRed, outputImageRed);
+	bilinear_interpolation(inputImageGreen, outputImageGreen);
+	bilinear_interpolation(inputImageBlue, outputImageBlue);
 
 	//verify result
 
@@ -156,6 +142,7 @@ void bilinear_interpolation(const std::vector<std::vector<int>>& input_image, st
             float y = (float)(i) * (32 - 1) / (32 - 1);
 
             //four nearest pixel values from input
+            //consider moving to rounding up on 5 instead of flooring it, success with Diyar's code
             int x1 = std::floor(x);
             int y1 = std::floor(y);
             int x2 = std::min(x1 + 1, input_width - 1);
