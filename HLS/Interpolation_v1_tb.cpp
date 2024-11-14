@@ -8,6 +8,10 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
 int main(){
 
+	/*
+	 * Initializations
+	 */
+
 	//create axi stream for image, featureMap, and loadedInfo
 	hls::stream<ap_int<128>> image;
 	hls::stream<ap_int<128>> featureMap;
@@ -28,29 +32,110 @@ int main(){
 	unsigned char outputImageAll[56*56*3];
 
 
+	/*
+	 * Generate input image
+	 */
+
+	//counting up to 28*28*3 -> 2352
+	int numValuesLoaded = 0;
+
 	//generate and store image pixel values
 	for(int i = 0; i < 2352; i++){
 
 		//generates a number between 0 and 255
 		char temp = rand() % 256;
+
+		//used for block being tested
 		inputImageAll[i] = temp;
+
+		//used for block comparing against one being tested
 		if(i % 3 == 0){
 			inputImageRed[floor(i / 3)] = temp;
 		}
 		if(i % 3 == 1){
-			inputImage[floor(i / 3)] = temp;
+			inputImageGreen[floor(i / 3)] = temp;
 		}
 		if(i % 3 == 2){
-			inputImage[floor(i / 3)] = temp;
+			inputImageBlue[floor(i / 3)] = temp;
 		}
 	}
 
 
-	//write data to input streams
+
+	/*
+	 * Write input image to Interpolation block
+	 */
+
 	//5 pixels in per stream (120 bits), 157 streams required
 	//only 4 pixels streamed on the last transfer
 	for(int i = 0; i < 157; i++){
+
 		ap_uint<128> valueIn;
+
+		//every transfer streaming 120 bits
+		//groups of 8 (chars) -> 15 values from inputImageAll
+		//last transfer only does 4 pixels -> 96 bits
+
+		for(int j = 0; j < 12; j++){
+			valueIn = (valueIn << (8*j)) | inputImageAll[i*15 + j];
+		}
+
+		//if not last transfer add another pixel
+		if(i != 156){
+			valueIn = (valueIn << 8) | inputImageAll[i*15 + 12];
+		}
+		//otherwise shift in zeros
+		else {
+			valueIn = valueIn << 8;
+		}
+
+		//since only sending 120 bits per clock cycle, always need to shift in 8 zeros at the end
+		valueIn = valueIn << 8;
+
+		image.write(valueIn);
+	}
+
+	//run interpolation block
+	Interpolation_v1(image, featureMap, loadedInfo);
+
+	//takes 1182 reads to get full upscaled image (5 pixels per read),
+	//9408 pixels, 1881 reads gives 9405
+	for(int i = 0; i < 1882; i++){
+
+		ap_uint<128> tempRead;
+		unsigned char tempChar;
+
+		tempRead = featureMap.read();
+
+		//j < 16 because 16 chars in 128 bit transfer
+		for(int j = 0; j < 16; j++){
+
+			//get bottom 8 bits
+			tempChar = tempRead & 0xF;
+			//store in output image (getting in reverse order than we want them to be stored)
+			outputImageAll[i*15 - j] = tempChar;
+			//shift for next read
+			tempRead = tempRead >> 8;
+		}
+
+
+
+
+
+		//if last read only read in 3
+		if(i == 1881){
+	        for(int j = 0; j <3; j++){
+	        	tempPixel = (tempRead & (0xFF << j*8)) >> j*8;
+	        	outputImageAll[i*5 + j] = tempPixel;
+	        }
+		}
+		//if not last read in 5
+		else {
+	        for(int j = 0; j <5; j++){
+	        	tempPixel = (tempRead & (0xFF << j*8)) >> j*8;
+	        	outputImageAll[i*5 + j] = tempPixel;
+	        }
+		}
 	}
 
 	//read data from output stream
