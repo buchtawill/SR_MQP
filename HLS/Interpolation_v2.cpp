@@ -31,17 +31,18 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     const int upscalingFactor = 2;
 
     //dimensions of feature<Map
-    int featureMapWidth = imageWidht * scale;
-    int featureMapHeight = imageHeight * scale;
+    int featureMapWidth = imageWidth * upscalingFactor;
+    int featureMapHeight = imageHeight * upscalingFactor;
 
     //need to store image value streamed in so that it can be used for bilinear interpolation
     uint8_t imageStored[imageWidth*imageHeight];
     
     //need to store featureMap value to be streamed out
-    uint8_t featureMapStored[featureMapWidth * featureMapHeight]
+    //uint8_t featureMapStored[featureMapWidth * featureMapHeight];
+    uint8_t featureMapStored[56 * 56];
 
-    #pragma HLS RESOURCE variable=imageStored core=XPM_MEMORY uram
-    #pragma HLS RESOURCE variable=featureMapStored core=XPM_MEMORY uram
+    #pragma HLS bind_storage variable=imageStored core=XPM_MEMORY uram
+    #pragma HLS bind_storage variable=featureMapStored core=XPM_MEMORY uram
 
     //store value from axi-stream
     ap_uint<128> imageLoadIn;
@@ -64,8 +65,8 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
         //ADD STAGING GROUND HERE - would change image load in sequence
 
         // For each pixel in feature map image
-        for (int i = 0; fmY < featureMapHeight; ++i){
-            for (int j = 0; fmX < featureMapWidth; ++j)
+        for (int fmY = 0; fmY < featureMapHeight; ++fmY){
+            for (int fmX = 0; fmX < featureMapWidth; ++fmX)
             {
                 // Map the pixel to the input image
                 int x_in = static_cast<int>(std::round(fmX / upscalingFactor));
@@ -75,9 +76,9 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
                 //location in input array of nearest pixels to one being interpolated 
                 int x0 = static_cast<int>(std::floor(x_in));
-                int x1 = std::min(x0 + 1, width - 1);
+                int x1 = std::min(x0 + 1, imageWidth - 1);
                 int y0 = static_cast<int>(std::floor(y_in));
-                int y1 = std::min(y0 + 1, height - 1);
+                int y1 = std::min(y0 + 1, imageHeight - 1);
 
                 // Calculate the distances between the neighboring pixels -> should always be 1
                 int dx = static_cast<int>(std::round(x_in - x0));
@@ -99,10 +100,10 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
                 for (int c = 0; c < 3; ++c)
                 {
                     // Get the values of the four neighboring pixels
-                    uint8_t p00 = imageStored[(y0 * inputWidth + x0) * 3 + c];
-                    uint8_t p10 = imageStored[(y0 * inputWidth + x1) * 3 + c];
-                    uint8_t p01 = imageStored[(y1 * inputWidth + x0) * 3 + c];
-                    uint8_t p11 = imageStored[(y1 * inputWidth + x1) * 3 + c];
+                    uint8_t p00 = imageStored[(y0 * imageWidth + x0) * 3 + c];
+                    uint8_t p10 = imageStored[(y0 * imageWidth + x1) * 3 + c];
+                    uint8_t p01 = imageStored[(y1 * imageWidth + x0) * 3 + c];
+                    uint8_t p11 = imageStored[(y1 * imageWidth + x1) * 3 + c];
 
                     // Compute the interpolated pixel value
                     uint8_t interpolatedValue = static_cast<uint8_t>(std::round(w00 * p00 + w10 * p10 + w01 * p01 + w11 * p11));
@@ -117,8 +118,8 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
         for(int i = 0; i < 588; i++){
 
             //16 pixel color values per transfer
-            for(int j = 0; j < pixelsPerTransfer; j++){
-                ap_int<128> transValue = featureMapStored[i * pixelsPerTransfer + j] << (8 * ((pixelsPerTransfer - 1) - j));
+            for(int j = 0; j < pixelsPerStream; j++){
+                ap_int<128> transValue = featureMapStored[i * pixelsPerStream + j] << (8 * ((pixelsPerStream - 1) - j));
             }
 
         }
