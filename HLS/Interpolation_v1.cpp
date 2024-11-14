@@ -81,7 +81,7 @@ void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data
     while(true){
 
         imageLoadIn = image.read();
-        
+
         auto loadResult = std::to_chars(imageLoadInArray, imageLoadInArray + sizeof(imageLoadInArray), imageLoadIn);
 
         //could go up to i < 16, but not sure how to handle storing one extra color value
