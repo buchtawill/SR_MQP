@@ -66,31 +66,15 @@ int main(){
 	 * Write input image to Interpolation block
 	 */
 
-	//5 pixels in per stream (120 bits), 157 streams required
-	//only 4 pixels streamed on the last transfer
-	for(int i = 0; i < 157; i++){
+	//16 color pixel values per transfer, 147 total transfers
+	for(int i = 0; i < 147; i++){
 
-		ap_uint<128> valueIn;
+		ap_uint<128> valueIn = 0;
 
-		//every transfer streaming 120 bits
-		//groups of 8 (chars) -> 15 values from inputImageAll
-		//last transfer only does 4 pixels -> 96 bits
-
-		for(int j = 0; j < 12; j++){
-			valueIn = (valueIn << (8*j)) | inputImageAll[i*15 + j];
-		}
-
-		//if not last transfer add another pixel
-		if(i != 156){
-			valueIn = (valueIn << 8) | inputImageAll[i*15 + 12];
-		}
-		//otherwise shift in zeros
-		else {
-			valueIn = valueIn << 8;
-		}
-
-		//since only sending 120 bits per clock cycle, always need to shift in 8 zeros at the end
-		valueIn = valueIn << 8;
+            //loads in image from axi-stream to array of uint_8
+            for(int j = 0; j < 16; j++){
+            	valueIn = valueIn || (inputImageAll[i * 16 + j] << ((16 - 1 - j) * 8));
+            }
 
 		image.write(valueIn);
 	}
