@@ -6,10 +6,11 @@
 typedef ap_int<128> stream_data_t;
 typedef ap_int<32> lite_data_t;
 
-void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
+//void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
+void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap){
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axis port=image
-    #pragma HLS INTERFACE s_axilite port=loadedInfo
+    //#pragma HLS INTERFACE s_axilite port=loadedInfo
     #pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
 
     //store value from axi lite
@@ -35,12 +36,13 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     int featureMapHeight = imageHeight * upscalingFactor;
 
     //need to store image value streamed in so that it can be used for bilinear interpolation
-    uint8_t imageStored[imageWidth*imageHeight];
+    uint8_t imageStored[imageWidth*imageHeight*3];
     
     //need to store featureMap value to be streamed out
     //uint8_t featureMapStored[featureMapWidth * featureMapHeight];
-    uint8_t featureMapStored[56 * 56];
+    uint8_t featureMapStored[56 * 56*3];
 
+    //consider storing in block ram instead of ultraram
     #pragma HLS bind_storage variable=imageStored core=XPM_MEMORY uram
     #pragma HLS bind_storage variable=featureMapStored core=XPM_MEMORY uram
 

@@ -7,7 +7,8 @@
 typedef ap_int<128> stream_data_t;
 typedef ap_int<32> lite_data_t;
 
-void Interpolation_v1(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo);
+void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap);
+void bilinear_interpolation(uint8_t (&input_image)[28][28], uint8_t (&output_image)[56][56]);
 
 int main(){
 
@@ -39,9 +40,11 @@ int main(){
 	 * Generate input image
 	 */
 
-	//counting up to 28*28*3 -> 2352
-	int numValuesLoaded = 0;
 
+	int row = 0;
+	int column = 0;
+
+	//counting up to 28*28*3 -> 2352
 	//generate and store image pixel values
 	for(int i = 0; i < 2352; i++){
 
@@ -53,15 +56,23 @@ int main(){
 
 		//INPUT IMAGES ARE 2D ARRAYS
 
+		//for non-RGB 2D matrices
+		//dividing i by 28*3 will give row
+		//i - floor(i % 28*3) gives column position
+		//(i - floor(i % 28*3)) % 3 gives which color
+
+		row = static_cast<int>(floor(i / (28*3)));
+		column = i - (row*3);
+
 		//used for block comparing against one being tested
-		if(i % 3 == 0){
-			inputImageRed[floor(i / 3)] = temp;
+		if(column % 3 == 0){
+			inputImageRed[row][static_cast<int>(floor(column/3))] = temp;
 		}
-		if(i % 3 == 1){
-			inputImageGreen[floor(i / 3)] = temp;
+		if(column % 3 == 1){
+			inputImageGreen[row][static_cast<int>(floor(column/3))] = temp;
 		}
-		if(i % 3 == 2){
-			inputImageBlue[floor(i / 3)] = temp;
+		if(column % 3 == 2){
+			inputImageBlue[row][static_cast<int>(floor(column/3))] = temp;
 		}
 	}
 
@@ -86,7 +97,7 @@ int main(){
 
 
 	//run interpolation block
-	Interpolation_v2(image, featureMap, loadedInfo);
+	Interpolation_v2(image, featureMap);
 
 
 	/*
@@ -106,6 +117,20 @@ int main(){
 
 			tempChar = (tempRead & (0xFF << (15 - j))) >> ((15 - j) * 8);
 			outputImageAll[i*16 + j] = tempChar;
+
+			row = static_cast<int>(floor(i / (56*3)));
+			column = i - (row*3);
+
+			//used for block comparing against one being tested
+			if(column % 3 == 0){
+				outputImageRed[row][static_cast<int>(floor(column/3))] = tempChar;
+			}
+			if(column % 3 == 1){
+				outputImageGreen[row][static_cast<int>(floor(column/3))] = tempChar;
+			}
+			if(column % 3 == 2){
+				outputImageBlue[row][static_cast<int>(floor(column/3))] = tempChar;
+			}
 		}
 	}
 
@@ -129,19 +154,28 @@ int main(){
 	//9408 values to compare
 	for(int i = 0; i < 9408; i++){
 		blockValue = outputImageAll[i];
-		if(i % 3 == 0){
-			tbValue = outputImageRed[std::floor(i / 3)];
+
+
+		row = static_cast<int>(floor(i / (56*3)));
+		column = i - (row*3);
+
+		//used for block comparing against one being tested
+		if(column % 3 == 0){
+			tbValue = outputImageRed[row][static_cast<int>(floor(column/3))];
 		}
-		else if(i % 3 == 1){
-			tbValue = outputImageGreen[std::floor(i / 3)];
+		if(column % 3 == 1){
+			tbValue = outputImageGreen[row][static_cast<int>(floor(column/3))];
 		}
-		else if(i % 3 == 2){
-			tbValue = outputImageBlue[std::floor(i / 3)];
+		if(column % 3 == 2){
+			tbValue = outputImageBlue[row][static_cast<int>(floor(column/3))];
 		}
 
-		if(blockValue != tbValu){
+		if(blockValue != tbValue){
 			errors++;
-			cout << "Error: value from block = " << blockValue << ", value from tb = " << tbValue;
+			printf("Error: value from block = %d, value from tb = %d", blockValue, tbValue);
+		}
+		else{
+			printf("Correct: value from block = %d, value from tb = %d", blockValue, tbValue);
 		}
 
 		//gives it chance to interpolate 2 full rows
@@ -155,7 +189,7 @@ int main(){
 
 }
 
-void bilinear_interpolation(const std::vector<std::vector<int>>& input_image, std::vector<std::vector<int>>& output_image){
+void bilinear_interpolation(uint8_t (&input_image)[28][28], uint8_t (&output_image)[56][56]){
 
     // loop through output image - red
     for (int i = 0; i < 56; ++i) {
@@ -170,8 +204,8 @@ void bilinear_interpolation(const std::vector<std::vector<int>>& input_image, st
             //consider moving to rounding up on 5 instead of flooring it, success with Diyar's code
             int x1 = std::floor(x);
             int y1 = std::floor(y);
-            int x2 = std::min(x1 + 1, input_width - 1);
-            int y2 = std::min(y1 + 1, input_height - 1);
+            int x2 = std::min(x1 + 1, 32 - 1);
+            int y2 = std::min(y1 + 1, 32 - 1);
 
             // Bilinear interpolation formula
             int top_left = input_image[y1][x1];
