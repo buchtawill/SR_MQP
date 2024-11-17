@@ -11,7 +11,7 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axis port=image
     //#pragma HLS INTERFACE s_axilite port=loadedInfo
-    #pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
+    //#pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
 
     //store value from axi lite
     ap_uint<32> loadValues;
@@ -29,6 +29,7 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     //input image widths: hoping to parameterize this
     const int imageWidth = 28;
     const int imageHeight = 28;
+    const int channels = 3;
     const int upscalingFactor = 2;
 
     //dimensions of feature<Map
@@ -38,6 +39,10 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     //need to store image value streamed in so that it can be used for bilinear interpolation
     uint8_t imageStored[imageWidth*imageHeight*3];
     
+    //trying to solve II Violation issue
+	//#pragma HLS ARRAY_PARTITION variable=imageStored
+
+
     //need to store featureMap value to be streamed out
     //uint8_t featureMapStored[featureMapWidth * featureMapHeight];
     uint8_t featureMapStored[56 * 56*3];
@@ -51,17 +56,28 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     //16, 8bit ints per 128 bit bus
     uint8_t imageLoadInArray[16];
 
+	//#pragma HLS ARRAY_PARTITION variable=imageStored complete
+	//#pragma HLS ARRAY_PARTITION variable=featureMapStored complete
+
+
     while(true){
+
 
         //147 reads to get full 28x28 image (with three channels per pixel)
         //can't do multiple reads to same data so should trigger new transfers each time, but not entirely sure
         for(int i = 0; i < 147; i++){
-            //loads in image from axi-stream to array of uint_8
-            imageLoadIn = image.read();
-            for(int j = 0; j < pixelsPerStream; j++){
-                //imageLoadInArray[j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
-                imageStored[i*pixelsPerStream + j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
-            }
+
+        	while(image.empty()){
+    			#pragma HLS PIPELINE II=1
+        	}
+
+			//loads in image from axi-stream to array of uint_8
+			imageLoadIn = image.read();
+
+			for(int j = 0; j < pixelsPerStream; j++){
+				//imageLoadInArray[j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
+				imageStored[i*pixelsPerStream + j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
+			}
         }
 
         //ADD STAGING GROUND HERE - would change image load in sequence
@@ -118,11 +134,17 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
         //588 transfers of 128 bits to pass out whole feature map
         for(int i = 0; i < 588; i++){
-
+        	ap_int<128> transValue = 0;
             //16 pixel color values per transfer
             for(int j = 0; j < pixelsPerStream; j++){
-                ap_int<128> transValue = featureMapStored[i * pixelsPerStream + j] << (8 * ((pixelsPerStream - 1) - j));
+                transValue = featureMapStored[i * pixelsPerStream + j] << (8 * ((pixelsPerStream - 1) - j));
             }
+
+            while (featureMap.full()) {
+				#pragma HLS PIPELINE II=1
+            }
+
+            featureMap.write(transValue);
 
         }
 

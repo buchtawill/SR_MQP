@@ -64,6 +64,8 @@ int main(){
 		row = static_cast<int>(floor(i / (28*3)));
 		column = i - (row*3);
 
+		printf("Randomizing value %d, row: %d, column: %d \n", i, row, column);
+
 		//used for block comparing against one being tested
 		if(column % 3 == 0){
 			inputImageRed[row][static_cast<int>(floor(column/3))] = temp;
@@ -78,12 +80,15 @@ int main(){
 
 
 
+
 	/*
 	 * Write input image to Interpolation block
 	 */
 
 	//16 color pixel values per transfer, 147 total transfers
 	for(int i = 0; i < 147; i++){
+
+		printf("writing value %d to interpolater \n", i);
 
 		ap_uint<128> valueIn = 0;
 
@@ -92,11 +97,16 @@ int main(){
             	valueIn = valueIn || (inputImageAll[i * 16 + j] << ((16 - 1 - j) * 8));
             }
 
+		while (image.full()) {
+			#pragma HLS PIPELINE II=1
+		}
+
 		image.write(valueIn);
 	}
 
 
 	//run interpolation block
+	printf("Run interpolater\n");
 	Interpolation_v2(image, featureMap);
 
 
@@ -104,8 +114,14 @@ int main(){
 	 * Read output from Interpolation block axi-stream
 	 */
 
+
 	//75264 bits in feature map, 588 reads
 	for(int i = 0; i < 588; i++){
+		printf("Reading value %d from interpolater\n", i);
+
+    	while(image.empty()){
+			#pragma HLS PIPELINE II=1
+    	}
 
 		ap_uint<128> tempRead;
 		uint8_t tempChar;
@@ -137,6 +153,7 @@ int main(){
 	/*
 	 * Run bilinear interpolation to test again
 	 */
+	printf("Run bilin interp functions");
 	bilinear_interpolation(inputImageRed, outputImageRed);
 	bilinear_interpolation(inputImageGreen, outputImageGreen);
 	bilinear_interpolation(inputImageBlue, outputImageBlue);
@@ -153,6 +170,8 @@ int main(){
 
 	//9408 values to compare
 	for(int i = 0; i < 9408; i++){
+		printf("Compare value %d \n", i);
+
 		blockValue = outputImageAll[i];
 
 
@@ -191,21 +210,23 @@ int main(){
 
 void bilinear_interpolation(uint8_t (&input_image)[28][28], uint8_t (&output_image)[56][56]){
 
+	printf("Making it to bilin interp function");
+
     // loop through output image - red
     for (int i = 0; i < 56; ++i) {
         for (int j = 0; j < 56; ++j) {
 
             // Find the corresponding position in the input image
         	//need to be floats in order to determine neighbors later
-            float x = (float)(j) * (32 - 1) / (32 - 1);
-            float y = (float)(i) * (32 - 1) / (32 - 1);
+            float x = (float)(j) * (28 - 1) / (56 - 1);
+            float y = (float)(i) * (28 - 1) / (56 - 1);
 
             //four nearest pixel values from input
             //consider moving to rounding up on 5 instead of flooring it, success with Diyar's code
             int x1 = std::floor(x);
             int y1 = std::floor(y);
-            int x2 = std::min(x1 + 1, 32 - 1);
-            int y2 = std::min(y1 + 1, 32 - 1);
+            int x2 = std::min(x1 + 1, 28 - 1);
+            int y2 = std::min(y1 + 1, 28 - 1);
 
             // Bilinear interpolation formula
             int top_left = input_image[y1][x1];
