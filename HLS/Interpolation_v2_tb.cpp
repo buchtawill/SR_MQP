@@ -3,11 +3,28 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <cstdint>
+#include <chrono>
+#include <thread>
 
-typedef ap_int<128> stream_data_t;
-typedef ap_int<32> lite_data_t;
 
-void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap);
+// AXI-stream data type (1024-bit)
+struct ap_axiu_1024 {
+    ap_uint<1024> data; //sender -> receiver
+    ap_uint<1> last;    //sender -> receiver: Indicates last data in a burst
+    ap_uint<1> valid;   //sender -> receiver: Data is valid
+    ap_uint<1> ready;   //receiver -> sender: receiver is ready to accept data
+};
+
+// AXI-lite data type (32-bit)
+struct ap_axiu_32 {
+    ap_uint<32> data
+    ap_uint<1> last;    // Indicates last data in a burst
+    ap_uint<1> valid;   // Data is valid
+    ap_uint<1> ready;   // Consumer is ready to accept data
+};
+
+void Interpolation_v2(hls::stream<ap_axiu_1024> &image, hls::stream<ap_axiu_1024> &featureMap);
 void bilinear_interpolation(uint8_t (&input_image)[28][28], uint8_t (&output_image)[56][56]);
 
 int main(){
@@ -17,9 +34,9 @@ int main(){
 	 */
 
 	//create axi stream for image, featureMap, and loadedInfo
-	hls::stream<ap_int<128>> image;
-	hls::stream<ap_int<128>> featureMap;
-	hls::stream<ap_int<32>> loadedInfo;
+	hls::stream<ap_axiu_1024> image;
+	hls::stream<ap_axiu_1024> featureMap;
+	//hls::stream<ap_axiu_32> loadedInfo;
 
 	//input image values - tb interpolation
 	uint8_t inputImageRed[28][28];
@@ -28,18 +45,25 @@ int main(){
 	//will need to be broken into 120 bit ints for axi-stream
 	uint8_t inputImageAll[28*28*3];
 
+    //bus width: hoping to parameterize this
+    const int bitsPerStream = 1024;
+    const int pixelsPerStream = bitsPerStream / 8;
+
+	//std::fill_n(inputImageAll, 28*28*3, 1);
+
 	//output image values - tb interpolation
-	uint8_t outputImageRed[56][56];
-	uint8_t outputImageGreen[56][56];
-	uint8_t outputImageBlue[56][56];
+	//uint8_t outputImageRed[56][56];
+	//uint8_t outputImageGreen[56][56];
+	//uint8_t outputImageBlue[56][56];
 	//will need to be reassembled from 120 bit stream outs
-	uint8_t outputImageAll[56*56*3];
+	//uint8_t outputImageAll[56*56*3];
+
+
 
 
 	/*
 	 * Generate input image
 	 */
-
 
 	int row = 0;
 	int column = 0;
@@ -51,31 +75,33 @@ int main(){
 		//generates a number between 0 and 255
 		uint8_t temp = rand() % 256;
 
+		printf("Randomizing value %d, row: %d, column: %d, value: %d \n", i, row, column, temp);
+
 		//used for block being tested
+		//inputImageAll[i] = static_cast<uint8_t>(i % 255);
 		inputImageAll[i] = temp;
 
-		//INPUT IMAGES ARE 2D ARRAYS
-
-		//for non-RGB 2D matrices
-		//dividing i by 28*3 will give row
-		//i - floor(i % 28*3) gives column position
-		//(i - floor(i % 28*3)) % 3 gives which color
 
 		row = static_cast<int>(floor(i / (28*3)));
 		column = i - (row*3);
 
-		printf("Randomizing value %d, row: %d, column: %d \n", i, row, column);
-
+		/*
 		//used for block comparing against one being tested
 		if(column % 3 == 0){
+			printf(" color red \n");
 			inputImageRed[row][static_cast<int>(floor(column/3))] = temp;
 		}
 		if(column % 3 == 1){
+			printf(" color green \n");
 			inputImageGreen[row][static_cast<int>(floor(column/3))] = temp;
 		}
 		if(column % 3 == 2){
+			printf(" color blue \n");
 			inputImageBlue[row][static_cast<int>(floor(column/3))] = temp;
 		}
+		*/
+
+
 	}
 
 
@@ -85,29 +111,40 @@ int main(){
 	 * Write input image to Interpolation block
 	 */
 
-	//16 color pixel values per transfer, 147 total transfers
-	for(int i = 0; i < 147; i++){
+	//19 writes to give full 28x28 image (with three channels per pixel)
+	for(int i = 0; i < 19; i++){
 
-		printf("writing value %d to interpolater \n", i);
+		/*
+        //wait until featureMap is ready to receive new signals
+        while(!image.ready){
+        	sleep(1);
+        }
+        */
 
-		ap_uint<128> valueIn = 0;
+    	image.valid = 0;
 
-            //loads in image from axi-stream to array of uint_8
-            for(int j = 0; j < 16; j++){
-            	valueIn = valueIn || (inputImageAll[i * 16 + j] << ((16 - 1 - j) * 8));
-            }
+    	ap_uint<1024> transValue = 0;
 
-		while (image.full()) {
-			#pragma HLS PIPELINE II=1
-		}
+        for(int j = 0; j < pixelsPerStream; j++){ //128 pixel values per transfer
 
-		image.write(valueIn);
+			//if last axi transfer only pass in 48 pixelValues
+			if(i == 18 && j >= 48){
+				break;
+			}
+
+        	//data will be passed in with lowest array value in MSB
+        	ap_uint<1024> pixelValue = inputImageAll[i * pixelsPerStream + j];
+			transValue = transValue || pixelValue; //add pixel value to transfer
+			transValue = transValue << 8; //shift to make room for next pixel value
+
+        }
+
+        printf("Writing to interpolation block, transfer: %d value %d \n", i, valueIn);
+
+        //load data and indicate it is ready to be sent
+        image.data = transValue;
+        image.valid = 1;
 	}
-
-
-	//run interpolation block
-	printf("Run interpolater\n");
-	Interpolation_v2(image, featureMap);
 
 
 	/*
@@ -115,6 +152,7 @@ int main(){
 	 */
 
 
+	/*
 	//75264 bits in feature map, 588 reads
 	for(int i = 0; i < 588; i++){
 		printf("Reading value %d from interpolater\n", i);
@@ -149,10 +187,12 @@ int main(){
 			}
 		}
 	}
+	*/
 
 	/*
+	/*
 	 * Run bilinear interpolation to test again
-	 */
+
 	printf("Run bilin interp functions");
 	bilinear_interpolation(inputImageRed, outputImageRed);
 	bilinear_interpolation(inputImageGreen, outputImageGreen);
@@ -160,7 +200,7 @@ int main(){
 
 	/*
 	 * Verify results
-	 */
+
 
 	int errors = 0;
 	uint8_t blockValue;
@@ -203,6 +243,8 @@ int main(){
 		}
 
 	}
+
+	*/
 
 
 

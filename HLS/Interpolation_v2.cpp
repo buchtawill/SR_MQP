@@ -2,19 +2,35 @@
 #include <ap_int.h>
 #include <cmath>
 #include <iostream>
+#include <cstdint>
+#include <chrono>
+#include <thread>
 
-typedef ap_int<128> stream_data_t;
-typedef ap_int<32> lite_data_t;
+// AXI-stream data type (1024-bit)
+struct ap_axiu_1024 {
+    ap_uint<1024> data; //sender -> receiver
+    ap_uint<1> last;    //sender -> receiver: Indicates last data in a burst
+    ap_uint<1> valid;   //sender -> receiver: Data is valid
+    ap_uint<1> ready;   //receiver -> sender: receiver is ready to accept data
+};
+
+// AXI-lite data type (32-bit)
+struct ap_axiu_32 {
+    ap_uint<32> data;
+    ap_uint<1> last;    // Indicates last data in a burst
+    ap_uint<1> valid;   // Data is valid
+    ap_uint<1> ready;   // Consumer is ready to accept data
+};
 
 //void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap, hls::stream<lite_data_t> &loadedInfo){
-void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data_t> &featureMap){
+void Interpolation_v2(hls::stream<ap_axiu_1024> &image, hls::stream<ap_axiu_1024> &featureMap){
     #pragma HLS INTERFACE axis port=featureMap
     #pragma HLS INTERFACE axis port=image
     //#pragma HLS INTERFACE s_axilite port=loadedInfo
     //#pragma HLS INTERFACE axi_cntrl_none port=return //allows Zynq/Microblaze to control IP core
 
     //store value from axi lite
-    ap_uint<32> loadValues;
+    //ap_axiu_32 loadValues;
     //loadValues = loadedInfo.read();
 
     //mask and store values for image width and scaling factor when image width is the LSByte and scaling factor is next LSByte
@@ -23,7 +39,7 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
     //ap_uint<8> scalingFactor = loadValues & 0xFF00;
     
     //bus width: hoping to parameterize this
-    const int bitsPerStream = 128;
+    const int bitsPerStream = 1024;
     const int pixelsPerStream = bitsPerStream / 8;
 
     //input image widths: hoping to parameterize this
@@ -38,23 +54,28 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
     //need to store image value streamed in so that it can be used for bilinear interpolation
     uint8_t imageStored[imageWidth*imageHeight*3];
+    //std::fill_n(imageStored, imageWidth*imageHeight*3, 1);
     
-    //trying to solve II Violation issue
-	//#pragma HLS ARRAY_PARTITION variable=imageStored
+    /*
+    for(int i = 0; i < imageWidth * imageHeight * 3; i++){
+    	printf("%d", imageStored[i]);
+    	if(i % 10 == 0){
+    		printf("\n");
+    	}
+    }
+    */
 
 
     //need to store featureMap value to be streamed out
-    //uint8_t featureMapStored[featureMapWidth * featureMapHeight];
-    uint8_t featureMapStored[56 * 56*3];
+    uint8_t featureMapStored[featureMapWidth * featureMapHeight];
+    //uint8_t featureMapStored[56 * 56*3];
 
     //consider storing in block ram instead of ultraram
-    #pragma HLS bind_storage variable=imageStored core=XPM_MEMORY uram
-    #pragma HLS bind_storage variable=featureMapStored core=XPM_MEMORY uram
+    //#pragma HLS bind_storage variable=imageStored type=RAM_2P impl = URAM
+    //#pragma HLS bind_storage variable=featureMapStored type=RAM_2P impl = URAM
 
-    //store value from axi-stream
-    ap_uint<128> imageLoadIn;
-    //16, 8bit ints per 128 bit bus
-    uint8_t imageLoadInArray[16];
+    ap_axiu_1024 imageLoadIn; //value from axi-stream
+    ap_uint<1024> dataLoadIn; //data value from axi-stream
 
 	//#pragma HLS ARRAY_PARTITION variable=imageStored complete
 	//#pragma HLS ARRAY_PARTITION variable=featureMapStored complete
@@ -62,22 +83,47 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
 
     while(true){
 
-
-        //147 reads to get full 28x28 image (with three channels per pixel)
-        //can't do multiple reads to same data so should trigger new transfers each time, but not entirely sure
-        for(int i = 0; i < 147; i++){
-
-        	while(image.empty()){
-    			#pragma HLS PIPELINE II=1
-        	}
+        //19 reads to get full 28x28 image (with three channels per pixel)
+        for(int i = 0; i < 19; i++){
 
 			//loads in image from axi-stream to array of uint_8
 			imageLoadIn = image.read();
+			printf("Got value %d \n", imageLoadIn);
 
+			/*
+            //wait until image has new data
+            while(!imageLoadIn.valid && !imageLoadIn.last){
+            	std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            }
+            */
+
+            if(imageLoadIn.valid && imageLoadIn.last)
+
+        	printf("reading value %d from test bench \n", i);
+
+            imageLoadIn.ready = 0;
+
+
+			dataLoadIn = imageLoadIn.data;
+
+			//break data into 8 bit chunks
 			for(int j = 0; j < pixelsPerStream; j++){
-				//imageLoadInArray[j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
-				imageStored[i*pixelsPerStream + j] = (imageLoadIn & (0xFF << (8 * ((pixelsPerStream - 1) - j)))) >> (8 * ((pixelsPerStream - 1) - j));
+
+				//last axi transfer will only pass in 48 pixelValues
+				if(i == 18 && j >= 48){
+					break;
+				}
+
+				//data will be passed in with lowest array value in MSB
+				ap_uint<1024> bitMask = 0xFF << 1016;
+				uint8_t bitValue = (dataLoadIn && bitMask) >> 1016;
+				imageStored[i*pixelsPerStream + j] = bitValue;
+				dataLoadIn = dataLoadIn << 8;
+
 			}
+
+			//tell sender that module is ready for next transfer
+			imageLoadIn.ready = 1;
         }
 
         //ADD STAGING GROUND HERE - would change image load in sequence
@@ -132,19 +178,41 @@ void Interpolation_v2(hls::stream<stream_data_t> &image, hls::stream<stream_data
             }
         } //end bilinear interp calcs
 
-        //588 transfers of 128 bits to pass out whole feature map
-        for(int i = 0; i < 588; i++){
-        	ap_int<128> transValue = 0;
-            //16 pixel color values per transfer
-            for(int j = 0; j < pixelsPerStream; j++){
-                transValue = featureMapStored[i * pixelsPerStream + j] << (8 * ((pixelsPerStream - 1) - j));
+
+        //74 transfers of 128 bits to pass out whole feature map
+        for(int i = 0; i < 74; i++){
+
+        	ap_axiu_1024 featureMapLoadOut = featureMap.read();
+
+            //wait until featureMap is ready to receive new signals
+        	/*
+            while(!featureMapLoadOut.ready){
+            	std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            }
+            */
+
+            featureMapLoadOut.valid = 0;
+
+        	ap_uint<1024> transValue = 0;
+
+            for(int j = 0; j < pixelsPerStream; j++){ //128 pixel values per transfer
+
+				//if last axi transfer only pass in 64 pixelValues
+				if(i == 73 && j >= 64){
+					break;
+				}
+
+            	//data will be passed in with lowest array value in MSB
+            	ap_uint<1024> pixelValue = featureMapStored[i * pixelsPerStream + j];
+				transValue = transValue || pixelValue; //add pixel value to transfer
+				transValue = transValue << 8; //shift to make room for next pixel value
+
+
             }
 
-            while (featureMap.full()) {
-				#pragma HLS PIPELINE II=1
-            }
-
-            featureMap.write(transValue);
+            //load data and indicate it is ready to be sent
+            featureMapLoadOut.data = transValue;
+            featureMapLoadOut.valid = 1;
 
         }
 
