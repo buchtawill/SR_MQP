@@ -1,6 +1,6 @@
 # Compiler settings
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -arch arm64
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -arch arm64 -Wno-unused-parameter
 
 # macOS OpenCV settings (Homebrew)
 OPENCV_PREFIX = $(shell brew --prefix opencv)
@@ -24,11 +24,20 @@ TORCH_LIBS = -L$(TORCH_PREFIX)/lib \
 
 # Project settings
 TARGET = fsrcnn
-SRCS = main.cpp
-OBJS = $(SRCS:.cpp=.o)
+
+# Source files
+SOURCES = main.cpp \
+          adaptive_upscaler.cpp \
+          processing_timer.cpp \
+          quantization.cpp
+
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Include paths
+INCLUDES = $(OPENCV_CFLAGS) $(TORCH_CFLAGS)
 
 # Combined flags
-ALL_CXXFLAGS = $(CXXFLAGS) $(OPENCV_CFLAGS) $(TORCH_CFLAGS)
+ALL_CXXFLAGS = $(CXXFLAGS) $(INCLUDES)
 ALL_LIBS = $(OPENCV_LIBS) $(TORCH_LIBS)
 
 # Rpath settings for macOS
@@ -38,19 +47,32 @@ RPATH_FLAGS = -Wl,-rpath,$(OPENCV_PREFIX)/lib -Wl,-rpath,$(TORCH_PREFIX)/lib
 all: $(TARGET)
 
 # Linking
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(ALL_LIBS) $(RPATH_FLAGS)
+$(TARGET): $(OBJECTS)
+	@echo "Linking $@..."
+	$(CXX) $(OBJECTS) -o $(TARGET) $(ALL_LIBS) $(RPATH_FLAGS)
 
 # Compilation
 %.o: %.cpp
+	@echo "Compiling $<..."
 	$(CXX) $(ALL_CXXFLAGS) -c $< -o $@
 
 # Clean built files
 clean:
-	rm -f $(OBJS) $(TARGET)
+	@echo "Cleaning..."
+	@rm -f $(OBJECTS) $(TARGET)
 
 # Run the program
 run: $(TARGET)
-	./$(TARGET)
+	@echo "Running fsrcnn..."
+	./$(TARGET) --image img.png
 
-.PHONY: all clean run
+# Print debug info
+info:
+	@echo "Source files: $(SOURCES)"
+	@echo "Object files: $(OBJECTS)"
+	@echo "OpenCV prefix: $(OPENCV_PREFIX)"
+	@echo "Torch prefix: $(TORCH_PREFIX)"
+	@echo "Compiler flags: $(ALL_CXXFLAGS)"
+	@echo "Libraries: $(ALL_LIBS)"
+
+.PHONY: all clean run info

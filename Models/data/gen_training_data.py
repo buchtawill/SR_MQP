@@ -178,42 +178,52 @@ def downscale_image(filenames:list, input_dir:str, output_dir:str, with_tqdm = F
                 print(f"Error processing {filename}: {e}")
 
 
-def downscale_images_from_dir(input_dir: str, output_dir: str, n_threads:int, factor:int = 2):
+def downscale_images_from_dir(input_dir: str, output_dir: str, n_threads: int, factor: int = 4):
     """
     For each image in input_dir, downscale it and save it to output dir. Run this method with n_threads
     to help alleviate I/O constraints. If n_threads is 0 or 1, do not make threads
-    
+
     Args:
         input_dir(str): Path to directory containing images to crop
         output_dir(str): Directory to put downscaled images. Create directory if doesn't exist
         n_threads(int): Number of threads to process input dir
-        factor(int): Downscale factor. Default: 2
-        
+        factor(int): Downscale factor. Default: 4
+
     Returns:
         None
     """
+    # Create output directory
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError as e:
-        print(f"ERROR [gen_training_data.py::downscale_images_from_dir()] Error creating output directory: {e}")
+        print(f"ERROR: Error creating output directory '{output_dir}': {e}")
         return
 
+    # Check if input directory exists
+    if not os.path.exists(input_dir):
+        print(f"ERROR: Input directory '{input_dir}' does not exist")
+        return
+
+    # Get list of files
     try:
         filenames = os.listdir(input_dir)
+        if not filenames:
+            print(f"ERROR: No files found in input directory '{input_dir}'")
+            return
     except OSError as e:
-        print(f"ERROR [gen_training_data.py::downscale_images_from_dir()] Error opening input directory: {e}")
-        
-    
-    print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Downscaling images from dir '{input_dir}'")
-    
-    if(n_threads < 2):
-        print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Running 1 thread of execution")
+        print(f"ERROR: Error reading input directory '{input_dir}': {e}")
+        return
+
+    print(f"INFO: Found {len(filenames)} files in '{input_dir}'")
+    print(f"INFO: Downscaling images with factor {factor}...")
+
+    if n_threads < 2:
+        print(f"INFO: Running single thread")
         downscale_image(filenames, input_dir, output_dir, with_tqdm=True)
-    
     else:
         chunk_size = len(filenames) // n_threads
         threads = []
-        
+
         total_handled = 0
         for i in range(n_threads):
             start = i * chunk_size
@@ -222,16 +232,19 @@ def downscale_images_from_dir(input_dir: str, output_dir: str, n_threads:int, fa
 
             total_handled += len(chunk)
 
-            thread = threading.Thread(target=downscale_image, args=(chunk,input_dir, output_dir))
+            thread = threading.Thread(
+                target=downscale_image,
+                args=(chunk, input_dir, output_dir)
+            )
             threads.append(thread)
             thread.start()
 
         for thread in threads:
             thread.join()
-        
-        print(f"INFO [gen_training_data.py::downscale_images_from_dir()] Total files handled: {total_handled}")
-    
-    # If the input directory has _info.txt files, copy them to the output directory
+
+        print(f"INFO: Total files handled: {total_handled}")
+
+    # Copy tile info files
     for filename in os.listdir(input_dir):
         if filename.endswith('_info.txt'):
             input_path = os.path.join(input_dir, filename)
@@ -486,12 +499,12 @@ def create_challenge_tiles(input_dir:str, output_dir:str, info_file_path:str):
 if __name__ == '__main__':
     # Set parameters here
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    input_dir = os.path.join(current_dir, '1280_16x9')
-    output_dir = os.path.join(current_dir, 'challenge/challenge_64x64')
-    downscaled_dir = os.path.join(current_dir, 'challenge/challenge_32x32')
+    input_dir = os.path.join(current_dir, '1280_16x9_test')
+    output_dir = os.path.join(current_dir, 'challenge/challenge_112x112')
+    downscaled_dir = os.path.join(current_dir, 'challenge/challenge_28x28')
 
-    # Crop tiles to 64x64
-    # crop_tiles(input_dir, output_dir, tile_size=64, n_threads=10)
+    # Crop tiles to 112x112
+    crop_tiles(input_dir, output_dir, tile_size=112, n_threads=5)
     
     # For every image in input dir, crop a 64x64 tile and save to a new dir.
     # Each tile will be of the start coins and timer to highlight issues with FSRCNN
@@ -507,7 +520,7 @@ if __name__ == '__main__':
     # print(compute_image_variance_pil(Image.open(high_var_path)))
     # exit()
     
-    downscale_images_from_dir(output_dir, downscaled_dir, n_threads=1, factor=2)
+    downscale_images_from_dir(output_dir, downscaled_dir, n_threads=1, factor=4)
 
     #create_tile_vertical_comparisons('1280_16x9_test', output_dir, downscaled_dir, '1280_16x9_tile_vertical_comparison')
 
