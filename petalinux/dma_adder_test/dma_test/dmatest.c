@@ -37,6 +37,7 @@ Modified by Will Buchta 11/12/2024
 #include <sys/mman.h>
 #include <stdint.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define MM2S_CONTROL_REGISTER       0x00
 #define MM2S_STATUS_REGISTER        0x04
@@ -260,7 +261,7 @@ int main()
 	// FIFO is configured to be 256 entries deep.
 	// AXIS FPU configured to calculate float of input.
 
-    printf("INFO [dmatest.c] Running DMA transfer test application\n");
+    printf("INFO [dmatest.c] Running DMA transfer test application...\n");
     printf("INFO [dmatest.c] DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
 
 	printf("INFO [dmatest.c] Opening a character device file of the Arty's DDR memeory...\n");
@@ -270,12 +271,16 @@ int main()
 		return -1;
 	}
 
+	sleep(1);
+
 	printf("INFO [dmatest.c] Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
     uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
 	if(dma_virtual_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
 		return -1;
 	}
+
+	sleep(1);
 
 	printf("INFO [dmatest.c] Memory mapping the MM2S source address register block.\n");
     float *virtual_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_SRC_ADDR);
@@ -284,12 +289,16 @@ int main()
 		return -1;
 	}
 
+	sleep(1);
+
 	printf("INFO [dmatest.c] Memory mapping the S2MM destination address register block.\n");
     uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
 	if(virtual_dst_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block: %s\n", strerror(errno));
 		return -1;
 	}
+
+	sleep(1);
 
 	printf("INFO [dmatest.c] Writing data to source block\n");
 
@@ -302,14 +311,22 @@ int main()
 	virtual_src_addr[6] = 256.0f;
 	virtual_src_addr[7] = 482.0f;
 
+	sleep(1);
+
 	printf("INFO [dmatest.c] Clearing the destination block\n");
     memset(virtual_dst_addr, 0, 32);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Source memory block data:      ");
 	print_mem(virtual_src_addr, 32);
 
+	sleep(1);
+
     printf("INFO [dmatest.c] Destination memory block data: ");
 	print_mem(virtual_dst_addr, 32);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Resetting DMA\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RESET_DMA);
@@ -317,11 +334,15 @@ int main()
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
+	sleep(1);
+
 	printf("INFO [dmatest.c] Halting DMA.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, HALT_DMA);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, HALT_DMA);
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
+
+	sleep(1);
 
 	printf("INFO [dmatest.c] Enabling all interrupts.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, ENABLE_ALL_IRQ);
@@ -329,38 +350,58 @@ int main()
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
+	sleep(1);
+
     printf("INFO [dmatest.c] Writing source address of the data from MM2S in DDR...\n");
     write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, VIRTUAL_SRC_ADDR);
     dma_mm2s_status(dma_virtual_addr);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Writing the destination address for the data from S2MM in DDR...\n");
     write_dma(dma_virtual_addr, S2MM_DST_ADDRESS_REGISTER, VIRTUAL_DST_ADDR);
     dma_s2mm_status(dma_virtual_addr);
 
+	sleep(1);
+
 	printf("INFO [dmatest.c] Running MM2S channel.\n");
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, RUN_DMA);
     dma_mm2s_status(dma_virtual_addr);
+
+	sleep(1);
 
 	printf("INFO [dmatest.c] Run S2MM channel.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RUN_DMA);
     dma_s2mm_status(dma_virtual_addr);
 
+	sleep(1);
+
     printf("INFO [dmatest.c] Writing MM2S transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, MM2S_TRNSFR_LENGTH_REGISTER, 32);
     dma_mm2s_status(dma_virtual_addr);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Writing S2MM transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, S2MM_BUFF_LENGTH_REGISTER, 32);
     dma_s2mm_status(dma_virtual_addr);
 
+	sleep(1);
+
     printf("INFO [dmatest.c] Waiting for MM2S synchronization...\n");
     dma_mm2s_sync(dma_virtual_addr);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Waiting for S2MM sychronization...\n");
     dma_s2mm_sync(dma_virtual_addr);
 
+	sleep(1);
+
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
+
+	sleep(1);
 
     printf("INFO [dmatest.c] Destination memory block: ");
 	print_mem(virtual_dst_addr, 32);
