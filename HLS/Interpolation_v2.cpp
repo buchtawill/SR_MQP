@@ -3,8 +3,6 @@
 #include <cmath>
 #include <iostream>
 #include <cstdint>
-#include <chrono>
-#include <thread>
 
 // AXI-stream data type (1024-bit)
 struct ap_axiu_1024 {
@@ -83,48 +81,95 @@ void Interpolation_v2(hls::stream<ap_axiu_1024> &image, hls::stream<ap_axiu_1024
 
     while(true){
 
+    	// Wait until the image stream is ready to accept data
+    	while (image.empty()) {
+    	    #pragma HLS PIPELINE II=1
+    	}
+
+    	//19 reads to get full 28x28 image (with three channels per pixel)
+    	for(int i = 0; i < 19; i++){
+
+			// Now it's safe to read data from the image stream
+			imageLoadIn = image.read();
+			printf("Got value %d \n", imageLoadIn);
+
+			// Wait for the ready signal before proceeding
+			if(imageLoadIn.valid && imageLoadIn.ready){
+				printf("reading value %d from test bench \n", i);
+
+				// Reset the ready signal to 0 before processing the data
+				imageLoadIn.ready = 0;
+
+				// Store the incoming data in the local variable
+				dataLoadIn = imageLoadIn.data;
+
+				// Process data for image (split into 8-bit chunks)
+				for(int j = 0; j < pixelsPerStream; j++) {
+					// Last AXI transfer will only pass in 48 pixel values
+					if(i == 18 && j >= 48) {
+						break;
+					}
+
+					// Process data with bit masking
+					ap_uint<1024> bitMask = 0xFF;
+					bitMask = bitMask << 1016;
+					ap_uint<1024> temp = (dataLoadIn & bitMask) >> 1016;
+					uint8_t bitValue = temp;
+					imageStored[i*pixelsPerStream + j] = bitValue;
+					dataLoadIn = dataLoadIn << 8;
+				}
+
+				// Once data is processed, tell the sender that module is ready for next transfer
+				imageLoadIn.ready = 1;
+			}
+    	}
+
+    	/*
         //19 reads to get full 28x28 image (with three channels per pixel)
         for(int i = 0; i < 19; i++){
+
+            // wait until the image stream is ready to accept data
+            while (image.empty()) {
+                #pragma HLS PIPELINE II=1
+            }
 
 			//loads in image from axi-stream to array of uint_8
 			imageLoadIn = image.read();
 			printf("Got value %d \n", imageLoadIn);
 
-			/*
-            //wait until image has new data
-            while(!imageLoadIn.valid && !imageLoadIn.last){
-            	std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            }
-            */
 
-            if(imageLoadIn.valid && imageLoadIn.last)
+            if(imageLoadIn.valid && imageLoadIn.ready){
 
-        	printf("reading value %d from test bench \n", i);
+				printf("reading value %d from test bench \n", i);
 
-            imageLoadIn.ready = 0;
+				imageLoadIn.ready = 0;
 
+				dataLoadIn = imageLoadIn.data;
 
-			dataLoadIn = imageLoadIn.data;
+				//break data into 8 bit chunks
+				for(int j = 0; j < pixelsPerStream; j++){
 
-			//break data into 8 bit chunks
-			for(int j = 0; j < pixelsPerStream; j++){
+					//last axi transfer will only pass in 48 pixelValues
+					if(i == 18 && j >= 48){
+						break;
+					}
 
-				//last axi transfer will only pass in 48 pixelValues
-				if(i == 18 && j >= 48){
-					break;
+					//data will be passed in with lowest array value in MSB
+					ap_uint<1024> bitMask = 0xFF;
+					bitMask = bitMask << 1016;
+					//ap_uint<1024> temp = dataLoadIn >> 1016;
+					ap_uint<1024> temp = (dataLoadIn & bitMask) >> 1016;
+					uint8_t bitValue = temp;
+					imageStored[i*pixelsPerStream + j] = bitValue;
+					dataLoadIn = dataLoadIn << 8;
+
 				}
 
-				//data will be passed in with lowest array value in MSB
-				ap_uint<1024> bitMask = 0xFF << 1016;
-				uint8_t bitValue = (dataLoadIn && bitMask) >> 1016;
-				imageStored[i*pixelsPerStream + j] = bitValue;
-				dataLoadIn = dataLoadIn << 8;
-
-			}
-
-			//tell sender that module is ready for next transfer
-			imageLoadIn.ready = 1;
+				//tell sender that module is ready for next transfer
+				imageLoadIn.ready = 1;
+            }
         }
+        */
 
         //ADD STAGING GROUND HERE - would change image load in sequence
 
@@ -182,37 +227,35 @@ void Interpolation_v2(hls::stream<ap_axiu_1024> &image, hls::stream<ap_axiu_1024
         //74 transfers of 128 bits to pass out whole feature map
         for(int i = 0; i < 74; i++){
 
+            // wait until the image stream is ready to accept data
+            while (!featureMap.empty()) {
+                #pragma HLS PIPELINE II=1
+            }
+
         	ap_axiu_1024 featureMapLoadOut = featureMap.read();
 
-            //wait until featureMap is ready to receive new signals
-        	/*
-            while(!featureMapLoadOut.ready){
-            	std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            }
-            */
+        	if(featureMapLoadOut.ready && featureMapLoadOut.valid){
 
-            featureMapLoadOut.valid = 0;
+				ap_uint<1024> transValue = 0;
 
-        	ap_uint<1024> transValue = 0;
+				for(int j = 0; j < pixelsPerStream; j++){ //128 pixel values per transfer
 
-            for(int j = 0; j < pixelsPerStream; j++){ //128 pixel values per transfer
+					//if last axi transfer only pass in 64 pixelValues
+					if(i == 73 && j >= 64){
+						break;
+					}
 
-				//if last axi transfer only pass in 64 pixelValues
-				if(i == 73 && j >= 64){
-					break;
+					//data will be passed in with lowest array value in MSB
+					ap_uint<1024> pixelValue = featureMapStored[i * pixelsPerStream + j];
+					transValue = transValue << 8; // shift to make room for next pixel value
+					transValue |= pixelValue;     // OR the new pixel value
+
 				}
 
-            	//data will be passed in with lowest array value in MSB
-            	ap_uint<1024> pixelValue = featureMapStored[i * pixelsPerStream + j];
-				transValue = transValue || pixelValue; //add pixel value to transfer
-				transValue = transValue << 8; //shift to make room for next pixel value
-
-
-            }
-
-            //load data and indicate it is ready to be sent
-            featureMapLoadOut.data = transValue;
-            featureMapLoadOut.valid = 1;
+				//load data and indicate it is ready to be sent
+				featureMapLoadOut.data = transValue;
+				featureMapLoadOut.valid = 1;
+        	}
 
         }
 

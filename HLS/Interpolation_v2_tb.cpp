@@ -4,8 +4,6 @@
 #include <iostream>
 #include <random>
 #include <cstdint>
-#include <chrono>
-#include <thread>
 
 
 // AXI-stream data type (1024-bit)
@@ -18,7 +16,7 @@ struct ap_axiu_1024 {
 
 // AXI-lite data type (32-bit)
 struct ap_axiu_32 {
-    ap_uint<32> data
+    ap_uint<32> data;
     ap_uint<1> last;    // Indicates last data in a burst
     ap_uint<1> valid;   // Data is valid
     ap_uint<1> ready;   // Consumer is ready to accept data
@@ -28,6 +26,8 @@ void Interpolation_v2(hls::stream<ap_axiu_1024> &image, hls::stream<ap_axiu_1024
 void bilinear_interpolation(uint8_t (&input_image)[28][28], uint8_t (&output_image)[56][56]);
 
 int main(){
+
+	printf("Test bench running");
 
 	/*
 	 * Initializations
@@ -57,9 +57,6 @@ int main(){
 	//uint8_t outputImageBlue[56][56];
 	//will need to be reassembled from 120 bit stream outs
 	//uint8_t outputImageAll[56*56*3];
-
-
-
 
 	/*
 	 * Generate input image
