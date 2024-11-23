@@ -12,8 +12,8 @@ void Interpolation_v4(hls::stream<bus_t> &imageIn, hls::stream<bus_t> &featureMa
 
 
 	//store 128-bit transfers
-	bus_t allImageInStored[147];
-	bus_t allImageOutStored[588];
+	//bus_t allImageInStored[147];
+	//bus_t allImageOutStored[588];
 
 	//store in 8-bit sections
 	uint8_t imageInStoredBytes[2352];
@@ -59,10 +59,10 @@ void Interpolation_v4(hls::stream<bus_t> &imageIn, hls::stream<bus_t> &featureMa
 		for (int fmX = 0; fmX < featureMapWidth; ++fmX)
 		{
 			// Map the pixel to the input image
-			int x_in = static_cast<int>(std::round(fmX / scalingFactor));
-			int y_in = static_cast<int>(std::round(fmY / scalingFactor));
-			//float x_in = j / upscalingFactor;
-			//float y_in = i / upscalingFactor;
+			//int x_in = static_cast<int>(std::round(fmX / scalingFactor));
+			//int y_in = static_cast<int>(std::round(fmY / scalingFactor));
+			float x_in = fmX / scalingFactor;
+			float y_in = fmY / scalingFactor;
 
 			//location in input array of nearest pixels to one being interpolated
 			int x0 = static_cast<int>(std::floor(x_in));
@@ -71,10 +71,10 @@ void Interpolation_v4(hls::stream<bus_t> &imageIn, hls::stream<bus_t> &featureMa
 			int y1 = std::min(y0 + 1, inputWidth - 1);
 
 			// Calculate the distances between the neighboring pixels -> should always be 1
-			int dx = static_cast<int>(std::round(x_in - x0));
-			int dy = static_cast<int>(std::round(y_in - y0));
-			//float dx = x_in - x0;
-			//float dy = y_in - y0;
+			//int dx = static_cast<int>(std::round(x_in - x0));
+			//int dy = static_cast<int>(std::round(y_in - y0));
+			float dx = x_in - x0;
+			float dy = y_in - y0;
 
 			// Compute interpolation weights
 			int w00 = static_cast<int>(std::round((1 - dx) * (1 - dy)));
@@ -104,7 +104,7 @@ void Interpolation_v4(hls::stream<bus_t> &imageIn, hls::stream<bus_t> &featureMa
 			} //end per channel
 
 
-			/*
+			/* LAST LOOP UNROLLED
 			// Get the values of the four neighboring pixels for the Red channel (c = 0)
 			uint8_t p00_r = imageInStoredBytes[(y0 * inputWidth + x0) * 3 + 0];
 			uint8_t p10_r = imageInStoredBytes[(y0 * inputWidth + x1) * 3 + 0];
