@@ -7,3 +7,5 @@ Models/FSRCNN/tensor_test.py
 *.pth
 *.png
 Models/FSRCNN/tensor_test.py
+HLS/Interpolation_v3.cpp
+HLS/Interpolation_v3_tb.cpp
