@@ -662,5 +662,7 @@ int main(int argc, char **argv){
     printf("INFO [addertest.c] a*b result: %u\n", get_mul_result_mmap(add_mult_virtual_addr));
     printf("INFO [addertest.c] a/b result: %u\n", get_div_result_mmap(add_mult_virtual_addr));
 
+    munmap(add_mult_virtual_addr, ADD_MULT_MEM_SIZE);
+
     return 0;
 }
