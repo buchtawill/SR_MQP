@@ -70,6 +70,8 @@ extern "C" {
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stddef.h>
+#include <errno.h>
+#include <stdint.h>
 #endif
 
 /**************************** Type Definitions ******************************/
@@ -592,7 +594,10 @@ void set_b_mmap(uint32_t *add_mult_virtual_addr, uint32_t b){
 }
 
 void start_adder_mmap(uint32_t *add_mult_virtual_addr){
-    add_mult_virtual_addr[XADD_MULT_CTRL_BUS_ADDR_AP_CTRL>>2] = 0x01;
+    uint32_t data;
+
+    data = add_mult_virtual_addr[XADD_MULT_CTRL_BUS_ADDR_AP_CTRL>>2] & 0x80;
+    add_mult_virtual_addr[XADD_MULT_CTRL_BUS_ADDR_AP_CTRL>>2] = data | 0x01;
 }
 
 uint32_t is_done_mmap(uint32_t *add_mult_virtual_addr){
@@ -628,11 +633,14 @@ uint32_t get_sub_result_mmap(uint32_t *add_mult_virtual_addr){
 }
 
 int main(int argc, char **argv){
-    printf("INFO [addertest.c] Entering main()..\n");
+    if(argc < 3){
+        printf("Usage: %s <a> <b> in decimal\n", argv[0]);
+        return 0;
+    }
+    uint32_t a = strtol(argv[1], NULL, 10);
+    uint32_t b = strtol(argv[2], NULL, 10);
 
-    XAdd_mult add_mult;
-    add_mult.Ctrl_bus_BaseAddress = ConfigPtr->Ctrl_bus_BaseAddress;
-    add_mult.IsReady = XIL_COMPONENT_IS_READY;
+    printf("INFO [addertest.c] Entering main()..\n");
 
     printf("INFO [addertest.c] Opening /dev/mem\n");
     int ddr_memory = open("/dev/mem", O_RDWR | O_SYNC);
@@ -650,11 +658,14 @@ int main(int argc, char **argv){
     }
 
     printf("INFO [addertest.c] Setting a and b\n");
-    set_a_mmap(add_mult_virtual_addr, 25);
-    set_b_mmap(add_mult_virtual_addr, 10);
+    set_a_mmap(add_mult_virtual_addr, a);
+    set_b_mmap(add_mult_virtual_addr, b);
     start_adder_mmap(add_mult_virtual_addr);
 
-    print("INFO [addertest.c] Waiting for add_mult to finish...\n");
+    printf("INFO [addertest.c] a is set to: 0x%08x\n", add_mult_virtual_addr[XADD_MULT_CTRL_BUS_ADDR_A_DATA>>2]);
+    printf("INFO [addertest.c] b is set to: 0x%08x\n", add_mult_virtual_addr[XADD_MULT_CTRL_BUS_ADDR_B_DATA>>2]);
+
+    printf("INFO [addertest.c] Waiting for add_mult to finish...\n");
     while (!is_done_mmap(add_mult_virtual_addr)){}
 
     printf("INFO [addertest.c] a+b result: %u\n", get_add_result_mmap(add_mult_virtual_addr));
