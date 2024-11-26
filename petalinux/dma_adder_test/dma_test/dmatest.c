@@ -95,7 +95,7 @@ void dma_s2mm_status(unsigned int *virtual_addr)
 {
     unsigned int status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
 
-    printf("INFO [dmatest.c::dma_mm2s_status()] S2MM status (0x%08x@0x%02x):", status, S2MM_STATUS_REGISTER);
+    printf("INFO [dmatest.c::dma_s2mm_status()] S2MM status (0x%08x@0x%02x):", status, S2MM_STATUS_REGISTER);
 
     if (status & STATUS_HALTED) {
 		printf(" Halted.\n");
@@ -217,6 +217,7 @@ int dma_mm2s_sync(unsigned int *virtual_addr)
         dma_mm2s_status(virtual_addr);
 
         mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
+		usleep(500000); // 0.5 seconds
     }
 
 	return 0;
@@ -234,6 +235,7 @@ int dma_s2mm_sync(unsigned int *virtual_addr)
         dma_mm2s_status(virtual_addr);
 
         s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
+		usleep(500000); // 0.5 seconds
     }
 
 	return 0;
@@ -334,6 +336,9 @@ int main()
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
+	printf("INFO [dmatest.c] S2MM Control Register: 0x%08x\n", read_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER));
+	printf("INFO [dmatest.c] MM2S Control Register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER));
+
 	sleep(1);
 
 	printf("INFO [dmatest.c] Halting DMA.\n");
@@ -355,6 +360,8 @@ int main()
     printf("INFO [dmatest.c] Writing source address of the data from MM2S in DDR...\n");
     write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, VIRTUAL_SRC_ADDR);
     dma_mm2s_status(dma_virtual_addr);
+
+	printf("INFO [dmatest.c] MM2S source address register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER));
 
 	sleep(1);
 
