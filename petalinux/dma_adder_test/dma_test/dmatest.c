@@ -79,6 +79,8 @@ Modified by Will Buchta 11/12/2024
 #define VIRTUAL_SRC_ADDR 			0x0e000000
 #define VIRTUAL_DST_ADDR 			0x0f000000
 
+#define DMA_SYNC_TRIES				10
+
 unsigned int write_dma(unsigned int *virtual_addr, int offset, unsigned int value)
 {
     virtual_addr[offset>>2] = value;
@@ -209,15 +211,22 @@ int dma_mm2s_sync(unsigned int *virtual_addr)
 {
     unsigned int mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
 
+	uint32_t count = 0;
+
 	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
 	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while(!(mm2s_status & IOC_IRQ_FLAG) || !(mm2s_status & IDLE_FLAG))
+	while((!(mm2s_status & IOC_IRQ_FLAG) || !(mm2s_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
 	{
         dma_s2mm_status(virtual_addr);
         dma_mm2s_status(virtual_addr);
 
         mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
-		usleep(500000); // 0.5 seconds
+		sleep(1);
+		count++;
+		if(count == DMA_SYNC_TRIES){
+			printf("ERROR [dmatest.c::dma_mm2s_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
+			return -1;
+		}
     }
 
 	return 0;
@@ -227,16 +236,24 @@ int dma_s2mm_sync(unsigned int *virtual_addr)
 {
     unsigned int s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
 
+	uint32_t count = 0;
+
 	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
 	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while(!(s2mm_status & IOC_IRQ_FLAG) || !(s2mm_status & IDLE_FLAG))
+	while((!(s2mm_status & IOC_IRQ_FLAG) || !(s2mm_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
 	{
         dma_s2mm_status(virtual_addr);
         dma_mm2s_status(virtual_addr);
 
         s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
-		usleep(500000); // 0.5 seconds
+		sleep(1);
+		count++;
+		if(count == DMA_SYNC_TRIES){
+			printf("ERROR [dmatest.c::dma_s2mm_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
+			return -1;
+		}
     }
+
 
 	return 0;
 }
@@ -266,7 +283,7 @@ int main()
     printf("INFO [dmatest.c] Running DMA transfer test application...\n");
     printf("INFO [dmatest.c] DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
 
-	printf("INFO [dmatest.c] Opening a character device file of the Arty's DDR memeory...\n");
+	printf("INFO [dmatest.c] Opening a character device file of the KV260's DDR memeory...\n");
 	int ddr_memory = open("/dev/mem", O_RDWR | O_SYNC);
 	if(ddr_memory < 0){
 		printf("ERROR [dmatest.c] Failed to open /dev/mem: %s\n", strerror(errno));
@@ -410,6 +427,7 @@ int main()
 
 	sleep(1);
 
+	printf("\n");
     printf("INFO [dmatest.c] Destination memory block: ");
 	print_mem(virtual_dst_addr, 32);
 
