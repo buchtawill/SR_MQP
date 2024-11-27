@@ -36,6 +36,8 @@ Modified by Will Buchta 11/12/2024
 #include <termios.h>
 #include <sys/mman.h>
 #include <stdint.h>
+#include <errno.h>
+#include <unistd.h>
 
 #define MM2S_CONTROL_REGISTER       0x00
 #define MM2S_STATUS_REGISTER        0x04
@@ -77,6 +79,8 @@ Modified by Will Buchta 11/12/2024
 #define VIRTUAL_SRC_ADDR 			0x0e000000
 #define VIRTUAL_DST_ADDR 			0x0f000000
 
+#define DMA_SYNC_TRIES				10
+
 unsigned int write_dma(unsigned int *virtual_addr, int offset, unsigned int value)
 {
     virtual_addr[offset>>2] = value;
@@ -93,7 +97,7 @@ void dma_s2mm_status(unsigned int *virtual_addr)
 {
     unsigned int status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
 
-    printf("Stream to memory-mapped status (0x%08x@0x%02x):", status, S2MM_STATUS_REGISTER);
+    printf("INFO [dmatest.c::dma_s2mm_status()] S2MM status (0x%08x@0x%02x):", status, S2MM_STATUS_REGISTER);
 
     if (status & STATUS_HALTED) {
 		printf(" Halted.\n");
@@ -150,7 +154,7 @@ void dma_mm2s_status(unsigned int *virtual_addr)
 {
     unsigned int status = read_dma(virtual_addr, MM2S_STATUS_REGISTER);
 
-    printf("Memory-mapped to stream status (0x%08x@0x%02x):", status, MM2S_STATUS_REGISTER);
+    printf("INFO [dmatest.c::dma_mm2s_status()] MM2S status (0x%08x@0x%02x):", status, MM2S_STATUS_REGISTER);
 
     if (status & STATUS_HALTED) {
 		printf(" Halted.\n");
@@ -207,14 +211,22 @@ int dma_mm2s_sync(unsigned int *virtual_addr)
 {
     unsigned int mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
 
+	uint32_t count = 0;
+
 	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
 	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while(!(mm2s_status & IOC_IRQ_FLAG) || !(mm2s_status & IDLE_FLAG))
+	while((!(mm2s_status & IOC_IRQ_FLAG) || !(mm2s_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
 	{
         dma_s2mm_status(virtual_addr);
         dma_mm2s_status(virtual_addr);
 
         mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
+		sleep(1);
+		count++;
+		if(count == DMA_SYNC_TRIES){
+			printf("ERROR [dmatest.c::dma_mm2s_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
+			return -1;
+		}
     }
 
 	return 0;
@@ -224,15 +236,24 @@ int dma_s2mm_sync(unsigned int *virtual_addr)
 {
     unsigned int s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
 
+	uint32_t count = 0;
+
 	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
 	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while(!(s2mm_status & IOC_IRQ_FLAG) || !(s2mm_status & IDLE_FLAG))
+	while((!(s2mm_status & IOC_IRQ_FLAG) || !(s2mm_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
 	{
         dma_s2mm_status(virtual_addr);
         dma_mm2s_status(virtual_addr);
 
         s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
+		sleep(1);
+		count++;
+		if(count == DMA_SYNC_TRIES){
+			printf("ERROR [dmatest.c::dma_s2mm_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
+			return -1;
+		}
     }
+
 
 	return 0;
 }
@@ -259,22 +280,46 @@ int main()
 	// FIFO is configured to be 256 entries deep.
 	// AXIS FPU configured to calculate float of input.
 
-    printf("Hello World! - Running DMA transfer test application.\n");
-    printf("DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
+    printf("INFO [dmatest.c] Running DMA transfer test application...\n");
+    printf("INFO [dmatest.c] DMA Stream will compute the square root of the given inputs as 32 bit floats.\n");
 
-	printf("Opening a character device file of the Arty's DDR memeory...\n");
+	printf("INFO [dmatest.c] Opening a character device file of the KV260's DDR memeory...\n");
 	int ddr_memory = open("/dev/mem", O_RDWR | O_SYNC);
+	if(ddr_memory < 0){
+		printf("ERROR [dmatest.c] Failed to open /dev/mem: %s\n", strerror(errno));
+		return -1;
+	}
 
-	printf("Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
     uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
+	if(dma_virtual_addr == MAP_FAILED){
+		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
+		return -1;
+	}
 
-	printf("Memory mapping the MM2S source address register block.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Memory mapping the MM2S source address register block.\n");
     float *virtual_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_SRC_ADDR);
+	if(virtual_src_addr == MAP_FAILED){
+		printf("ERROR [dmatest.c] Failed to map MM2S source address register block: %s\n", strerror(errno));
+		return -1;
+	}
 
-	printf("Memory mapping the S2MM destination address register block.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Memory mapping the S2MM destination address register block.\n");
     uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
+	if(virtual_dst_addr == MAP_FAILED){
+		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block: %s\n", strerror(errno));
+		return -1;
+	}
 
-	printf("Writing random data to source register block...\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Writing data to source block\n");
 
 	virtual_src_addr[0] = 1.0f;
 	virtual_src_addr[1] = 2.0f;
@@ -283,69 +328,107 @@ int main()
 	virtual_src_addr[4] = 10.0f;
 	virtual_src_addr[5] = 100.0f;
 	virtual_src_addr[6] = 256.0f;
-	virtual_src_addr[7] = 482.0;
+	virtual_src_addr[7] = 482.0f;
 
-	printf("Clearing the destination register block...\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Clearing the destination block\n");
     memset(virtual_dst_addr, 0, 32);
 
-    printf("Source memory block data:      ");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Source memory block data:      ");
 	print_mem(virtual_src_addr, 32);
 
-    printf("Destination memory block data: ");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Destination memory block data: ");
 	print_mem(virtual_dst_addr, 32);
 
-    printf("Reset the DMA.\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Resetting DMA\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RESET_DMA);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, RESET_DMA);
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
-	printf("Halt the DMA.\n");
+	printf("INFO [dmatest.c] S2MM Control Register: 0x%08x\n", read_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER));
+	printf("INFO [dmatest.c] MM2S Control Register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER));
+
+	sleep(1);
+
+	printf("INFO [dmatest.c] Halting DMA.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, HALT_DMA);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, HALT_DMA);
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
-	printf("Enable all interrupts.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Enabling all interrupts.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, ENABLE_ALL_IRQ);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, ENABLE_ALL_IRQ);
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
-    printf("Writing source address of the data from MM2S in DDR...\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Writing source address of the data from MM2S in DDR...\n");
     write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, VIRTUAL_SRC_ADDR);
     dma_mm2s_status(dma_virtual_addr);
 
-    printf("Writing the destination address for the data from S2MM in DDR...\n");
+	printf("INFO [dmatest.c] MM2S source address register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER));
+
+	sleep(1);
+
+    printf("INFO [dmatest.c] Writing the destination address for the data from S2MM in DDR...\n");
     write_dma(dma_virtual_addr, S2MM_DST_ADDRESS_REGISTER, VIRTUAL_DST_ADDR);
     dma_s2mm_status(dma_virtual_addr);
 
-	printf("Run the MM2S channel.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Running MM2S channel.\n");
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, RUN_DMA);
     dma_mm2s_status(dma_virtual_addr);
 
-	printf("Run the S2MM channel.\n");
+	sleep(1);
+
+	printf("INFO [dmatest.c] Run S2MM channel.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RUN_DMA);
     dma_s2mm_status(dma_virtual_addr);
 
-    printf("Writing MM2S transfer length of 32 bytes...\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Writing MM2S transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, MM2S_TRNSFR_LENGTH_REGISTER, 32);
     dma_mm2s_status(dma_virtual_addr);
 
-    printf("Writing S2MM transfer length of 32 bytes...\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Writing S2MM transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, S2MM_BUFF_LENGTH_REGISTER, 32);
     dma_s2mm_status(dma_virtual_addr);
 
-    printf("Waiting for MM2S synchronization...\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Waiting for MM2S synchronization...\n");
     dma_mm2s_sync(dma_virtual_addr);
 
-    printf("Waiting for S2MM sychronization...\n");
+	sleep(1);
+
+    printf("INFO [dmatest.c] Waiting for S2MM sychronization...\n");
     dma_s2mm_sync(dma_virtual_addr);
+
+	sleep(1);
 
     dma_s2mm_status(dma_virtual_addr);
     dma_mm2s_status(dma_virtual_addr);
 
-    printf("Destination memory block: ");
+	sleep(1);
+
+	printf("\n");
+    printf("INFO [dmatest.c] Destination memory block: ");
 	print_mem(virtual_dst_addr, 32);
 
 	printf("\n");

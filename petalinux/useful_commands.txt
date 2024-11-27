@@ -1,0 +1,24 @@
+Find useful commands that are a pain to type below:
+
+Copying .wic image to local:
+    scp mqp_vm:/home/jwbuchta/Desktop/petabruh/dma_test_os/images/linux/petalinux-sdimage.wic C:\Users\bucht\OneDrive\Desktop\ubuntu_vm_shared
+
+Packaging petalinux: 
+    petalinux-package --wic --wks ./kv260_wks.wks  --bootfiles "ramdisk.cpio.gz.u-boot boot.scr Image system.dtb"
+
+Custom .wks file: 
+    # Description: Creates a partitioned SD card image. Boot files
+    # are located in the first vfat partition. Rootfs will be in second ext4 partition.
+ 
+    part /boot --source bootimg-partition --ondisk mmcblk1 --fstype=vfat --label boot --active --align 4 --fixed-size 4G
+    part / --source rootfs --ondisk mmcblk1 --fstype=ext4 --label root --align 4 --fixed-size 26G
+
+Sending bitstream to petalinux:
+    scp images/linux/system.bit petalinux@130.215.23.114:/home/petalinux
+
+Programming the FPGA:
+    - First time:
+        - mkdir -p /lib/firmware
+        - cp <bitsream>.bit /lib/firmware 
+
+    - echo system.bit > /sys/class/fpga_manager/fpga0/firmware
