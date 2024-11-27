@@ -6,4 +6,3 @@ CONFIG_peekpoke
 CONFIG_packagegroup-petalinux-kria
 CONFIG_add-mult-test
 CONFIG_axi-dma-test
-CONFIG_add-custom-files
