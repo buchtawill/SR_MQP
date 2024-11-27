@@ -1,0 +1,26 @@
+menu "user packages " 
+config add-custom-files  
+	 bool "add-custom-files"
+	 help
+	
+config add-mult-test  
+	 bool "add-mult-test"
+	 help
+	
+config axi-dma-test  
+	 bool "axi-dma-test"
+	 help
+	
+config gpio-demo  
+	 bool "gpio-demo"
+	 help
+	
+config packagegroup-petalinux-kria  
+	 bool "packagegroup-petalinux-kria"
+	 help
+	
+config peekpoke  
+	 bool "peekpoke"
+	 help
+	
+endmenu

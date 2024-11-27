@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "INFO [build_and_package.sh] Sourcing petalinux settings"
 
 if source /tools/Xilinx/PetaLinux/2023.1/settings.sh ; then
@@ -31,5 +33,12 @@ if petalinux-package --wic --wks ./kv260_wks.wks  --bootfiles "ramdisk.cpio.gz.u
 	echo "INFO [build_and_package.sh] Successfully packaged petalinux image"
 else
 	echo "ERROR [build_and_package.sh] Error packaging petalinux image"
+	exit 1
+fi
+
+if petalinux-package --boot --fsbl ./images/linux/zynqmp_fsbl.elf --fpga ./images/linux/system.bit --u-boot --force ; then
+	echo "INFO [build_and_package.sh] Successfully packaged petalinux boot image"
+else
+	echo "ERROR [build_and_package.sh] Error packaging petalinux boot image"
 	exit 1
 fi
