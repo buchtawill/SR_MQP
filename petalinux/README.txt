@@ -1,1 +1,1 @@
-Petalinux related files, including build scripts and applications
+Petalinux project files. Full build located on fpga-mqp-pschaumont.wpi.edu.
