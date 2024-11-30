@@ -2011,11 +2011,11 @@ CONFIG_libdfx=y
 #
 # opencv 
 #
-# CONFIG_opencv is not set
-# CONFIG_opencv-dbg is not set
-# CONFIG_opencv-apps is not set
-# CONFIG_opencv-dev is not set
-# CONFIG_opencv-samples is not set
+CONFIG_opencv=y
+CONFIG_opencv-dbg=y
+CONFIG_opencv-apps=y
+CONFIG_opencv-dev=y
+CONFIG_opencv-samples=y
 
 #
 # pango 
@@ -3930,7 +3930,7 @@ CONFIG_u-boot-tools=y
 #
 # packagegroup-petalinux-gstreamer 
 #
-# CONFIG_packagegroup-petalinux-gstreamer is not set
+CONFIG_packagegroup-petalinux-gstreamer=y
 # CONFIG_packagegroup-petalinux-gstreamer-dev is not set
 # CONFIG_packagegroup-petalinux-gstreamer-dbg is not set
 
@@ -3993,9 +3993,9 @@ CONFIG_u-boot-tools=y
 #
 # packagegroup-petalinux-opencv 
 #
-# CONFIG_packagegroup-petalinux-opencv is not set
-# CONFIG_packagegroup-petalinux-opencv-dev is not set
-# CONFIG_packagegroup-petalinux-opencv-dbg is not set
+CONFIG_packagegroup-petalinux-opencv=y
+CONFIG_packagegroup-petalinux-opencv-dev=y
+CONFIG_packagegroup-petalinux-opencv-dbg=y
 
 #
 # packagegroup-petalinux-python-modules 
@@ -4086,9 +4086,9 @@ CONFIG_Init-manager-systemd=y
 #
 # user packages 
 #
-CONFIG_add-custom-files=y
 CONFIG_add-mult-test=y
 CONFIG_axi-dma-test=y
+CONFIG_dma-cpp=y
 # CONFIG_gpio-demo is not set
 CONFIG_packagegroup-petalinux-kria=y
 # CONFIG_peekpoke is not set
