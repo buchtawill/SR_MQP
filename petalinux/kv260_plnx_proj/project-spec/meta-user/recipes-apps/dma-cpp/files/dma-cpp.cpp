@@ -39,48 +39,7 @@ Modified by Will Buchta 11/12/2024
 #include <errno.h>
 #include <unistd.h>
 
-#define MM2S_CONTROL_REGISTER       0x00
-#define MM2S_STATUS_REGISTER        0x04
-#define MM2S_SRC_ADDRESS_REGISTER   0x18
-#define MM2S_TRNSFR_LENGTH_REGISTER 0x28
-
-#define S2MM_CONTROL_REGISTER       0x30
-#define S2MM_STATUS_REGISTER        0x34
-#define S2MM_DST_ADDRESS_REGISTER   0x48
-#define S2MM_BUFF_LENGTH_REGISTER   0x58
-
-#define IOC_IRQ_FLAG                1<<12
-#define IDLE_FLAG                   1<<1
-
-#define STATUS_HALTED               0x00000001
-#define STATUS_IDLE                 0x00000002
-#define STATUS_SG_INCLDED           0x00000008
-#define STATUS_DMA_INTERNAL_ERR     0x00000010
-#define STATUS_DMA_SLAVE_ERR        0x00000020
-#define STATUS_DMA_DECODE_ERR       0x00000040
-#define STATUS_SG_INTERNAL_ERR      0x00000100
-#define STATUS_SG_SLAVE_ERR         0x00000200
-#define STATUS_SG_DECODE_ERR        0x00000400
-#define STATUS_IOC_IRQ              0x00001000
-#define STATUS_DELAY_IRQ            0x00002000
-#define STATUS_ERR_IRQ              0x00004000
-
-#define HALT_DMA                    0x00000000
-#define RUN_DMA                     0x00000001
-#define RESET_DMA                   0x00000004
-#define ENABLE_IOC_IRQ              0x00001000
-#define ENABLE_DELAY_IRQ            0x00002000
-#define ENABLE_ERR_IRQ              0x00004000
-#define ENABLE_ALL_IRQ              0x00007000
-
-#define DMA_AXI_LITE_BASE			0xA0010000
-#define ADD_MULT_BASE_ADDR  		0xA0000000
-
-// memory is reserved for PL from 0x78000000 to 0x7FFFFFFF
-#define VIRTUAL_SRC_ADDR 			0x78000000
-#define VIRTUAL_DST_ADDR 			0x79000000
-
-#define DMA_SYNC_TRIES				10
+#include "dma-cpp.h"
 
 unsigned int write_dma(unsigned int *virtual_addr, int offset, unsigned int value)
 {
@@ -261,7 +220,7 @@ int dma_s2mm_sync(unsigned int *virtual_addr)
 
 void print_mem(void *virtual_address, int byte_count)
 {
-	char *data_ptr = virtual_address;
+	char *data_ptr = (char*)virtual_address;
 
 	for(int i=0;i<byte_count;i++){
 		printf("%02X", data_ptr[i]);
@@ -292,29 +251,21 @@ int main()
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
-    uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
+    uint32_t *dma_virtual_addr = (uint32_t *)mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
 	if(dma_virtual_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
 		return -1;
 	}
 
-	// Access reserved memory for the PL
-	printf("INFO [dmatest.c] Memory mapping source DRAM (for MM2S)\n");
-    float *virtual_src_addr = mmap(
-		NULL,                         // Let the kernel decide the virtual address
-		65535,                        // Size of memory to map 
-		PROT_READ | PROT_WRITE,       // Permissions: read and write
-		MAP_SHARED,                   // Changes are shared with other mappings
-		ddr_memory,                   // File descriptor for /dev/mem
-		VIRTUAL_SRC_ADDR              // Physical address of the reserved memory
-	);
+	printf("INFO [dmatest.c] Memory mapping the MM2S source address register block.\n");
+    float *virtual_src_addr  = (float *)mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_SRC_ADDR);
 	if(virtual_src_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map MM2S source address register block: %s\n", strerror(errno));
 		return -1;
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the S2MM destination address register block.\n");
-    uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
+    uint32_t *virtual_dst_addr = (uint32_t *)mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
 	if(virtual_dst_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block: %s\n", strerror(errno));
 		return -1;
@@ -330,6 +281,7 @@ int main()
 	virtual_src_addr[5] = 100.0f;
 	virtual_src_addr[6] = 256.0f;
 	virtual_src_addr[7] = 482.0f;
+
 
 	printf("INFO [dmatest.c] Clearing the destination block\n");
     memset(virtual_dst_addr, 0, 32);
@@ -410,10 +362,6 @@ int main()
 	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[5], ((float*)virtual_dst_addr)[5]);
 	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[6], ((float*)virtual_dst_addr)[6]);
 	printf("sqrt(%f): %f\n", ((float*)virtual_src_addr)[7], ((float*)virtual_dst_addr)[7]);
-
-	munmap(dma_virtual_addr, 65535);
-	munmap(virtual_src_addr, 65535);
-	munmap(virtual_dst_addr, 65535);
 
     return 0;
 }
