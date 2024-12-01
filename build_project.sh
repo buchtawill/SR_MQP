@@ -15,6 +15,8 @@ UNIX_TIME_START=$(date +%s)
 echo "INFO [build_project.sh] Changing to vivado dir and running build script" >> $MAIN_DIR/build.log
 cd ./vivado
 
+source /tools/Xilinx/Vivado/2023.1/settings64.sh
+
 # Run Vivado in batch mode
 vivado -mode batch -source build_proj.tcl >> $MAIN_DIR/build.log
 
