@@ -5,8 +5,14 @@ PLNX_PROJ_DIR=$MAIN_DIR/petalinux/kv260_plnx_proj
 VIVADO_PROJ_DIR=$MAIN_DIR/vivado/kv260_vivado_proj
 XSA_FILE_PATH=$VIVADO_PROJ_DIR/kv260_upscaler.xsa
 
-rm ./build.log
-touch ./build.log
+if rm ./build.log; then
+    # This is a workaround to avoid the error message when the file does not exist
+    # Successfully removed build.log
+    touch ./build.log
+else
+    touch ./build.log
+fi
+
 
 now=$(date)
 echo "INFO [build_project.sh] Starting execution on $now" >> $MAIN_DIR/build.log
@@ -62,4 +68,15 @@ echo "INFO [build_project.sh] Running petalinux build script" >> $MAIN_DIR/build
 
 now=$(date)
 echo "INFO [build_project.sh] Finished execution at $now"
-echo "INFO [build_project.sh] Total execution time: $(($(date +%s) - UNIX_TIME_START)) seconds" >> $MAIN_DIR/build.log
+
+END_TIME=$(date +%s)
+ELAPSED_TIME=$((END_TIME - UNIX_TIME_START))
+
+# Calculate hours, minutes, and seconds
+HOURS=$((ELAPSED_TIME / 3600))
+MINUTES=$(((ELAPSED_TIME % 3600) / 60))
+SECONDS=$((ELAPSED_TIME % 60))
+
+# Print the formatted execution time
+echo "INFO [build_project.sh] Total execution time: ${HOURS}h ${MINUTES}m ${SECONDS}s" >> $MAIN_DIR/build.log
+echo "INFO [build_project.sh] Total execution time: ${HOURS}h ${MINUTES}m ${SECONDS}s" 

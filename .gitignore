@@ -11,3 +11,6 @@ Models/FSRCNN/Emulation/fsrcnn_cpp/debug_crops/
 .vscode
 *.log.old
 *.log
+
+# Ignore XSA files as they are build products
+*.xsa
