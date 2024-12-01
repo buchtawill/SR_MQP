@@ -15,6 +15,10 @@ config gpio-demo
 	 bool "gpio-demo"
 	 help
 	
+config opencv-test  
+	 bool "opencv-test"
+	 help
+	
 config packagegroup-petalinux-kria  
 	 bool "packagegroup-petalinux-kria"
 	 help

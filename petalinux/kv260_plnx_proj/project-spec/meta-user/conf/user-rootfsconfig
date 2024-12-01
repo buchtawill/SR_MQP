@@ -7,3 +7,4 @@ CONFIG_packagegroup-petalinux-kria
 CONFIG_add-mult-test
 CONFIG_axi-dma-test
 CONFIG_dma-cpp
+CONFIG_opencv-test

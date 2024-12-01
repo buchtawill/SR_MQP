@@ -208,53 +208,27 @@ void dma_mm2s_status(unsigned int *virtual_addr)
 	}
 }
 
-int dma_mm2s_sync(unsigned int *virtual_addr)
-{
-    unsigned int mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
+
+/**
+ * Wait for an IOC flag on either S2MM_STATUS_REGISTER or MM2S_STATUS_REGISTER
+ * @param dma_base_address Pointer to /dev/mem base address of the DMA AXI IP
+ * @param reg Register to read from - S2MM_STATUS_REGISTER or MM2S_STATUS_REGISTER
+ * @return 0 on success, -1 on timeout
+ */
+int dma_sync(uint32_t *dma_base_address, uint32_t reg){
+	uint32_t status = read_dma(dma_base_address, reg);
 
 	uint32_t count = 0;
 
-	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
-	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while((!(mm2s_status & IOC_IRQ_FLAG) || !(mm2s_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
-	{
-        dma_s2mm_status(virtual_addr);
-        dma_mm2s_status(virtual_addr);
-
-        mm2s_status =  read_dma(virtual_addr, MM2S_STATUS_REGISTER);
+	while(!(status & IOC_IRQ_FLAG) && count < DMA_SYNC_TRIES){
+		status = read_dma(dma_base_address, reg);
 		sleep(1);
 		count++;
 		if(count == DMA_SYNC_TRIES){
-			printf("ERROR [dmatest.c::dma_mm2s_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
+			printf("ERROR [dmatest.c::dma_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
 			return -1;
 		}
-    }
-
-	return 0;
-}
-
-int dma_s2mm_sync(unsigned int *virtual_addr)
-{
-    unsigned int s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
-
-	uint32_t count = 0;
-
-	// sit in this while loop as long as the status does not read back 0x00001002 (4098)
-	// 0x00001002 = IOC interrupt has occured and DMA is idle
-	while((!(s2mm_status & IOC_IRQ_FLAG) || !(s2mm_status & IDLE_FLAG)) && count < DMA_SYNC_TRIES)
-	{
-        dma_s2mm_status(virtual_addr);
-        dma_mm2s_status(virtual_addr);
-
-        s2mm_status = read_dma(virtual_addr, S2MM_STATUS_REGISTER);
-		sleep(1);
-		count++;
-		if(count == DMA_SYNC_TRIES){
-			printf("ERROR [dmatest.c::dma_s2mm_sync()] Timeout occurred. Tried %d times\n", DMA_SYNC_TRIES);
-			return -1;
-		}
-    }
-
+	}
 
 	return 0;
 }
@@ -292,7 +266,7 @@ int main()
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the address of the DMA AXI IP via its AXI lite control interface register block.\n");
-    uint32_t *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
+    uint32_t *dma_virtual_addr = (uint32_t *)mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, DMA_AXI_LITE_BASE);
 	if(dma_virtual_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
 		return -1;
@@ -300,7 +274,7 @@ int main()
 
 	// Access reserved memory for the PL
 	printf("INFO [dmatest.c] Memory mapping source DRAM (for MM2S)\n");
-    float *virtual_src_addr = mmap(
+    float *virtual_src_addr = (float*)mmap(
 		NULL,                         // Let the kernel decide the virtual address
 		65535,                        // Size of memory to map 
 		PROT_READ | PROT_WRITE,       // Permissions: read and write
@@ -314,7 +288,7 @@ int main()
 	}
 
 	printf("INFO [dmatest.c] Memory mapping the S2MM destination address register block.\n");
-    uint32_t *virtual_dst_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
+    uint32_t *virtual_dst_addr = (uint32_t *)mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, VIRTUAL_DST_ADDR);
 	if(virtual_dst_addr == MAP_FAILED){
 		printf("ERROR [dmatest.c] Failed to map S2MM destination address register block: %s\n", strerror(errno));
 		return -1;
@@ -343,8 +317,8 @@ int main()
     printf("INFO [dmatest.c] Resetting DMA\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RESET_DMA);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, RESET_DMA);
-    dma_s2mm_status(dma_virtual_addr);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
 	printf("INFO [dmatest.c] S2MM Control Register: 0x%08x\n", read_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER));
 	printf("INFO [dmatest.c] MM2S Control Register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER));
@@ -352,49 +326,49 @@ int main()
 	printf("INFO [dmatest.c] Halting DMA.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, HALT_DMA);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, HALT_DMA);
-    dma_s2mm_status(dma_virtual_addr);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
 	printf("INFO [dmatest.c] Enabling all interrupts.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, ENABLE_ALL_IRQ);
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, ENABLE_ALL_IRQ);
-    dma_s2mm_status(dma_virtual_addr);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
     printf("INFO [dmatest.c] Writing source address of the data from MM2S in DDR...\n");
     write_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER, VIRTUAL_SRC_ADDR);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
 	printf("INFO [dmatest.c] MM2S source address register: 0x%08x\n", read_dma(dma_virtual_addr, MM2S_SRC_ADDRESS_REGISTER));
 
     printf("INFO [dmatest.c] Writing the destination address for the data from S2MM in DDR...\n");
     write_dma(dma_virtual_addr, S2MM_DST_ADDRESS_REGISTER, VIRTUAL_DST_ADDR);
-    dma_s2mm_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
 
 	printf("INFO [dmatest.c] Running MM2S channel.\n");
     write_dma(dma_virtual_addr, MM2S_CONTROL_REGISTER, RUN_DMA);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
 	printf("INFO [dmatest.c] Run S2MM channel.\n");
     write_dma(dma_virtual_addr, S2MM_CONTROL_REGISTER, RUN_DMA);
-    dma_s2mm_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
 
     printf("INFO [dmatest.c] Writing MM2S transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, MM2S_TRNSFR_LENGTH_REGISTER, 32);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
     printf("INFO [dmatest.c] Writing S2MM transfer length of 32 bytes...\n");
     write_dma(dma_virtual_addr, S2MM_BUFF_LENGTH_REGISTER, 32);
-    dma_s2mm_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
 
     printf("INFO [dmatest.c] Waiting for MM2S synchronization...\n");
-    dma_mm2s_sync(dma_virtual_addr);
+    dma_sync(dma_virtual_addr, MM2S_STATUS_REGISTER);
 
     printf("INFO [dmatest.c] Waiting for S2MM sychronization...\n");
-    dma_s2mm_sync(dma_virtual_addr);
+    dma_sync(dma_virtual_addr, S2MM_STATUS_REGISTER);
 
-    dma_s2mm_status(dma_virtual_addr);
-    dma_mm2s_status(dma_virtual_addr);
+    // dma_s2mm_status(dma_virtual_addr);
+    // dma_mm2s_status(dma_virtual_addr);
 
 	printf("\n");
     printf("INFO [dmatest.c] Destination memory block: ");
