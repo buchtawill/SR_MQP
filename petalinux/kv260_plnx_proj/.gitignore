@@ -10,3 +10,6 @@ pre-built/linux/
 *.log
 /components/plnx_workspace
 /components/yocto
+hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.runs
+hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.xsa
+hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.cache
