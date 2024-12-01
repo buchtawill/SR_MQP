@@ -3923,7 +3923,7 @@ CONFIG_u-boot-tools=y
 #
 # packagegroup-petalinux-display-debug 
 #
-# CONFIG_packagegroup-petalinux-display-debug is not set
+CONFIG_packagegroup-petalinux-display-debug=y
 # CONFIG_packagegroup-petalinux-display-debug-dbg is not set
 # CONFIG_packagegroup-petalinux-display-debug-dev is not set
 
@@ -4000,7 +4000,7 @@ CONFIG_packagegroup-petalinux-opencv-dbg=y
 #
 # packagegroup-petalinux-python-modules 
 #
-# CONFIG_packagegroup-petalinux-python-modules is not set
+CONFIG_packagegroup-petalinux-python-modules=y
 # CONFIG_packagegroup-petalinux-python-modules-dbg is not set
 # CONFIG_packagegroup-petalinux-python-modules-dev is not set
 
@@ -4036,7 +4036,7 @@ CONFIG_packagegroup-petalinux-opencv-dbg=y
 #
 # packagegroup-petalinux-v4lutils 
 #
-# CONFIG_packagegroup-petalinux-v4lutils is not set
+CONFIG_packagegroup-petalinux-v4lutils=y
 # CONFIG_packagegroup-petalinux-v4lutils-dbg is not set
 # CONFIG_packagegroup-petalinux-v4lutils-dev is not set
 
