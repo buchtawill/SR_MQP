@@ -42,3 +42,7 @@ else
 	echo "ERROR [build_and_package.sh] Error packaging petalinux boot image"
 	exit 1
 fi
+
+echo "INFO [do_build_and_package.sh] Zipping petalinux-sdimage.wic..."
+gzip -f -k -v ./images/linux/petalinux-sdimage.wic
+echo "INFO [do_build_and_package.sh] Finished"

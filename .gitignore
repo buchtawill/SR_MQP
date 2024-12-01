@@ -10,3 +10,4 @@ Models/FSRCNN/tensor_test.py
 Models/FSRCNN/Emulation/fsrcnn_cpp/debug_crops/
 .vscode
 *.log.old
+*.log
