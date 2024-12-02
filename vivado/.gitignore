@@ -1,0 +1,6 @@
+*.log
+*.jou
+.Xil
+*.ip_user_files
+*.runs
+*.str

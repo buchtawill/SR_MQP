@@ -1,0 +1,14 @@
+/include/ "system-conf.dtsi"
+/ {
+    pl-reserved-memory {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      ranges;
+  
+      reserved: buffer@0x78000000 {
+         reg = <0x78000000 0x08000000>;
+         no-map;
+         compatible = "shared-dma-pool";
+      };
+   };
+};

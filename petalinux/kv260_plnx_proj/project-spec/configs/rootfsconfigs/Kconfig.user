@@ -1,0 +1,30 @@
+menu "user packages " 
+config add-mult-test  
+	 bool "add-mult-test"
+	 help
+	
+config axi-dma-test  
+	 bool "axi-dma-test"
+	 help
+	
+config dma-cpp  
+	 bool "dma-cpp"
+	 help
+	
+config gpio-demo  
+	 bool "gpio-demo"
+	 help
+	
+config opencv-test  
+	 bool "opencv-test"
+	 help
+	
+config packagegroup-petalinux-kria  
+	 bool "packagegroup-petalinux-kria"
+	 help
+	
+config peekpoke  
+	 bool "peekpoke"
+	 help
+	
+endmenu
