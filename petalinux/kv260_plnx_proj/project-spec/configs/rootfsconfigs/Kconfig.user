@@ -27,4 +27,20 @@ config peekpoke
 	 bool "peekpoke"
 	 help
 	
+config print-fb-info  
+	 bool "print-fb-info"
+	 help
+	
+config v4l-to-fb0  
+	 bool "v4l-to-fb0"
+	 help
+	
+config v4l-to-fb0-aligned  
+	 bool "v4l-to-fb0-aligned"
+	 help
+	
+config vid-v4l-test  
+	 bool "vid-v4l-test"
+	 help
+	
 endmenu
