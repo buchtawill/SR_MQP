@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <algorithm>
+#include <vector>
+//#include <hls_opencv.h>
 
 //#define BUS_WIDTH 128
 #define BUS_WIDTH 32
