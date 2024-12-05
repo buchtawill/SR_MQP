@@ -35,6 +35,10 @@ config v4l-to-fb0-aligned
 	 bool "v4l-to-fb0-aligned"
 	 help
 	
+config v4l-to-fb0-dma  
+	 bool "v4l-to-fb0-dma"
+	 help
+	
 config vid-v4l-test  
 	 bool "vid-v4l-test"
 	 help

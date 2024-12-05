@@ -4094,8 +4094,8 @@ CONFIG_dma-cpp=y
 CONFIG_packagegroup-petalinux-kria=y
 # CONFIG_peekpoke is not set
 CONFIG_print-fb-info=y
-CONFIG_v4l-to-fb0=y
 CONFIG_v4l-to-fb0-aligned=y
+CONFIG_v4l-to-fb0-dma=y
 CONFIG_vid-v4l-test=y
 
 #

@@ -175,43 +175,50 @@ int main(int argc, char *argv[]) {
     }
 
     // Capture and display a frame
-    printf("INFO [v4l-to-fb0-aligned.cpp] Capturing frame from v4l2\n");
-    if (ioctl(video_fd, VIDIOC_QBUF, &buf) == -1) {
-        perror("Queueing buffer");
-        munmap(video_buffer, buf.length);
-        munmap(fb_buffer, fb_size);
-        close(video_fd);
-        close(fb_fd);
-        printf("ERROR [v4l-to-fb0-aligned.cpp] Error queueing buffer: %s\n", strerror(errno));
-        return 1;
+    uint16_t rgb565_buf[INPUT_WIDTH * INPUT_HEIGHT];
+    printf("INFO [v4l-to-fb0-aligned.cpp] Starting continuous loop of reading frames\n");
+    while(true){
+
+        // Read from AXI timer
+
+        // printf("INFO [v4l-to-fb0-aligned.cpp] Capturing frame from v4l2\n");
+        if (ioctl(video_fd, VIDIOC_QBUF, &buf) == -1) {
+            perror("Queueing buffer");
+            munmap(video_buffer, buf.length);
+            munmap(fb_buffer, fb_size);
+            close(video_fd);
+            close(fb_fd);
+            printf("ERROR [v4l-to-fb0-aligned.cpp] Error queueing buffer: %s\n", strerror(errno));
+            return 1;
+        }
+        
+        if (ioctl(video_fd, VIDIOC_DQBUF, &buf) == -1) {
+            perror("Dequeueing buffer");
+            munmap(video_buffer, buf.length);
+            munmap(fb_buffer, fb_size);
+            close(video_fd);
+            close(fb_fd);
+            printf("ERROR [v4l-to-fb0-aligned.cpp] Error dequeueing buffer: %s\n", strerror(errno));
+            return 1;
+        }
+
+        // Convert the v4l2 input formar to the framebuffer format
+        // Copy the video buffer to the framebuffer to capture 1 frame
+        // printf("INFO [v4l-to-fb0-aligned.cpp] Copying video buffer to frame buffer...\n");
+        
+        yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
+        // memcpy(fb_buffer, rgb565_buf, buf.bytesused);
+
+        uint32_t line_size_pixels = fb_info.xres_virtual;
+        uint16_t *fb_pointer_pix = (uint16_t*)fb_buffer;
+        for (int row = 0; row < INPUT_HEIGHT; row++) {
+            // Copy one row at a time from the rgb565 buf to the frame buffer
+            // Each pixel is 2 bytes
+            memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
+        }
     }
-    
-    if (ioctl(video_fd, VIDIOC_DQBUF, &buf) == -1) {
-        perror("Dequeueing buffer");
-        munmap(video_buffer, buf.length);
-        munmap(fb_buffer, fb_size);
-        close(video_fd);
-        close(fb_fd);
-        printf("ERROR [v4l-to-fb0-aligned.cpp] Error dequeueing buffer: %s\n", strerror(errno));
-        return 1;
-    }
 
-    // Convert the v4l2 input formar to the framebuffer format
-    // Copy the video buffer to the framebuffer to capture 1 frame
-    printf("INFO [v4l-to-fb0-aligned.cpp] Copying video buffer to frame buffer...\n");
-	uint16_t rgb565_buf[INPUT_WIDTH * INPUT_HEIGHT];
-    yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
-    memcpy(fb_buffer, rgb565_buf, buf.bytesused);
-
-	uint32_t line_size_pixels = fb_info.xres_virtual;
-	uint16_t *fb_pointer_pix = (uint16_t*)fb_buffer;
-	for (int row = 0; row < INPUT_HEIGHT; row++) {
-		// Copy one row at a time from the rgb565 buf to the frame buffer
-		// Each pixel is 2 bytes
-		memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
-	}
-
-    sleep(5); // sleep for 5 seconds so the terminal doesn't overwrite the frame
+    // sleep(5); // sleep for 5 seconds so the terminal doesn't overwrite the frame
     printf("INFO [v4l-to-fb0-aligned.cpp] Frame displayed on frame buffer\n");
 
     // Stop video streaming
