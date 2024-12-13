@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h> //for strerror
 #include <unistd.h> // for usleep
+#include <stdlib.h> // for rand
 
 AXIDMA::AXIDMA(uint32_t base_addr, int dev_mem_fd){
     this->base_address = base_addr;
@@ -12,7 +13,7 @@ AXIDMA::AXIDMA(uint32_t base_addr, int dev_mem_fd){
 }
 
 AXIDMA::~AXIDMA(){
-    printf("INFO [axi-dma.cpp] Destroying instance with base address 0x%08X\n", this->base_address);
+    // printf("INFO [AXIDMA::~AXIDMA] Deleting instance with base address 0x%08X\n", this->base_address);
     munmap(dma_phys_addr, DMA_ADDRESS_SPACE_SIZE);
 }
 
@@ -80,76 +81,67 @@ void AXIDMA::halt_s2mm(){
     write_dma(S2MM_DMACR, HALT_DMA);
 }
 
-void AXIDMA::print_mm2s_status(){
-    unsigned int status = read_dma(MM2S_DMASR);
+void AXIDMA::print_status(uint32_t reg){
+    unsigned int status = read_dma(reg);
 
-    printf("INFO [AXIDMA@0x%08X::print_mm2s_status()] MM2S status (0x%08x@0x%02x):", this->base_address, status, MM2S_DMASR);
+    if(reg == MM2S_DMASR){
+        printf("INFO [AXIDMA::print_status()] MM2S status (0x%08x@0x%02x):", this->base_address, status);
+    }
+    else if(reg == S2MM_DMASR){
+        printf("INFO [AXIDMA::print_status()] S2MM status (0x%08x@0x%02x):", this->base_address, status);
+    }
+    else{
+        printf("ERROR [AXIDMA::print_status()] Invalid register address 0x%02x\n", reg);
+        return;
+    }
 
-    if (status & STATUS_HALTED)           printf(" Halted.                       ");
-    else                                  printf(" Running.                      ");
-    if (status & STATUS_IDLE)             printf(" | Idle.                       "); 
-    if (status & STATUS_SG_INCLDED)       printf(" | SG is included.             ");
-    if (status & STATUS_DMA_INTERNAL_ERR) printf(" | DMA internal error.         ");
-    if (status & STATUS_DMA_SLAVE_ERR)    printf(" | DMA slave error.            ");
-    if (status & STATUS_DMA_DECODE_ERR)   printf(" | DMA decode error.           ");
-    if (status & STATUS_SG_INTERNAL_ERR)  printf(" | SG internal error.          ");
-    if (status & STATUS_SG_SLAVE_ERR)     printf(" | SG slave error.             ");
-    if (status & STATUS_SG_DECODE_ERR)    printf(" | SG decode error.            ");
-    if (status & STATUS_IOC_IRQ)          printf(" | IOC interrupt occurred.     ");
+    if (status & STATUS_HALTED)           printf(" Halted.");
+    else                                  printf(" Running.");
+    if (status & STATUS_IDLE)             printf(" | Idle. "); 
+    if (status & STATUS_SG_INCLDED)       printf(" | SG is included.");
+    if (status & STATUS_DMA_INTERNAL_ERR) printf(" | DMA internal error.");
+    if (status & STATUS_DMA_SLAVE_ERR)    printf(" | DMA slave error.");
+    if (status & STATUS_DMA_DECODE_ERR)   printf(" | DMA decode error.");
+    if (status & STATUS_SG_INTERNAL_ERR)  printf(" | SG internal error.");
+    if (status & STATUS_SG_SLAVE_ERR)     printf(" | SG slave error.");
+    if (status & STATUS_SG_DECODE_ERR)    printf(" | SG decode error.");
+    if (status & STATUS_IOC_IRQ)          printf(" | IOC interrupt occurred.");
     if (status & STATUS_DELAY_IRQ)        printf(" | Interrupt on delay occurred.");
-    if (status & STATUS_ERR_IRQ)          printf(" | Error interrupt occurred.   ");
+    if (status & STATUS_ERR_IRQ)          printf(" | Error interrupt occurred.");
     printf("\n");
 }
 
-void AXIDMA::print_s2mm_status(){
-    unsigned int status = read_dma(S2MM_DMASR);
-
-    printf("INFO [AXIDMA@0x%08X::print_s2mm_status()] S2MM status (0x%08x@0x%02x):", this->base_address, status, S2MM_DMASR);
-
-    if (status & STATUS_HALTED)           printf(" Halted.  |                    ");
-    else                                  printf(" Running. |                    ");
-    if (status & STATUS_IDLE)             printf(" | Idle.                       "); 
-    if (status & STATUS_SG_INCLDED)       printf(" | SG is included.             ");
-    if (status & STATUS_DMA_INTERNAL_ERR) printf(" | DMA internal error.         ");
-    if (status & STATUS_DMA_SLAVE_ERR)    printf(" | DMA slave error.            ");
-    if (status & STATUS_DMA_DECODE_ERR)   printf(" | DMA decode error.           ");
-    if (status & STATUS_SG_INTERNAL_ERR)  printf(" | SG internal error.          ");
-    if (status & STATUS_SG_SLAVE_ERR)     printf(" | SG slave error.             ");
-    if (status & STATUS_SG_DECODE_ERR)    printf(" | SG decode error.            ");
-    if (status & STATUS_IOC_IRQ)          printf(" | IOC interrupt occurred.     ");
-    if (status & STATUS_DELAY_IRQ)        printf(" | Interrupt on delay occurred.");
-    if (status & STATUS_ERR_IRQ)          printf(" | Error interrupt occurred.   ");
-    printf("\n");
-}
-
-int AXIDMA::wait_for_channel_completion(uint32_t channel_status_reg, uint32_t max_tries){
+int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
     uint32_t status = read_dma(channel_status_reg);
 
 	uint32_t count = 0;
 	while(!(status & IOC_IRQ_FLAG)){
-        usleep(10000);
+        // usleep(10000);
 
 		status = read_dma(channel_status_reg);
 
         if(channel_status_reg == MM2S_DMASR){
-            this->print_mm2s_status();
+            this->print_status(MM2S_DMASR);
         }
         else if(channel_status_reg == S2MM_DMASR){
-            this->print_s2mm_status();
+            this->print_status(S2MM_DMASR);
         }
         else{
-            printf("ERROR [axi-dma.cpp::wait_for_channel_completion()] Invalid channel status register\n");
+            printf("ERROR [AXIDMA::sync_channel()] Invalid channel status register\n");
             return -1;
         }
 
-        // Sleep for 10ms
 		count++;
 		if(count == max_tries){
-			printf("ERROR [axi-dma.cpp::wait_for_channel_completion()] Timeout occurred. Tried %d times\n", max_tries);
+            if(channel_status_reg == MM2S_DMASR){
+                printf("ERROR [AXIDMA::sync_channel()] MM2S Timeout occurred. Tried %d times\n", max_tries);
+            }
+            else if(channel_status_reg == S2MM_DMASR){
+                printf("ERROR [AXIDMA::sync_channel()] S2MM Timeout occurred. Tried %d times\n", max_tries);
+            }
 			return -1;
 		}
 	}
-
 	return count;
 }
 
@@ -159,4 +151,118 @@ void AXIDMA::enable_mm2s_intr(){
 
 void AXIDMA::enable_s2mm_intr(){
     write_dma(S2MM_DMACR, ENABLE_ALL_IRQ);
+}
+
+int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
+    this->reset_mm2s();
+    this->halt_mm2s();
+    this->enable_mm2s_intr();
+    this->set_mm2s_src(src_addr);
+
+    this->start_mm2s();
+
+    // Setting the length register must be the last step
+    this->set_mm2s_len(len);
+
+    if(block) this->sync_channel(MM2S_DMASR);
+
+    return 0;
+}
+
+int AXIDMA::transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block){
+    this->reset_s2mm();
+    this->halt_s2mm();
+    this->enable_s2mm_intr();
+    this->set_s2mm_dest(dst_addr);
+
+    this->start_s2mm();
+
+    // Setting the length register must be the last step
+    this->set_s2mm_len(len);
+
+    if(block) this->sync_channel(S2MM_DMASR);
+    return 0;
+}
+
+int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block){
+    this->reset_mm2s();
+    this->reset_s2mm();
+    this->halt_mm2s();
+    this->halt_s2mm();
+    this->enable_mm2s_intr();
+    this->enable_s2mm_intr();
+    this->set_mm2s_src(src_addr);
+    this->set_s2mm_dest(dst_addr);
+
+    this->start_mm2s();
+    this->start_s2mm();
+
+    // Setting the length register must be the last step
+    this->set_mm2s_len(len);
+    this->set_s2mm_len(len);
+
+    int num_tries1 = 0, num_tries2 = 0;
+    if(block){
+        num_tries1 = this->sync_channel(MM2S_DMASR);
+        if(num_tries1 < 0){
+            return -1;
+        }
+
+        num_tries2 = this->sync_channel(S2MM_DMASR);
+        if(num_tries2 < 0){
+            return -1;
+        }
+    }
+    return num_tries1 + num_tries2;
+}
+
+int AXIDMA::self_test(){
+
+    //mmap the source and destination addresses to the process
+    uint32_t *src_addr = (uint32_t *)mmap(
+        NULL,                   // Let the kernel decide the virtual address
+        DMA_SELF_TEST_LEN,      // Size of memory to map 
+        PROT_READ | PROT_WRITE, // Permissions: read and write
+        MAP_SHARED,             // Changes are shared with other mappings
+        this->mem_fd,           // File descriptor for /dev/mem
+        DMA_SELF_TEST_SRC_ADDR  // Physical address of the reserved memory
+    );
+
+    uint32_t *dst_addr = (uint32_t *)mmap(
+        NULL,                   // Let the kernel decide the virtual address
+        DMA_SELF_TEST_LEN,      // Size of memory to map 
+        PROT_READ | PROT_WRITE, // Permissions: read and write
+        MAP_SHARED,             // Changes are shared with other mappings
+        this->mem_fd,           // File descriptor for /dev/mem
+        DMA_SELF_TEST_DST_ADDR  // Physical address of the reserved memory
+    );
+
+    // Write some random data to the source address, copy it to the dst address, and check if it's the same
+    // If size is 0x1000, that is 4096 bytes, so 1024 uint32_t
+    for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
+        src_addr[i] = (uint32_t)rand();
+    }
+
+    this->transfer(DMA_SELF_TEST_SRC_ADDR, DMA_SELF_TEST_DST_ADDR, DMA_SELF_TEST_LEN, true);
+
+    // Check if the data is the same
+    for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
+        if(src_addr[i] != dst_addr[i]){
+            printf("ERROR [AXIDMA::self_test()] Data mismatch at index %d. Expected 0x%08X, got 0x%08X\n", i, src_addr[i], dst_addr[i]);
+            printf("Dumping memory contents to error_log.txt\n");
+            FILE *fp = fopen("error_log.txt", "w");
+            if(fp == NULL){
+                printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
+                return -1;
+            }
+            for(int j = 0; j < DMA_SELF_TEST_LEN / 4; j++){
+                fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_addr[j], dst_addr[j]);
+            }
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    printf("INFO [AXIDMA::self_test()] Self test passed\n");
+    return 0;
 }

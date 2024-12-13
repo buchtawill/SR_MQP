@@ -11,8 +11,16 @@ config dma-cpp
 	 bool "dma-cpp"
 	 help
 	
+config dma-to-fb  
+	 bool "dma-to-fb"
+	 help
+	
 config gpio-demo  
 	 bool "gpio-demo"
+	 help
+	
+config jiffies-test  
+	 bool "jiffies-test"
 	 help
 	
 config opencv-test  

@@ -10,9 +10,14 @@
 #include <errno.h>
 #include <stdint.h>
 
+#include <signal.h> //for sigint
+
 #define INPUT_WIDTH  720
 #define INPUT_HEIGHT 576
 #define INPUT_PIXEL_FORMAT V4L2_PIX_FMT_YUYV // Match the framebuffer pixel format (e.g., RGB565)
+
+// Global variable - use with caution! This should only ever be set to true 
+bool die_flag = false;
 
 // Convert YUYV to RGB565
 void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
@@ -43,6 +48,10 @@ void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
     }
 }
 
+void sigint_handler(int sig){
+    die_flag = true;
+}
+
 int main(int argc, char *argv[]) {
 
     if(argc < 3) {
@@ -53,6 +62,8 @@ int main(int argc, char *argv[]) {
 
     const char *video_device = argv[1];
     const char *fb_device = argv[2];
+
+    signal(SIGINT, sigint_handler);
 
     // Open the video device
     int video_fd = open(video_device, O_RDWR);
@@ -176,8 +187,9 @@ int main(int argc, char *argv[]) {
 
     // Capture and display a frame
     uint16_t rgb565_buf[INPUT_WIDTH * INPUT_HEIGHT];
+    uint32_t frame_loop_count = 0;
     printf("INFO [v4l-to-fb0-aligned.cpp] Starting continuous loop of reading frames\n");
-    while(true){
+    while(!die_flag){
 
         // Read from AXI timer
 
@@ -216,10 +228,29 @@ int main(int argc, char *argv[]) {
             // Each pixel is 2 bytes
             memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
         }
+        frame_loop_count++;
+        if(frame_loop_count % 50 == 0){
+              printf("INFO [v4l-to-fb0-aligned] Frame count: %05u\n", frame_loop_count);
+              printf("                          565 mem: ", frame_loop_count);
+            for(int i = 0; i < 8; i++){
+                printf("%04X", rgb565_buf[i]);
+                if((i + 1) % 2 == 0)printf(" ");
+            }
+
+            printf("\n                          fb0 mem: ", frame_loop_count);
+            for(int i = 0; i < 8; i++){
+                printf("%04X", fb_pointer_pix[i]);
+                if((i + 1) % 2 == 0)printf(" ");
+            }
+            printf("\n");
+        }
     }
 
     // sleep(5); // sleep for 5 seconds so the terminal doesn't overwrite the frame
-    printf("INFO [v4l-to-fb0-aligned.cpp] Frame displayed on frame buffer\n");
+
+    if(die_flag){
+        printf("\nINFO [v4l-to-fb0-aligned.cpp] Ctrl-c detected, exiting program\n");
+    }
 
     // Stop video streaming
     if (ioctl(video_fd, VIDIOC_STREAMOFF, &buf.type) == -1) {

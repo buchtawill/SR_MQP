@@ -3,14 +3,19 @@
 
 #include "stdint.h"
 
+// Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
 #define DMA_0_AXI_LITE_BASE			0xA0010000
-#define DMA_1_AXI_LITE_BASE			0xA0030000
+#define DMA_1_AXI_LITE_BASE			0xA0020000
 #define DMA_ADDRESS_SPACE_SIZE      0x00010000
 
-#define VIRTUAL_SRC_ADDR 			0x78000000
-#define VIRTUAL_DST_ADDR 			0x79000000
+#define KERNEL_RSVD_MEM_BASE		0x78000000
+#define KERNEL_RSVD_MEM_SIZE        0x02000000
 
-#define DMA_SYNC_TRIES				100
+#define DMA_SELF_TEST_SRC_ADDR      KERNEL_RSVD_MEM_BASE   
+#define DMA_SELF_TEST_DST_ADDR      (KERNEL_RSVD_MEM_BASE + 0x1000) 
+#define DMA_SELF_TEST_LEN           0x1000
+
+#define DMA_SYNC_TRIES				10000
 #define MAX_DMA_SYNC_TRIES          0xFFFFFFFF
 
 // Common names
@@ -63,13 +68,12 @@
 
 class AXIDMA {
 private:
-    uint32_t base_address;          // Base address of the AXI Lite port
-    int mem_fd = -1;                // File descriptor for /dev/mem
-    uint32_t *dma_phys_addr = nullptr; // Pointer after doing MMAP
+    uint32_t base_address;      // Base address of the AXI Lite port
+    int mem_fd = -1;            // File descriptor for /dev/mem
+    uint32_t *dma_phys_addr;    // Pointer after doing MMAP
 
     // Write to a DMA register
     void write_dma(uint32_t reg, uint32_t val);
-
 
 public:
 
@@ -88,6 +92,42 @@ public:
 
     // Read from a DMA register
     uint32_t read_dma(uint32_t reg);
+
+    /**
+     * Perform a self-test on the DMA engine by transferring data from a known memory location to the other
+     * Need to call initialize before
+     * @return 0 for success, -1 on timeout
+     */
+    int self_test();
+
+    /**
+     * Run the S2MM channel. 
+     * @param dst_addr Destination address in memory space
+     * @param len Length of the transfer in bytes
+     * @param block True for blocking call, false for non-blocking
+     * @return 0 for success, -1 on timeout
+     */
+    int transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block);
+
+    /**
+     * Run the MM2S channel. This is a blocking call!
+     * @param src_addr Source address in memory space
+     * @param len Length of the transfer in bytes
+     * @param block True for blocking call, false for non-blocking
+     * @return 0 for success, -1 on timeout
+     */
+    int transfer_mm2s(uint32_t src_addr, uint32_t len, bool block);
+
+    /**
+     * Transfer len bytes from src_addr to dst_addr, running thru this DMA engine.
+     * This is a blocking call!
+     * @param src_addr Source address in memory space
+     * @param dst_addr Destination address in memory space
+     * @param len Length of the transfer in bytes
+     * @param block True for blocking call, false for non-blocking
+     * @return 0 for success, -1 on timeout
+     */
+    int transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block);
     
     /**
      * Get the base address of the AXI Lite port
@@ -108,10 +148,10 @@ public:
     /**
      * Wait for an IOC flag on either MM2S_DMASR or S2MM_DMASR
      * @param reg Register to read from - MM2S_DMASR or S2MM_DMASR
-     * @param max_tries Maximum number of tries before timeout
+     * @param max_tries Maximum number of tries before timeout. Default is DMA_SYNC_TRIES
      * @return Number of reg reads on success, -1 on timeout
      */
-    int wait_for_channel_completion(uint32_t channel_status_reg, uint32_t max_tries = DMA_SYNC_TRIES);
+    int sync_channel(uint32_t channel_status_reg, uint32_t max_tries = DMA_SYNC_TRIES);
 
     /**
      * Set the length of the MM2S outbound transfer
@@ -173,14 +213,10 @@ public:
     void halt_s2mm();
 
     /**
-     * Print the status of the MM2S channel
+     * Print info about a status register
+     * @param reg either MM2S_DMASR or S2MM_DMASR
      */
-    void print_s2mm_status();
-
-    /**
-     * Print the status of the S2MM channel
-     */
-    void print_mm2s_status();
+    void print_status(uint32_t reg);
 
     /**
      * Reset both DMA channels

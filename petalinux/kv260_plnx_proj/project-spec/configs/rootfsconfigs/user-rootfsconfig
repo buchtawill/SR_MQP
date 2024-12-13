@@ -12,3 +12,5 @@ CONFIG_vid-v4l-test
 CONFIG_print-fb-info
 CONFIG_v4l-to-fb0-aligned
 CONFIG_v4l-to-fb0-dma
+CONFIG_dma-to-fb
+CONFIG_jiffies-test

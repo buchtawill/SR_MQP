@@ -3930,7 +3930,7 @@ CONFIG_packagegroup-petalinux-display-debug=y
 #
 # packagegroup-petalinux-gstreamer 
 #
-CONFIG_packagegroup-petalinux-gstreamer=y
+# CONFIG_packagegroup-petalinux-gstreamer is not set
 # CONFIG_packagegroup-petalinux-gstreamer-dev is not set
 # CONFIG_packagegroup-petalinux-gstreamer-dbg is not set
 
@@ -4000,7 +4000,7 @@ CONFIG_packagegroup-petalinux-gstreamer=y
 #
 # packagegroup-petalinux-python-modules 
 #
-CONFIG_packagegroup-petalinux-python-modules=y
+# CONFIG_packagegroup-petalinux-python-modules is not set
 # CONFIG_packagegroup-petalinux-python-modules-dbg is not set
 # CONFIG_packagegroup-petalinux-python-modules-dev is not set
 
@@ -4089,7 +4089,9 @@ CONFIG_Init-manager-systemd=y
 CONFIG_add-mult-test=y
 CONFIG_axi-dma-test=y
 CONFIG_dma-cpp=y
+CONFIG_dma-to-fb=y
 # CONFIG_gpio-demo is not set
+CONFIG_jiffies-test=y
 # CONFIG_opencv-test is not set
 CONFIG_packagegroup-petalinux-kria=y
 # CONFIG_peekpoke is not set
