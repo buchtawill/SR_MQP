@@ -1,5 +1,7 @@
 #!/bin/bash
 
+UNIX_TIME_START=$(date +%s)
+echo "INFO [build_and_package.sh] Starting petalinux build and package process"
 echo "INFO [build_and_package.sh] Sourcing petalinux settings"
 
 if source /tools/Xilinx/PetaLinux/2023.1/settings.sh ; then
@@ -46,3 +48,12 @@ fi
 echo "INFO [do_build_and_package.sh] Zipping petalinux-sdimage.wic..."
 gzip -f -k -v ./images/linux/petalinux-sdimage.wic
 echo "INFO [do_build_and_package.sh] Finished"
+
+END_TIME=$(date +%s)
+ELAPSED_TIME=$((END_TIME - UNIX_TIME_START))
+
+# Calculate hours, minutes, and seconds
+HOURS=$((ELAPSED_TIME / 3600))
+MINUTES=$(((ELAPSED_TIME % 3600) / 60))
+SECONDS=$((ELAPSED_TIME % 60))
+echo "INFO [do_build_and_package.sh] Total execution time: ${HOURS}h ${MINUTES}m ${SECONDS}s" 

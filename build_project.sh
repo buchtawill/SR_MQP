@@ -35,6 +35,8 @@ else
     echo "INFO [build_project.sh] Vivado build completed successfully." >> $MAIN_DIR/build.log
 fi
 
+TIME_AFTER_VIVADO=$(date +%s)
+
 ###########################################################################
 # Change to petalinux project directory and import hardware configuration #
 ###########################################################################
@@ -61,6 +63,7 @@ else
     echo "INFO [build_project.sh] Petalinux configuration completed successfully." >> $MAIN_DIR/build.log
 fi
 
+TIME_AFTER_PETALINUX_CONFIG=$(date +%s)
 
 # Run the build script
 echo "INFO [build_project.sh] Running petalinux build script" >> $MAIN_DIR/build.log
@@ -78,5 +81,28 @@ MINUTES=$(((ELAPSED_TIME % 3600) / 60))
 SECONDS=$((ELAPSED_TIME % 60))
 
 # Print the formatted execution time
-echo "INFO [build_project.sh] Total execution time: ${HOURS}h ${MINUTES}m ${SECONDS}s" >> $MAIN_DIR/build.log
-echo "INFO [build_project.sh] Total execution time: ${HOURS}h ${MINUTES}m ${SECONDS}s" 
+VIVADO_ELAPSED_TIME=$((TIME_AFTER_VIVADO - UNIX_TIME_START))
+VIVADO_HOURS=$((VIVADO_ELAPSED_TIME / 3600))
+VIVADO_MINUTES=$(((VIVADO_ELAPSED_TIME % 3600) / 60))
+VIVADO_SECONDS=$((VIVADO_ELAPSED_TIME % 60))
+
+# Calculate Petalinux configuration time
+PETALINUX_CONFIG_ELAPSED_TIME=$((TIME_AFTER_PETALINUX_CONFIG - TIME_AFTER_VIVADO))
+PETALINUX_CONFIG_HOURS=$((PETALINUX_CONFIG_ELAPSED_TIME / 3600))
+PETALINUX_CONFIG_MINUTES=$(((PETALINUX_CONFIG_ELAPSED_TIME % 3600) / 60))
+PETALINUX_CONFIG_SECONDS=$((PETALINUX_CONFIG_ELAPSED_TIME % 60))
+
+# Calculate Petalinux build time
+PETALINUX_BUILD_ELAPSED_TIME=$((END_TIME - TIME_AFTER_PETALINUX_CONFIG))
+PETALINUX_BUILD_HOURS=$((PETALINUX_BUILD_ELAPSED_TIME / 3600))
+PETALINUX_BUILD_MINUTES=$(((PETALINUX_BUILD_ELAPSED_TIME % 3600) / 60))
+PETALINUX_BUILD_SECONDS=$((PETALINUX_BUILD_ELAPSED_TIME % 60))
+
+echo "INFO [build_project.sh] Vivado build time:     ${VIVADO_HOURS}h ${VIVADO_MINUTES}m ${VIVADO_SECONDS}s" >> $MAIN_DIR/build.log
+echo "INFO [build_project.sh] Vivado build time:     ${VIVADO_HOURS}h ${VIVADO_MINUTES}m ${VIVADO_SECONDS}s"
+echo "INFO [build_project.sh] Petalinux config time: ${PETALINUX_CONFIG_HOURS}h ${PETALINUX_CONFIG_MINUTES}m ${PETALINUX_CONFIG_SECONDS}s" >> $MAIN_DIR/build.log
+echo "INFO [build_project.sh] Petalinux config time: ${PETALINUX_CONFIG_HOURS}h ${PETALINUX_CONFIG_MINUTES}m ${PETALINUX_CONFIG_SECONDS}s"
+echo "INFO [build_project.sh] Petalinux build time:  ${PETALINUX_BUILD_HOURS}h ${PETALINUX_BUILD_MINUTES}m ${PETALINUX_BUILD_SECONDS}s" >> $MAIN_DIR/build.log
+echo "INFO [build_project.sh] Petalinux build time:  ${PETALINUX_BUILD_HOURS}h ${PETALINUX_BUILD_MINUTES}m ${PETALINUX_BUILD_SECONDS}s"
+echo "INFO [build_project.sh] Total execution time:  ${HOURS}h ${MINUTES}m ${SECONDS}s" >> $MAIN_DIR/build.log
+echo "INFO [build_project.sh] Total execution time:  ${HOURS}h ${MINUTES}m ${SECONDS}s" 
