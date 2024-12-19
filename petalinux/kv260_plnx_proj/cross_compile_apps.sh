@@ -10,15 +10,18 @@ else
 fi
 
 # APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test axi-dma-test dma-cpp print-fb-info vid-v4l-test")
-APPS_LIST=("v4l-to-fb0-dma jiffies-test")
+APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned jiffies-test")
 
 # App location: 
+# kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/v4l-to-fb0-aligned/1.0-r0/v4l-to-fb0-aligned
 
 PROJECT_DIR=$(pwd)
 
 for APP in ${APPS_LIST[@]}; do
     echo "INFO [cross_compile_apps.sh] Building $APP"
+
+    # Build the app, leaving the build directory
     if petalinux-build -c $APP -x compile; then
         echo "INFO [cross_compile_apps.sh] Successfully built $APP"
     else
@@ -28,11 +31,12 @@ for APP in ${APPS_LIST[@]}; do
 done
 
 
-# Extract the rootfs usr/bin folder
+# Old method: rebuild rootfs and extract the usr/bin folder
 # ROOTFS_ARCHIVE_PATH=./images/linux/rootfs.tar.gz
+# New method: Copy app binaries directly
+
 rm -rf ./remade_app_binaries
 mkdir -p ./remade_app_binaries
-
 for APP in ${APPS_LIST[@]}; do
     echo "INFO [cross_compile_apps.sh] Copying $APP"
     BUILD_PATH=$PROJECT_DIR/build/tmp/work/cortexa72-cortexa53-xilinx-linux/$APP/1.0-r0/$APP

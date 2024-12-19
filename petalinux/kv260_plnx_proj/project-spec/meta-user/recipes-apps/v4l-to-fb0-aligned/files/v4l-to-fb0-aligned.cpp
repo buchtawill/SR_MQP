@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include <signal.h> //for sigint
+#include <time.h>   // for jiffies
 
 #define INPUT_WIDTH  720
 #define INPUT_HEIGHT 576
@@ -48,6 +49,12 @@ void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
     }
 }
 
+unsigned long get_jiffies(){
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (unsigned long)(ts.tv_sec * sysconf(_SC_CLK_TCK) + ts.tv_nsec / (1e9 / sysconf(_SC_CLK_TCK)));
+}
+
 void sigint_handler(int sig){
     die_flag = true;
 }
@@ -64,6 +71,8 @@ int main(int argc, char *argv[]) {
     const char *fb_device = argv[2];
 
     signal(SIGINT, sigint_handler);
+
+    unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
 
     // Open the video device
     int video_fd = open(video_device, O_RDWR);
@@ -189,6 +198,8 @@ int main(int argc, char *argv[]) {
     uint16_t rgb565_buf[INPUT_WIDTH * INPUT_HEIGHT];
     uint32_t frame_loop_count = 0;
     printf("INFO [v4l-to-fb0-aligned.cpp] Starting continuous loop of reading frames\n");
+    
+    unsigned long start_jiffies = get_jiffies();
     while(!die_flag){
 
         // Read from AXI timer
@@ -219,7 +230,7 @@ int main(int argc, char *argv[]) {
         // printf("INFO [v4l-to-fb0-aligned.cpp] Copying video buffer to frame buffer...\n");
         
         yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
-        // memcpy(fb_buffer, rgb565_buf, buf.bytesused);
+        // // memcpy(fb_buffer, rgb565_buf, buf.bytesused);
 
         uint32_t line_size_pixels = fb_info.xres_virtual;
         uint16_t *fb_pointer_pix = (uint16_t*)fb_buffer;
@@ -229,20 +240,28 @@ int main(int argc, char *argv[]) {
             memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
         }
         frame_loop_count++;
-        if(frame_loop_count % 50 == 0){
-              printf("INFO [v4l-to-fb0-aligned] Frame count: %05u\n", frame_loop_count);
-              printf("                          565 mem: ", frame_loop_count);
-            for(int i = 0; i < 8; i++){
-                printf("%04X", rgb565_buf[i]);
-                if((i + 1) % 2 == 0)printf(" ");
-            }
+        if(frame_loop_count == 1000){
+            unsigned long end_jiffies = get_jiffies();
+            die_flag = true;
+            unsigned long jiffies_elapsed = end_jiffies - start_jiffies;
+            double seconds_elapsed = (double)jiffies_elapsed / jiffies_per_sec;
 
-            printf("\n                          fb0 mem: ", frame_loop_count);
-            for(int i = 0; i < 8; i++){
-                printf("%04X", fb_pointer_pix[i]);
-                if((i + 1) % 2 == 0)printf(" ");
-            }
-            printf("\n");
+            printf("INFO [v4l-to-fb0-aligned.cpp] Frame count: %05u\n", frame_loop_count);
+            printf("INFO [v4l-to-fb0-aligned] FPS: %.2f\n", (double)frame_loop_count / seconds_elapsed);
+
+            //   printf("INFO [v4l-to-fb0-aligned] Frame count: %05u\n", frame_loop_count);
+            //   printf("                          565 mem: ", frame_loop_count);
+            // for(int i = 0; i < 8; i++){
+            //     printf("%04X", rgb565_buf[i]);
+            //     if((i + 1) % 2 == 0)printf(" ");
+            // }
+
+            // printf("\n                          fb0 mem: ", frame_loop_count);
+            // for(int i = 0; i < 8; i++){
+            //     printf("%04X", fb_pointer_pix[i]);
+            //     if((i + 1) % 2 == 0)printf(" ");
+            // }
+            // printf("\n");
         }
     }
 
