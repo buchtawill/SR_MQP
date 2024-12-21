@@ -248,20 +248,6 @@ int main(int argc, char *argv[]) {
 
             printf("INFO [v4l-to-fb0-aligned.cpp] Frame count: %05u\n", frame_loop_count);
             printf("INFO [v4l-to-fb0-aligned] FPS: %.2f\n", (double)frame_loop_count / seconds_elapsed);
-
-            //   printf("INFO [v4l-to-fb0-aligned] Frame count: %05u\n", frame_loop_count);
-            //   printf("                          565 mem: ", frame_loop_count);
-            // for(int i = 0; i < 8; i++){
-            //     printf("%04X", rgb565_buf[i]);
-            //     if((i + 1) % 2 == 0)printf(" ");
-            // }
-
-            // printf("\n                          fb0 mem: ", frame_loop_count);
-            // for(int i = 0; i < 8; i++){
-            //     printf("%04X", fb_pointer_pix[i]);
-            //     if((i + 1) % 2 == 0)printf(" ");
-            // }
-            // printf("\n");
         }
     }
 

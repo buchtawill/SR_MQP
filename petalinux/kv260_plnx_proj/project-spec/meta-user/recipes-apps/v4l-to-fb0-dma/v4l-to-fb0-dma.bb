@@ -10,6 +10,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = "file://v4l-to-fb0-dma.cpp \
 			file://axi-dma.cpp \
 			file://axi-dma.h \
+			file://bits.h \
            file://Makefile \
 		  "
 

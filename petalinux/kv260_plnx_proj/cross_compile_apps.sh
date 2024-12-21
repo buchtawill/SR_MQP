@@ -10,7 +10,7 @@ else
 fi
 
 # APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test axi-dma-test dma-cpp print-fb-info vid-v4l-test")
-APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned jiffies-test")
+APPS_LIST=("v4l-to-fb0-dma")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>
@@ -43,13 +43,13 @@ for APP in ${APPS_LIST[@]}; do
     cp $BUILD_PATH ./remade_app_binaries
 done
 
-echo "INFO [cross_compile_apps.sh] SCPing new binaries to machine"
-scp -r ./remade_app_binaries root@kv260-mqp-b.dyn.wpi.edu:/home/root
+# echo "INFO [cross_compile_apps.sh] SCPing new binaries to machine"
+# scp -r ./remade_app_binaries root@kv260-mqp-b.dyn.wpi.edu:/home/root
 
-if [ $? -ne 0 ]; then
-    echo "ERROR [cross_compile_apps.sh] Error SCPing new binaries to machine"
-    exit 1
-fi
+# if [ $? -ne 0 ]; then
+#     echo "ERROR [cross_compile_apps.sh] Error SCPing new binaries to machine"
+#     exit 1
+# fi
 
 echo "INFO [cross_compile_apps.sh] Success"
 

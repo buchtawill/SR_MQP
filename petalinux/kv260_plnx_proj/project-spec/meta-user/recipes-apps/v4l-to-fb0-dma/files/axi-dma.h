@@ -2,6 +2,7 @@
 #define AXI_DMA_H
 
 #include "stdint.h"
+#include "bits.h"
 
 // Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
 #define DMA_0_AXI_LITE_BASE			0xA0010000
@@ -41,7 +42,7 @@
 #define S2MM_DA_MSB32               0x4C
 #define S2MM_TRANSFER_LENGTH        0x58
 
-#define IOC_IRQ_FLAG                1<<12
+#define IOC_IRQ_FLAG                BIT12
 #define IDLE_FLAG                   1<<1
 
 #define STATUS_HALTED               0x00000001
@@ -68,9 +69,9 @@
 
 class AXIDMA {
 private:
-    uint32_t base_address;      // Base address of the AXI Lite port
-    int mem_fd = -1;            // File descriptor for /dev/mem
-    uint32_t *dma_phys_addr;    // Pointer after doing MMAP
+    uint32_t base_address;               // Base address of the AXI Lite port
+    int mem_fd = -1;                     // File descriptor for /dev/mem
+    volatile uint32_t *dma_phys_addr;    // Pointer after doing MMAP
 
     // Write to a DMA register
     void write_dma(uint32_t reg, uint32_t val);
@@ -92,6 +93,14 @@ public:
 
     // Read from a DMA register
     uint32_t read_dma(uint32_t reg);
+
+    /**
+     * Read-Modify-Write to a DMA register
+     * @param reg Register to read from
+     * @param mask Mask to apply to the value
+     * @param val Value to write to the register
+     */
+    void rmw_dma(uint32_t reg, uint32_t mask, uint32_t val);
 
     /**
      * Perform a self-test on the DMA engine by transferring data from a known memory location to the other
@@ -127,7 +136,7 @@ public:
      * @param block True for blocking call, false for non-blocking
      * @return 0 for success, -1 on timeout
      */
-    int transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block);
+    int transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block = true);
     
     /**
      * Get the base address of the AXI Lite port
@@ -240,6 +249,24 @@ public:
     void enable_all_intr(){
         enable_s2mm_intr();
         enable_mm2s_intr();
+    }
+
+    /**
+     * Clear the IOC bit in a status register
+     * @param reg Register to clear the IOC bit from. Either MM2S_DMASR or S2MM_DMASR
+     * @return None
+     */
+    void clear_irq_bit(uint32_t reg){
+        rmw_dma(reg, IOC_IRQ_FLAG, IOC_IRQ_FLAG);
+    }
+
+    /**
+     * Clear the IOC bit in both status registers
+     * @return None
+     */
+    void clear_irq_bits(){
+        rmw_dma(MM2S_DMASR, IOC_IRQ_FLAG, IOC_IRQ_FLAG);
+        rmw_dma(S2MM_DMASR, IOC_IRQ_FLAG, IOC_IRQ_FLAG);
     }
 };
 

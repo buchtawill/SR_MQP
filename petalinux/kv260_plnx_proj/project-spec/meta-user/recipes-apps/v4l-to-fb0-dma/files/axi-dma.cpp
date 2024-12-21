@@ -14,7 +14,7 @@ AXIDMA::AXIDMA(uint32_t base_addr, int dev_mem_fd){
 
 AXIDMA::~AXIDMA(){
     // printf("INFO [AXIDMA::~AXIDMA] Deleting instance with base address 0x%08X\n", this->base_address);
-    munmap(dma_phys_addr, DMA_ADDRESS_SPACE_SIZE);
+    munmap((void*)dma_phys_addr, DMA_ADDRESS_SPACE_SIZE);
 }
 
 int AXIDMA::initialize(){
@@ -35,6 +35,13 @@ int AXIDMA::initialize(){
 
 void AXIDMA::write_dma(uint32_t reg, uint32_t val){
     this->dma_phys_addr[reg >> 2] = val;
+}
+
+void AXIDMA::rmw_dma(uint32_t reg, uint32_t mask, uint32_t val){
+    uint32_t temp = read_dma(reg);
+    temp &= ~mask;
+    temp |= val;
+    write_dma(reg, temp);
 }
 
 uint32_t AXIDMA::read_dma(uint32_t reg){
@@ -85,18 +92,18 @@ void AXIDMA::print_status(uint32_t reg){
     unsigned int status = read_dma(reg);
 
     if(reg == MM2S_DMASR){
-        printf("INFO [AXIDMA::print_status()] MM2S status (0x%08x@0x%02x):", this->base_address, status);
+        printf("INFO [AXIDMA::print_status()] MM2S status (0x%04x):", status);
     }
     else if(reg == S2MM_DMASR){
-        printf("INFO [AXIDMA::print_status()] S2MM status (0x%08x@0x%02x):", this->base_address, status);
+        printf("INFO [AXIDMA::print_status()] S2MM status (0x%04x):", status);
     }
     else{
         printf("ERROR [AXIDMA::print_status()] Invalid register address 0x%02x\n", reg);
         return;
     }
 
-    if (status & STATUS_HALTED)           printf(" Halted.");
-    else                                  printf(" Running.");
+    if (status & STATUS_HALTED)           printf(" Halted.    ");
+    else                                  printf(" Running.   ");
     if (status & STATUS_IDLE)             printf(" | Idle. "); 
     if (status & STATUS_SG_INCLDED)       printf(" | SG is included.");
     if (status & STATUS_DMA_INTERNAL_ERR) printf(" | DMA internal error.");
@@ -114,22 +121,25 @@ void AXIDMA::print_status(uint32_t reg){
 int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
     uint32_t status = read_dma(channel_status_reg);
 
+    // printf("INFO [AXIDMA::sync_channel()] Waiting for channel to complete. Initial status: \n");
+    // print_status(channel_status_reg);
+
 	uint32_t count = 0;
 	while(!(status & IOC_IRQ_FLAG)){
         // usleep(10000);
 
 		status = read_dma(channel_status_reg);
 
-        if(channel_status_reg == MM2S_DMASR){
-            this->print_status(MM2S_DMASR);
-        }
-        else if(channel_status_reg == S2MM_DMASR){
-            this->print_status(S2MM_DMASR);
-        }
-        else{
-            printf("ERROR [AXIDMA::sync_channel()] Invalid channel status register\n");
-            return -1;
-        }
+        // if(channel_status_reg == MM2S_DMASR){
+        //     this->print_status(MM2S_DMASR);
+        // }
+        // else if(channel_status_reg == S2MM_DMASR){
+        //     this->print_status(S2MM_DMASR);
+        // }
+        // else{
+        //     printf("ERROR [AXIDMA::sync_channel()] Invalid channel status register\n");
+        //     return -1;
+        // }
 
 		count++;
 		if(count == max_tries){
@@ -142,6 +152,9 @@ int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
 			return -1;
 		}
 	}
+
+    this->clear_irq_bit(channel_status_reg);
+
 	return count;
 }
 
@@ -154,6 +167,9 @@ void AXIDMA::enable_s2mm_intr(){
 }
 
 int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
+
+    this->clear_irq_bit(MM2S_DMASR);
+
     this->reset_mm2s();
     this->halt_mm2s();
     this->enable_mm2s_intr();
@@ -170,6 +186,9 @@ int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
 }
 
 int AXIDMA::transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block){
+
+    this->clear_irq_bit(S2MM_DMASR);
+
     this->reset_s2mm();
     this->halt_s2mm();
     this->enable_s2mm_intr();
@@ -185,6 +204,9 @@ int AXIDMA::transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block){
 }
 
 int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block){
+
+    this->clear_irq_bits();
+
     this->reset_mm2s();
     this->reset_s2mm();
     this->halt_mm2s();
@@ -202,17 +224,17 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
     this->set_s2mm_len(len);
 
     int num_tries1 = 0, num_tries2 = 0;
-    if(block){
-        num_tries1 = this->sync_channel(MM2S_DMASR);
-        if(num_tries1 < 0){
-            return -1;
-        }
-
-        num_tries2 = this->sync_channel(S2MM_DMASR);
-        if(num_tries2 < 0){
-            return -1;
-        }
+    // if(block){
+    num_tries1 = this->sync_channel(MM2S_DMASR);
+    if(num_tries1 < 0){
+        return -1;
     }
+
+    num_tries2 = this->sync_channel(S2MM_DMASR);
+    if(num_tries2 < 0){
+        return -1;
+    }
+    // }
     return num_tries1 + num_tries2;
 }
 
@@ -241,28 +263,55 @@ int AXIDMA::self_test(){
     // If size is 0x1000, that is 4096 bytes, so 1024 uint32_t
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         src_addr[i] = (uint32_t)rand();
+        // src_addr[i] = i;
     }
 
+    // printf("INFO [AXIDMA::self_test()] Status registers before transfer: \n");
+    // this->print_status(MM2S_DMASR);
+    // this->print_status(S2MM_DMASR);
+
     this->transfer(DMA_SELF_TEST_SRC_ADDR, DMA_SELF_TEST_DST_ADDR, DMA_SELF_TEST_LEN, true);
+
+    // printf("INFO [AXIDMA::self_test()] Status registers immediately after transfer (should be idle and no IOC): \n");
+    // this->print_status(MM2S_DMASR);
+    // this->print_status(S2MM_DMASR);
+
+    // usleep(100000);
+
+    // printf("INFO [AXIDMA::self_test()] Status registers 100ms after transfer: \n");
+    // this->print_status(MM2S_DMASR);
+    // this->print_status(S2MM_DMASR);
+
+    // this->clear_irq_bits();
+    // printf("INFO [AXIDMA::self_test()] Status registers after clearing IRQ bits: \n");
+    // this->print_status(MM2S_DMASR);
+    // this->print_status(S2MM_DMASR);
 
     // Check if the data is the same
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         if(src_addr[i] != dst_addr[i]){
-            printf("ERROR [AXIDMA::self_test()] Data mismatch at index %d. Expected 0x%08X, got 0x%08X\n", i, src_addr[i], dst_addr[i]);
-            printf("Dumping memory contents to error_log.txt\n");
-            FILE *fp = fopen("error_log.txt", "w");
-            if(fp == NULL){
-                printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
-                return -1;
-            }
-            for(int j = 0; j < DMA_SELF_TEST_LEN / 4; j++){
-                fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_addr[j], dst_addr[j]);
-            }
-            fclose(fp);
+            printf("ERROR [AXIDMA::self_test()] Self test failed. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
+                i, 
+                src_addr[i], 
+                dst_addr[i]);
+            // printf("Dumping memory contents to error_log.txt\n");
+            // FILE *fp = fopen("error_log.txt", "w");
+            // if(fp == NULL){
+            //     printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
+            //     return -1;
+            // }
+            // for(int j = 0; j < DMA_SELF_TEST_LEN / 4; j++){
+            //     fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_addr[j], dst_addr[j]);
+            // }
+            // fclose(fp);
             return -1;
         }
     }
 
     printf("INFO [AXIDMA::self_test()] Self test passed\n");
+
+    munmap(src_addr, DMA_SELF_TEST_LEN);
+    munmap(dst_addr, DMA_SELF_TEST_LEN);
+
     return 0;
 }

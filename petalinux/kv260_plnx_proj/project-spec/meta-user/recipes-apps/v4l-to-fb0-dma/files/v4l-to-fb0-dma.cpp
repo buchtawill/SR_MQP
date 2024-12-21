@@ -19,6 +19,7 @@
 #include <linux/fb.h>
 
 #include <signal.h> //for sigint
+#include <time.h>   // for jiffies
 
 #define INPUT_WIDTH  720
 #define INPUT_HEIGHT 576
@@ -26,6 +27,12 @@
 
 // Global variable - use with caution! This should only ever be set to true 
 bool die_flag = false;
+
+unsigned long get_jiffies(){
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (unsigned long)(ts.tv_sec * sysconf(_SC_CLK_TCK) + ts.tv_nsec / (1e9 / sysconf(_SC_CLK_TCK)));
+}
 
 // Convert YUYV to RGB565
 void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
@@ -110,6 +117,11 @@ int main(int argc, char *argv[]){
 	}
     if(dma1.self_test() < 0){
         printf("ERROR [v4l-to-fb0-dma] DMA self test failed\n");
+        return -1;
+    }
+
+    for(int i = 0; i < 5; i++){
+        dma1.self_test();
     }
 
     // Open the video device
@@ -240,10 +252,6 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-
-    // uint16_t rgb565_buf[INPUT_WIDTH * INPUT_HEIGHT];
-    // Create a buffer for rgb565
-    
     uint16_t *rgb565_buf = (uint16_t *)mmap(NULL, KERNEL_RSVD_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, KERNEL_RSVD_MEM_BASE);
     if (rgb565_buf == MAP_FAILED) {
         perror("Mapping reserved memory");
@@ -257,6 +265,8 @@ int main(int argc, char *argv[]){
     printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
     uint32_t frame_loop_count = 0;
+    unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
+    unsigned long start_jiffies = get_jiffies();
     while(die_flag == false){
         // printf("INFO [v4l-to-fb0-dma] Capturing frame from v4l2\n");
         if (ioctl(video_fd, VIDIOC_QBUF, &buf) == -1) {
@@ -279,16 +289,14 @@ int main(int argc, char *argv[]){
             return 1;
         }
 
-        // Convert the v4l2 input formar to the framebuffer format
-        // Copy the video buffer to the framebuffer to capture 1 frame
-        
+        // Convert the v4l2 input formar to the framebuffer format        
         yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
         // memcpy(fb_buffer, rgb565_buf, buf.bytesused);
 
         uint16_t *fb_pointer_pix = (uint16_t*)fb_buffer;
         uint32_t rgb565_phys_ptr = KERNEL_RSVD_MEM_BASE;
         uint8_t  bytes_per_pixel = 2;
-        for (int row = 0; row < INPUT_HEIGHT; row++) {
+        for (int row = 0; (row < INPUT_HEIGHT); row++) {
             // Copy one row at a time from the rgb565 buf to the frame buffer
             // Each pixel is 2 bytes
             // Non-DMA memcpy:
@@ -298,30 +306,28 @@ int main(int argc, char *argv[]){
             uint32_t dst_pix_addr = finfo.smem_start + (fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
             rgb565_phys_ptr += INPUT_WIDTH * bytes_per_pixel;
             int result = dma1.transfer(rgb565_phys_ptr, dst_pix_addr, INPUT_WIDTH * bytes_per_pixel, true);
+
+            if(result < 0){
+                printf("ERROR [v4l-to-fb0-dma] DMA transfer from 0x%08X to 0x%08X failed\n", rgb565_phys_ptr, dst_pix_addr);
+                die_flag = true;
+                break;
+            }
             // printf("DEBUG [v4l-to-fb0-dma] DMA transfer from 0x%08X to 0x%08X. Result: %d\n", rgb565_phys_ptr, dst_pix_addr, result);
-            // if(row == 0) printf("INFO [v4l-to-fb0-dma] Destination pixel address: 0x%08X\n", dma1.read_dma(S2MM_DST_ADDRESS_REGISTER));
         }
         frame_loop_count++;
-        if(frame_loop_count % 50 == 0){
-            printf("INFO [v4l-to-fb0-dma] Frame count: %05u\n", frame_loop_count);
-              printf("                      565 mem: ", frame_loop_count);
-            for(int i = 0; i < 8; i++){
-                printf("%04X", rgb565_buf[i]);
-                if((i + 1) % 2 == 0)printf(" ");
-            }
+        if(frame_loop_count == 1000){
+            unsigned long end_jiffies = get_jiffies();
+            die_flag = true;
+            unsigned long jiffies_elapsed = end_jiffies - start_jiffies;
+            double seconds_elapsed = (double)jiffies_elapsed / jiffies_per_sec;
 
-            printf("\n                      fb0 mem: ", frame_loop_count);
-            for(int i = 0; i < 8; i++){
-                printf("%04X", fb_pointer_pix[i]);
-                if((i + 1) % 2 == 0)printf(" ");
-            }
-            printf("\n");
+            printf("INFO [v4l-to-fb0-dma] FPS: %.2f\n", (double)frame_loop_count / seconds_elapsed);
         }
     }
 
-    if(die_flag){
-        printf("\nINFO [v4l-to-fb0-dma] Ctrl-C pressed. Exiting...\n");
-    }
+    // if(die_flag){
+    //     printf("\nINFO [v4l-to-fb0-dma] Ctrl-C pressed. Exiting...\n");
+    // }
     // Stop video streaming
     if (ioctl(video_fd, VIDIOC_STREAMOFF, &buf.type) == -1) {
         perror("Stopping video streaming");
