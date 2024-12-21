@@ -7,32 +7,8 @@ config axi-dma-test
 	 bool "axi-dma-test"
 	 help
 	
-config dma-cpp  
-	 bool "dma-cpp"
-	 help
-	
-config dma-to-fb  
-	 bool "dma-to-fb"
-	 help
-	
-config gpio-demo  
-	 bool "gpio-demo"
-	 help
-	
 config jiffies-test  
 	 bool "jiffies-test"
-	 help
-	
-config opencv-test  
-	 bool "opencv-test"
-	 help
-	
-config packagegroup-petalinux-kria  
-	 bool "packagegroup-petalinux-kria"
-	 help
-	
-config peekpoke  
-	 bool "peekpoke"
 	 help
 	
 config print-fb-info  

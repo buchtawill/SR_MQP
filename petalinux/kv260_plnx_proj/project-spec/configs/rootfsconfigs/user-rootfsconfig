@@ -1,16 +1,10 @@
 #Note: Mention Each package in individual line
 #These packages will get added into rootfs menu entry
 
-CONFIG_gpio-demo
-CONFIG_peekpoke
-CONFIG_packagegroup-petalinux-kria
 CONFIG_add-mult-test
 CONFIG_axi-dma-test
-CONFIG_dma-cpp
-CONFIG_opencv-test
 CONFIG_vid-v4l-test
 CONFIG_print-fb-info
 CONFIG_v4l-to-fb0-aligned
 CONFIG_v4l-to-fb0-dma
-CONFIG_dma-to-fb
 CONFIG_jiffies-test
