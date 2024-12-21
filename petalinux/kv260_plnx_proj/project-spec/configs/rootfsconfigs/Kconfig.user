@@ -11,8 +11,16 @@ config dma-cpp
 	 bool "dma-cpp"
 	 help
 	
+config dma-to-fb  
+	 bool "dma-to-fb"
+	 help
+	
 config gpio-demo  
 	 bool "gpio-demo"
+	 help
+	
+config jiffies-test  
+	 bool "jiffies-test"
 	 help
 	
 config opencv-test  
@@ -25,6 +33,22 @@ config packagegroup-petalinux-kria
 	
 config peekpoke  
 	 bool "peekpoke"
+	 help
+	
+config print-fb-info  
+	 bool "print-fb-info"
+	 help
+	
+config v4l-to-fb0-aligned  
+	 bool "v4l-to-fb0-aligned"
+	 help
+	
+config v4l-to-fb0-dma  
+	 bool "v4l-to-fb0-dma"
+	 help
+	
+config vid-v4l-test  
+	 bool "vid-v4l-test"
 	 help
 	
 endmenu

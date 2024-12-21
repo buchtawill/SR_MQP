@@ -2011,11 +2011,11 @@ CONFIG_libdfx=y
 #
 # opencv 
 #
-CONFIG_opencv=y
-CONFIG_opencv-dbg=y
-CONFIG_opencv-apps=y
-CONFIG_opencv-dev=y
-CONFIG_opencv-samples=y
+# CONFIG_opencv is not set
+# CONFIG_opencv-dbg is not set
+# CONFIG_opencv-apps is not set
+# CONFIG_opencv-dev is not set
+# CONFIG_opencv-samples is not set
 
 #
 # pango 
@@ -3923,14 +3923,14 @@ CONFIG_u-boot-tools=y
 #
 # packagegroup-petalinux-display-debug 
 #
-# CONFIG_packagegroup-petalinux-display-debug is not set
+CONFIG_packagegroup-petalinux-display-debug=y
 # CONFIG_packagegroup-petalinux-display-debug-dbg is not set
 # CONFIG_packagegroup-petalinux-display-debug-dev is not set
 
 #
 # packagegroup-petalinux-gstreamer 
 #
-CONFIG_packagegroup-petalinux-gstreamer=y
+# CONFIG_packagegroup-petalinux-gstreamer is not set
 # CONFIG_packagegroup-petalinux-gstreamer-dev is not set
 # CONFIG_packagegroup-petalinux-gstreamer-dbg is not set
 
@@ -3993,9 +3993,9 @@ CONFIG_packagegroup-petalinux-gstreamer=y
 #
 # packagegroup-petalinux-opencv 
 #
-CONFIG_packagegroup-petalinux-opencv=y
-CONFIG_packagegroup-petalinux-opencv-dev=y
-CONFIG_packagegroup-petalinux-opencv-dbg=y
+# CONFIG_packagegroup-petalinux-opencv is not set
+# CONFIG_packagegroup-petalinux-opencv-dev is not set
+# CONFIG_packagegroup-petalinux-opencv-dbg is not set
 
 #
 # packagegroup-petalinux-python-modules 
@@ -4036,7 +4036,7 @@ CONFIG_packagegroup-petalinux-opencv-dbg=y
 #
 # packagegroup-petalinux-v4lutils 
 #
-# CONFIG_packagegroup-petalinux-v4lutils is not set
+CONFIG_packagegroup-petalinux-v4lutils=y
 # CONFIG_packagegroup-petalinux-v4lutils-dbg is not set
 # CONFIG_packagegroup-petalinux-v4lutils-dev is not set
 
@@ -4057,7 +4057,7 @@ CONFIG_packagegroup-petalinux-opencv-dbg=y
 #
 # packagegroup-petalinux-x11 
 #
-# CONFIG_packagegroup-petalinux-x11 is not set
+CONFIG_packagegroup-petalinux-x11=y
 # CONFIG_packagegroup-petalinux-x11-dev is not set
 # CONFIG_packagegroup-petalinux-x11-dbg is not set
 
@@ -4089,10 +4089,16 @@ CONFIG_Init-manager-systemd=y
 CONFIG_add-mult-test=y
 CONFIG_axi-dma-test=y
 CONFIG_dma-cpp=y
+CONFIG_dma-to-fb=y
 # CONFIG_gpio-demo is not set
+CONFIG_jiffies-test=y
 # CONFIG_opencv-test is not set
 CONFIG_packagegroup-petalinux-kria=y
 # CONFIG_peekpoke is not set
+CONFIG_print-fb-info=y
+CONFIG_v4l-to-fb0-aligned=y
+CONFIG_v4l-to-fb0-dma=y
+CONFIG_vid-v4l-test=y
 
 #
 # PetaLinux RootFS Settings

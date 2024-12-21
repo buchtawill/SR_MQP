@@ -6,6 +6,7 @@ Copying boot images to local:
     scp mqp_vm:/home/jwbuchta/Desktop/SR_MQP/petalinux/kv260_plnx_proj/images/linux/image.ub C:\Users\bucht\OneDrive\Desktop\ubuntu_vm_shared\boot_components
     scp mqp_vm:/home/jwbuchta/Desktop/SR_MQP/petalinux/kv260_plnx_proj/images/linux/rootfs.tar.gz C:\Users\bucht\OneDrive\Desktop\ubuntu_vm_shared\boot_components
     scp mqp_vm:/home/jwbuchta/Desktop/SR_MQP/petalinux/kv260_plnx_proj/images/linux/petalinux-sdimage.wic C:\Users\bucht\OneDrive\Desktop\ubuntu_vm_shared
+    scp -r mqp_vm:/home/jwbuchta/Desktop/SR_MQP/petalinux/kv260_plnx_proj/remade_app_binaries C:\Users\bucht\OneDrive\Desktop\ubuntu_vm_shared
 
 Packaging petalinux: 
     petalinux-package --wic --wks ./kv260_wks.wks  --bootfiles "ramdisk.cpio.gz.u-boot boot.scr Image system.dtb"
