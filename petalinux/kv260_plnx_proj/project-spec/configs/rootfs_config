@@ -2308,10 +2308,10 @@ CONFIG_linux-xlnx-udev-rules=y
 #
 # gdb 
 #
-# CONFIG_gdb is not set
-# CONFIG_gdb-dev is not set
-# CONFIG_gdbserver is not set
-# CONFIG_gdb-dbg is not set
+CONFIG_gdb=y
+CONFIG_gdb-dev=y
+CONFIG_gdbserver=y
+CONFIG_gdb-dbg=y
 
 #
 # glib-2.0 

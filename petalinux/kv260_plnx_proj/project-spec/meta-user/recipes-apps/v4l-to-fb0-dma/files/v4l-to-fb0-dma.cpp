@@ -107,7 +107,7 @@ void print_mem(void *virtual_address, int byte_count){
 }
 
 void sigint_handler(int sig){
-    printf("INFO [v4l-to-fb0-dma] Received SIGINT, cleaning up...\n");
+    printf("INFO [v4l-to-fb0-dma] Received signal, cleaning up...\n");
     die_flag = true;
 }
 
@@ -122,26 +122,26 @@ void sigint_handler(int sig){
  * @return None
  */
 void init_resources(Resources *p_res, const char* video_device, const char* fb_device){
+    p_res->v4l2_fd    = -1;
+    p_res->fb_dev_fd  = -1;
     p_res->dev_mem_fd = -1;
-    p_res->v4l2_fd = -1;
-    p_res->fb_dev_fd = -1;
-    p_res->vid_mem_phys = nullptr;
-    p_res->fb_mem_phys = nullptr;
+    p_res->fb_mem_phys      = nullptr;
+    p_res->vid_mem_phys     = nullptr;
+    p_res->rgb_565_buf_pix  = nullptr;
     p_res->rgb_565_buf_phys = nullptr;
-    p_res->rgb_565_buf_pix = nullptr;
 
+    memset(&p_res->v4l2_fmt,             0, sizeof(p_res->v4l2_fmt));
+    memset(&p_res->v4l2_req,             0, sizeof(p_res->v4l2_req));
+    memset(&p_res->fixed_fb_info,        0, sizeof(p_res->fixed_fb_info));
+    memset(&p_res->v4l2_frame_buf,       0, sizeof(p_res->v4l2_frame_buf));
     memset(&p_res->configurable_fb_info, 0, sizeof(p_res->configurable_fb_info));
-    memset(&p_res->fixed_fb_info, 0, sizeof(p_res->fixed_fb_info));
-    memset(&p_res->v4l2_fmt, 0, sizeof(p_res->v4l2_fmt));
-    memset(&p_res->v4l2_req, 0, sizeof(p_res->v4l2_req));
-    memset(&p_res->v4l2_frame_buf, 0, sizeof(p_res->v4l2_frame_buf));
 
     p_res->fb_phys_base           = 0;
     p_res->fb_size_bytes          = 0;
     p_res->vid_mem_phys_base      = 0;
     p_res->vid_mem_size_bytes     = 0;
-    p_res->rgb_565_buf_phys_base  = KERNEL_RSVD_MEM_BASE;
-    p_res->rgb_565_buf_size_bytes = KERNEL_RSVD_MEM_SIZE;
+    p_res->rgb_565_buf_phys_base  = RBG565_BUF_BASE;
+    p_res->rgb_565_buf_size_bytes = RGB565_BUF_SIZE_BYTES;
 
     // Open /dev/mem
 	printf("INFO [v4l-to-fb0-dma::init_resources()] Opening /dev/mem\n");
@@ -165,7 +165,7 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     }
 
     // Setup the rgb565 buffer
-    p_res->rgb_565_buf_phys = mmap(NULL, KERNEL_RSVD_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->dev_mem_fd, KERNEL_RSVD_MEM_BASE);
+    p_res->rgb_565_buf_phys = mmap(NULL, RGB565_BUF_SIZE_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->dev_mem_fd, RBG565_BUF_BASE);
     p_res->rgb_565_buf_pix = (uint16_t*)p_res->rgb_565_buf_phys;
     if (p_res->rgb_565_buf_phys == MAP_FAILED) {        
         die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Error mapping reserved memory: ", strerror(errno), p_res);
@@ -199,7 +199,8 @@ void cleanup_resources(Resources *p_res){
 }
 
 /**
- * Setup all things v4l2
+ * Setup all things v4l2.
+ * Open the video device
  * Set the video format
  * Request a buffer from the video device
  * Map the video buffer
@@ -212,7 +213,7 @@ void setup_video(Resources *p_res){
     p_res->v4l2_fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     p_res->v4l2_fmt.fmt.pix.width       = INPUT_VIDEO_WIDTH;
     p_res->v4l2_fmt.fmt.pix.height      = INPUT_VIDEO_HEIGHT;
-    p_res->v4l2_fmt.fmt.pix.pixelformat = INPUT_VIDEO_PIXEL_FORMAT;
+    p_res->v4l2_fmt.fmt.pix.pixelformat = INPUT_VIDEO_PIXEL_FMT;
     p_res->v4l2_fmt.fmt.pix.field       = V4L2_FIELD_NONE;
 
     printf("INFO [v4l-to-fb0-dma::setup_video()] Setting video format\n");
@@ -295,6 +296,7 @@ void setup_framebuffer(Resources *p_res){
 
 int main(int argc, char *argv[]){
 
+    printf("INFO [v4l-to-fb0-dma] Entering main\n");
 	// if(argc < 3) {
     //     printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
     //     printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
@@ -319,19 +321,19 @@ int main(int argc, char *argv[]){
 
 	//axi_dma1 configured as NOT scatter gather, MM2S --> FIFO --> S2MM
 	AXIDMA dma1(DMA_1_AXI_LITE_BASE, resources.dev_mem_fd);
-	printf("INFO [v4l-to-fb0-dma] Created DMA object with base address 0x%08X\n", dma1.getBaseAddress());
+	printf("INFO [v4l-to-fb0-dma] Created DMA object with base address 0x%08X\n", DMA_1_AXI_LITE_BASE);
 	if(dma1.initialize() != 0){
         die_with_error("ERROR [v4l-to-fb0-dma] Failed to initialize DMA object\n", nullptr, &resources);
 	}
     if(dma1.self_test() < 0){
         die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
     }
-    for(int i = 0; i < 2; i++){
-        int result = dma1.self_test();
-        if(result < 0){
-            die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
-        }
-    }
+    // for(int i = 0; i < 2; i++){
+    //     int result = dma1.self_test();
+    //     if(result < 0){
+    //         die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
+    //     }
+    // }
 
     printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
@@ -348,8 +350,27 @@ int main(int argc, char *argv[]){
             die_with_error("ERROR [v4l-to-fb0-dma] Error dequeueing buffer: ", strerror(errno), &resources);
         }
 
-        // Convert the v4l2 input format to the framebuffer format        
+        // Convert the v4l2 input format to the framebuffer format
         yuyv_to_rgb565((uint8_t *)resources.vid_mem_phys, resources.rgb_565_buf_pix, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        // Create BD rings
+        // This programs each ring to point to the next
+        // dma1.create_s2mm_bd_ring(INPUT_VIDEO_HEIGHT);
+        // dma1.create_mm2s_bd_ring(INPUT_VIDEO_HEIGHT);
+
+        // //Program the BD rings
+        // for(int i = 0; i < INPUT_VIDEO_HEIGHT; i++){
+        //     uint32_t rgb565_tmp_ptr = resources.rgb_565_buf_phys_base + (INPUT_VIDEO_WIDTH * i * 2);
+        //     dma1.set_mm2s_bd_buff_addr(i, rgb565_tmp_ptr);
+        //     dma1.set_mm2s_bd_len(i, INPUT_VIDEO_WIDTH * 2);
+
+        //     uint32_t fb_tmp_ptr = resources.fixed_fb_info.smem_start + (resources.configurable_fb_info.xres_virtual * i * 2);
+        //     dma1.set_s2mm_bd_buff_addr(i, fb_tmp_ptr);
+        //     dma1.set_s2mm_bd_len(i, INPUT_VIDEO_WIDTH * 2);
+        // }
+
+        // printf("INFO [v4l-to-fb0-dma] Starting DMA transfer in scatter gather mode. No polling for completion though\n");
+        // dma1.transfer_sg();
 
         uint32_t rgb565_tmp_ptr = resources.rgb_565_buf_phys_base;
         uint8_t  bytes_per_pixel = 2;
@@ -362,23 +383,7 @@ int main(int argc, char *argv[]){
             // 32 byte boundary: lower 5 bits are all 0
             uint32_t dst_pix_addr = resources.fixed_fb_info.smem_start + (resources.configurable_fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
             rgb565_tmp_ptr += INPUT_VIDEO_WIDTH * bytes_per_pixel;
-            int result = dma1.transfer(rgb565_tmp_ptr, dst_pix_addr, INPUT_VIDEO_WIDTH * bytes_per_pixel);
-
-            if(result < 0){
-                printf("ERROR [v4l-to-fb0-dma] DMA transfer from 0x%08X to 0x%08X failed\n", rgb565_tmp_ptr, dst_pix_addr);
-                die_flag = true;
-                break;
-            }
-            // printf("DEBUG [v4l-to-fb0-dma] DMA transfer from 0x%08X to 0x%08X. Result: %d\n", rgb565_phys_ptr, dst_pix_addr, result);
-        }
-        frame_loop_count++;
-        if(frame_loop_count == 1000){
-            unsigned long end_jiffies = get_jiffies();
-            die_flag = true;
-            unsigned long jiffies_elapsed = end_jiffies - start_jiffies;
-            double seconds_elapsed = (double)jiffies_elapsed / jiffies_per_sec;
-
-            printf("INFO [v4l-to-fb0-dma] FPS: %.2f\n", (double)frame_loop_count / seconds_elapsed);
+            int result = dma1.transfer(rgb565_tmp_ptr, dst_pix_addr, INPUT_VIDEO_WIDTH * bytes_per_pixel);            
         }
     }
 

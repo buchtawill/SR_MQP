@@ -1,16 +1,17 @@
 #ifndef AXI_DMA_H
 #define AXI_DMA_H
 
-#include "stdint.h"
 #include "bits.h"
-
-// Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
-#define DMA_0_AXI_LITE_BASE			0xA0010000
-#define DMA_1_AXI_LITE_BASE			0xA0020000
-#define DMA_ADDRESS_SPACE_SIZE      0x00010000
+#include "dma-sg-bd.h"
+#include <stdint.h>
 
 #define KERNEL_RSVD_MEM_BASE		0x78000000
 #define KERNEL_RSVD_MEM_SIZE        0x02000000
+
+// #define DMA_SG_MODE 1
+#define DMA_DIRECT_REG_MODE 1
+
+#define DMA_ADDRESS_SPACE_SIZE      0x00010000
 
 #define DMA_SELF_TEST_SRC_ADDR      KERNEL_RSVD_MEM_BASE   
 #define DMA_SELF_TEST_DST_ADDR      (KERNEL_RSVD_MEM_BASE + 0x1000) 
@@ -19,6 +20,7 @@
 #define DMA_SYNC_TRIES				10000
 #define MAX_DMA_SYNC_TRIES          0xFFFFFFFF
 
+#ifndef DMA_SG_MODE
 // Common names
 #define MM2S_CONTROL_REGISTER       0x00
 #define MM2S_STATUS_REGISTER        0x04
@@ -41,6 +43,39 @@
 #define S2MM_DA_LSB32               0x48
 #define S2MM_DA_MSB32               0x4C
 #define S2MM_TRANSFER_LENGTH        0x58
+
+#else  // Scatter gather mode
+
+// Datasheet names
+#define MM2S_DMACR                  0x00 // MM2S Control register
+#define MM2S_DMASR                  0x04 // MM2S Status register
+#define MM2S_CURDESC                0x08 // MM2S Current descriptor pointer
+#define MM2S_CURDESC_MSB            0x0C // MM2S Current descriptor pointer, MSB
+#define MM2S_TAILDESC               0x10 // MM2S Tail descriptor pointer
+#define MM2S_TAILDESC_MSB           0x14 // MM2S Tail descriptor pointer, MSB
+
+#define SG_CTL_REG                  0x2C // Only available when DMA is in multi channel mode
+
+#define S2MM_DMACR                  0x30 // S2MM Control register
+#define S2MM_DMASR                  0x34 // S2MM Status register
+#define S2MM_CURDESC                0x38 // S2MM Current descriptor pointer
+#define S2MM_CURDESC_MSB            0x3C // S2MM Current descriptor pointer, MSB
+#define S2MM_TAILDESC               0x40 // S2MM Tail descriptor pointer
+#define S2MM_TAILDESC_MSB           0x44 // S2MM Tail descriptor pointer, MSB
+
+// TODO: Make this be relative, so that it can be used in other projects
+// #define DMA_BD_MEM_BASE             KERNEL_RSVD_MEM_BASE + 0x01000000
+#define DMA_BD_MEM_BASE             0x79000000
+#define DMA_BD_MEM_SIZE_BYTES       ((uint32_t)0x00080000)              // 512kB of space for BD rings
+
+#define DMA_BDR_S2MM_BASE           DMA_BD_MEM_BASE
+#define DMA_BDR_S2MM_SIZE_BYTES     ((uint32_t)0x00040000)
+#define DMA_BDR_MM2S_BASE           (DMA_BD_MEM_BASE + DMA_BDR_S2MM_SIZE_BYTES)      // 256kB for MM2S, 256kB for S2MM
+#define DMA_BDR_MM2S_SIZE_BYTES     ((uint32_t)0x00040000)
+
+#define NUM_BD_PER_CHANNEL          4096 // DMA_BDR_MM2S_SIZE_BYTES / sizeof(DMA_SG_BD)
+
+#endif // DMA_SG_MODE
 
 #define IOC_IRQ_FLAG                BIT12
 #define IDLE_FLAG                   1<<1
@@ -66,15 +101,35 @@
 #define ENABLE_ERR_IRQ              0x00004000
 #define ENABLE_ALL_IRQ              0x00007000
 
-
 class AXIDMA {
 private:
     uint32_t base_address;               // Base address of the AXI Lite port
     int mem_fd = -1;                     // File descriptor for /dev/mem
-    volatile uint32_t *dma_phys_addr;    // Pointer after doing MMAP
+    volatile uint32_t *dma_phys_addr;    // Pointer after doing MMAP to AXI Lite base
+
+    #ifdef DMA_SG_MODE
+    volatile DMA_SG_BD *mm2s_bd_arr;     // Scatter Gather buffer descriptor for MM2S
+    volatile DMA_SG_BD *s2mm_bd_arr;     // Scatter Gather buffer descriptor for S2MM
+    volatile DMA_SG_BD *s2mm_tail;
+    volatile DMA_SG_BD *mm2s_tail;
+    uint32_t mm2s_tail_address;
+    uint32_t s2mm_tail_address;
+    #endif
 
     // Write to a DMA register
     void write_dma(uint32_t reg, uint32_t val);
+
+    /**
+     * Self test for the DMA engine in Scatter Gather mode
+     * @return 0 for success, -1 on failure
+     */
+    int self_test_sg();
+
+    /**
+     * Self test for the DMA engine in Direct Register mode
+     * @return 0 for success, -1 on failure
+     */
+    int self_test_dr();
 
 public:
 
@@ -109,6 +164,7 @@ public:
      */
     int self_test();
 
+    #ifndef DMA_SG_MODE
     /**
      * Run the S2MM channel. 
      * @param dst_addr Destination address in memory space
@@ -137,22 +193,6 @@ public:
      * @return 0 for success, -1 on timeout
      */
     int transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool block = true);
-    
-    /**
-     * Get the base address of the AXI Lite port
-     * @return Base address of the AXI Lite port
-     */
-    uint32_t getBaseAddress() const {
-        return base_address;
-    }
-
-    /**
-     * Set the base address of the AXI Lite port
-     * @param base_addr Base address of the AXI Lite port
-     */
-    void setBaseAddress(uint32_t base_addr) {
-        base_address = base_addr;
-    }
 
     /**
      * Wait for an IOC flag on either MM2S_DMASR or S2MM_DMASR
@@ -189,6 +229,97 @@ public:
      * @return None
      */
     void set_s2mm_dest(uint32_t destination);
+
+    #else // Scatter gather mode
+
+    /**
+     * Get a pointer to a buffer descriptor in the MM2S BD ring
+     * @param index Index of the buffer descriptor
+     * @return Pointer to the buffer descriptor, or nullptr if index is out of bounds
+     */
+    volatile DMA_SG_BD* get_mm2s_bd(int index){
+        if(index < 0 || index >= NUM_BD_PER_CHANNEL){
+            return nullptr;
+        }
+        return &mm2s_bd_arr[index];
+    }
+
+    /**
+     * Get a pointer to a buffer descriptor in the S2MM BD ring
+     * @param index Index of the buffer descriptor
+     * @return Pointer to the buffer descriptor, or nullptr if index is out of bounds
+     */
+    volatile DMA_SG_BD* get_s2mm_bd(int index){
+        if(index < 0 || index >= NUM_BD_PER_CHANNEL){
+            return nullptr;
+        }
+        return &s2mm_bd_arr[index];
+    }
+
+    /**
+     * Reset the s2mm BD ring, creating a ring that has num_bds buffer descriptors. 
+     * TODO: Right now, this resets all BD memory. In the future, have it return a new set of buffer descriptors
+     * The ring will start at index 0 and end at index num_bds - 1
+     * This function will set the next desc addresses and RXSOF/RXEOF appropriately. 
+     */
+    void create_s2mm_bd_ring(int num_bds);
+
+    /**
+     * Reset the mm2s BD ring, creating a ring that has num_bds buffer descriptors. 
+     * TODO: Right now, this resets all BD memory. In the future, have it return a new set of buffer descriptors
+     * The ring will start at index 0 and end at index num_bds - 1
+     * This function will set the next desc addresses and SOF/EOF appropriately. 
+     */
+    void create_mm2s_bd_ring(int num_bds);
+
+    /**
+     * Start a transfer using both the MM2S and S2MM BD rings. Block until complete or timeout
+     * This function assumes mm2s_tail_address and s2mm_tail_address are already set in this class
+     * @return 0 on success, -1 on error
+     */
+    int transfer_sg();
+
+    /**
+     * Set the buffer address for a buffer descriptor in the MM2S BD ring
+     * @param idx Index of the buffer descriptor
+     * @param addr Address to set in the buffer descriptor
+     * @return None
+     */
+    void set_mm2s_bd_buff_addr(int idx, uint32_t addr){
+        this->mm2s_bd_arr[idx].buffer_address = addr;
+    }
+
+    /**
+     * Set the buffer address for a buffer descriptor in the S2MM BD ring
+     * @param idx Index of the buffer descriptor
+     * @param addr Address to set in the buffer descriptor
+     * @return None
+     */
+    void set_s2mm_bd_buff_addr(int idx, uint32_t addr){
+        this->s2mm_bd_arr[idx].buffer_address = addr;
+    }
+
+    /**
+     * Set the buffer length for a buffer descriptor in the MM2S BD ring
+     * @param idx Index of the buffer descriptor
+     * @param len Length to set in the buffer descriptor
+     * @return None
+     */
+    void set_mm2s_bd_len(int idx, uint32_t len){
+        set_buffer_length(&mm2s_bd_arr[idx], len);
+    }
+
+    /**
+     * Set the buffer length for a buffer descriptor in the S2MM BD ring
+     * @param idx Index of the buffer descriptor
+     * @param len Length to set in the buffer descriptor
+     * @return None
+     */
+    void set_s2mm_bd_len(int idx, uint32_t len){
+        set_buffer_length(&s2mm_bd_arr[idx], len);
+    }
+
+    #endif // Scatter gather mode
 
     /**
      * Reset the MM2S channel

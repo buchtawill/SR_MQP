@@ -9,10 +9,20 @@
 #include <linux/fb.h>
 #include <stdint.h>
 
-#define INPUT_VIDEO_WIDTH        720
-#define INPUT_VIDEO_HEIGHT       576
-#define INPUT_VIDEO_PIXEL_FORMAT V4L2_PIX_FMT_YUYV
+// Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
+#define DMA_0_AXI_LITE_BASE			0xA0010000
+#define DMA_1_AXI_LITE_BASE			0xA0020000
 
+#define INPUT_VIDEO_WIDTH           720
+#define INPUT_VIDEO_HEIGHT          576
+#define INPUT_VIDEO_PIXEL_FMT       V4L2_PIX_FMT_YUYV
+
+#define RBG565_BUF_BASE             KERNEL_RSVD_MEM_BASE
+#define RGB565_BUF_SIZE_BYTES       ((uint32_t)0x00100000)
+
+/**
+ * This struct contains all resources that the main program uses.
+ */
 typedef struct {
     int  dev_mem_fd;
     int  v4l2_fd;

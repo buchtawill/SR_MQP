@@ -1,5 +1,6 @@
 #include "axi-dma.h"
-#include "stdint.h"
+#include "dma-sg-bd.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/mman.h> //for mmap
 #include <errno.h>
@@ -30,6 +31,43 @@ int AXIDMA::initialize(){
 		printf("ERROR [AXIDMA::initialize()] Failed to map DMA AXI Lite register block: %s\n", strerror(errno));
 		return -1;
 	}
+
+    // If using scatter gather mode, allocate memory for the buffer descriptors at the physical address reserved from the kernel
+    #ifdef DMA_SG_MODE
+
+    // Map and clear the buffer descriptor memory
+    this->mm2s_bd_arr = (DMA_SG_BD *)mmap(
+        NULL,                    // Let the kernel decide the virtual address
+        DMA_BDR_MM2S_SIZE_BYTES, // Size of memory to map 
+        PROT_READ | PROT_WRITE,  // Permissions: read and write
+        MAP_SHARED,              // Changes are shared with other mappings
+        this->mem_fd,            // File descriptor for /dev/mem
+        DMA_BDR_MM2S_BASE        // Physical address of the reserved memory
+    );
+    if(this->mm2s_bd_arr == MAP_FAILED){
+        printf("ERROR [AXIDMA::initialize()] Failed to map MM2S buffer descriptor memory: %s\n", strerror(errno));
+        return -1;
+    }
+
+    this->s2mm_bd_arr = (DMA_SG_BD *)mmap(
+        NULL,                    // Let the kernel decide the virtual address
+        DMA_BDR_S2MM_SIZE_BYTES, // Size of memory to map 
+        PROT_READ | PROT_WRITE,  // Permissions: read and write
+        MAP_SHARED,              // Changes are shared with other mappings
+        this->mem_fd,            // File descriptor for /dev/mem
+        DMA_BDR_S2MM_BASE        // Physical address of the reserved memory
+    );
+    if(this->s2mm_bd_arr == MAP_FAILED){
+        printf("ERROR [AXIDMA::initialize()] Failed to map S2MM buffer descriptor memory: %s\n", strerror(errno));
+        return -1;
+    }
+
+    // Clear the buffer descriptor memory
+    memset((void *)this->mm2s_bd_arr, 0, DMA_BDR_MM2S_SIZE_BYTES);
+    memset((void *)this->s2mm_bd_arr, 0, DMA_BDR_S2MM_SIZE_BYTES);
+
+    #endif
+
     return 0;
 }
 
@@ -48,6 +86,7 @@ uint32_t AXIDMA::read_dma(uint32_t reg){
     return this->dma_phys_addr[reg >> 2];
 }
 
+#ifndef DMA_SG_MODE
 void AXIDMA::set_mm2s_len(uint16_t transfer_length){
     write_dma(MM2S_TRANSFER_LENGTH, transfer_length);
 }
@@ -63,6 +102,7 @@ void AXIDMA::set_mm2s_src(uint32_t source){
 void AXIDMA::set_s2mm_dest(uint32_t destination){
     write_dma(S2MM_DA_LSB32, destination);
 }
+#endif // DMA_SG_MODE
 
 void AXIDMA::start_mm2s(){
     write_dma(MM2S_DMACR, RUN_DMA);
@@ -118,6 +158,100 @@ void AXIDMA::print_status(uint32_t reg){
     printf("\n");
 }
 
+#ifdef DMA_SG_MODE
+
+void AXIDMA::create_s2mm_bd_ring(int num_bds){
+    // Clear the existing BD memory, and start programming each BD with next pointer and such
+    // For s2mm, it does not matter to set the RXSOF or RXEOF bits
+
+    memset((void*)this->s2mm_bd_arr, 0, sizeof(DMA_SG_BD)*num_bds);
+
+    //Set the first RXSOF bit (Not used if not in Micro DMA mode)
+    //Same position as tx bit so use that function
+    set_txsof_bit(&(this->mm2s_bd_arr[0]), 1);
+
+    for(int i = 0; i < num_bds - 1; i++){
+        volatile DMA_SG_BD *current_bd = &(this->s2mm_bd_arr[i]);
+
+        uint32_t next_index = i + 1;
+        uint32_t next_address = s2mm_bd_idx_to_addr(next_index);
+        current_bd->next_desc_index = next_index;
+        current_bd->next_desc_ptr = next_address;
+    }
+
+    // Set the last RXEOF bit (Not used if not in Micro DMA mode)
+    set_txeof_bit(&(this->mm2s_bd_arr[num_bds - 1]), 1);
+
+    // Set the last next_desc_ptr to loop around
+    // Set the last index as well
+    this->s2mm_bd_arr[num_bds - 1].next_desc_ptr = DMA_BDR_S2MM_BASE;
+    this->s2mm_bd_arr[num_bds - 1].next_desc_index = 0;
+
+    this->s2mm_tail = &(this->s2mm_bd_arr[num_bds - 1]);
+    this->s2mm_tail_address = s2mm_bd_idx_to_addr(num_bds-1);
+}
+
+void AXIDMA::create_mm2s_bd_ring(int num_bds){
+    // Clear the existing BD memory, and start programming each BD with next pointer and such
+    // Set the TXSOF and TXEOF bits
+
+    memset((void*)this->mm2s_bd_arr, 0, sizeof(DMA_SG_BD)*num_bds);
+
+    //Set the first TXSOF bit
+    set_txsof_bit(&(this->mm2s_bd_arr[0]), 1);
+
+    for(int i = 0; i < num_bds - 1; i++){
+        volatile DMA_SG_BD *current_bd = &(this->mm2s_bd_arr[i]);
+
+        uint32_t next_index = i + 1;
+        uint32_t next_address = mm2s_bd_idx_to_addr(next_index);
+        current_bd->next_desc_index = next_index;
+        current_bd->next_desc_ptr = next_address;
+    }
+
+    // Set the last TXEOF bit
+    set_txeof_bit(&(this->mm2s_bd_arr[num_bds - 1]), 1);
+
+    // Set the last next_desc_ptr to loop around
+    // Set the last index as well
+    this->mm2s_bd_arr[num_bds - 1].next_desc_ptr = DMA_BDR_MM2S_BASE;
+    this->mm2s_bd_arr[num_bds - 1].next_desc_index = 0;
+
+    this->mm2s_tail = &(this->mm2s_bd_arr[num_bds - 1]);
+    this->mm2s_tail_address = mm2s_bd_idx_to_addr(num_bds-1);
+}
+
+int AXIDMA::transfer_sg(){
+    // Start the MM2S transfer, then start the S2MM transfer
+    this->clear_irq_bits();
+
+    this->reset_mm2s();
+    this->reset_s2mm();
+
+    // Start MM2S transfer
+    // Write the first MM2S descriptor to the CURDESC register
+    write_dma(MM2S_CURDESC, DMA_BDR_MM2S_BASE);
+
+    this->halt_mm2s();
+    this->start_mm2s();
+    this->enable_mm2s_intr();
+
+    // Write the tail address to the tail descriptor register
+    write_dma(MM2S_TAILDESC, this->mm2s_tail_address);
+
+    // Start S2MM transfer
+    // Write the first S2MM descriptor to the CURDESC register
+    write_dma(S2MM_CURDESC, DMA_BDR_S2MM_BASE);
+    this->halt_s2mm();
+    this->start_s2mm();
+    this->enable_s2mm_intr();
+
+    // Write the tail address to the tail descriptor register
+    write_dma(S2MM_TAILDESC, this->s2mm_tail_address);
+}
+#endif
+
+#ifndef DMA_SG_MODE
 int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
     uint32_t status = read_dma(channel_status_reg);
 
@@ -126,21 +260,8 @@ int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
 
 	uint32_t count = 0;
 	while(!(status & IOC_IRQ_FLAG)){
-        // usleep(10000);
 
 		status = read_dma(channel_status_reg);
-
-        // if(channel_status_reg == MM2S_DMASR){
-        //     this->print_status(MM2S_DMASR);
-        // }
-        // else if(channel_status_reg == S2MM_DMASR){
-        //     this->print_status(S2MM_DMASR);
-        // }
-        // else{
-        //     printf("ERROR [AXIDMA::sync_channel()] Invalid channel status register\n");
-        //     return -1;
-        // }
-
 		count++;
 		if(count == max_tries){
             if(channel_status_reg == MM2S_DMASR){
@@ -157,6 +278,7 @@ int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
 
 	return count;
 }
+#endif // DMA_SG_MODE
 
 void AXIDMA::enable_mm2s_intr(){
     write_dma(MM2S_DMACR, ENABLE_ALL_IRQ);
@@ -166,6 +288,7 @@ void AXIDMA::enable_s2mm_intr(){
     write_dma(S2MM_DMACR, ENABLE_ALL_IRQ);
 }
 
+#ifndef DMA_SG_MODE
 int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
 
     this->clear_irq_bit(MM2S_DMASR);
@@ -224,7 +347,6 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
     this->set_s2mm_len(len);
 
     int num_tries1 = 0, num_tries2 = 0;
-    // if(block){
     num_tries1 = this->sync_channel(MM2S_DMASR);
     if(num_tries1 < 0){
         return -1;
@@ -234,12 +356,12 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
     if(num_tries2 < 0){
         return -1;
     }
-    // }
     return num_tries1 + num_tries2;
 }
+#endif // DMA_SG_MODE
 
-int AXIDMA::self_test(){
-
+#ifndef DMA_SG_MODE
+int AXIDMA::self_test_dr(){
     //mmap the source and destination addresses to the process
     uint32_t *src_addr = (uint32_t *)mmap(
         NULL,                   // Let the kernel decide the virtual address
@@ -259,6 +381,12 @@ int AXIDMA::self_test(){
         DMA_SELF_TEST_DST_ADDR  // Physical address of the reserved memory
     );
 
+    if(src_addr == MAP_FAILED || dst_addr == MAP_FAILED){
+        printf("ERROR [AXIDMA::self_test()] Failed to map memory: %s\n", strerror(errno));
+        return -2;
+    }
+
+    // printf("INFO [AXIDMA::self_test()] Writing random data to source block\n");
     // Write some random data to the source address, copy it to the dst address, and check if it's the same
     // If size is 0x1000, that is 4096 bytes, so 1024 uint32_t
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
@@ -269,7 +397,7 @@ int AXIDMA::self_test(){
     // printf("INFO [AXIDMA::self_test()] Status registers before transfer: \n");
     // this->print_status(MM2S_DMASR);
     // this->print_status(S2MM_DMASR);
-
+    // printf("INFO [AXIDMA::self_test()] Starting transfer\n");
     this->transfer(DMA_SELF_TEST_SRC_ADDR, DMA_SELF_TEST_DST_ADDR, DMA_SELF_TEST_LEN, true);
 
     // printf("INFO [AXIDMA::self_test()] Status registers immediately after transfer (should be idle and no IOC): \n");
@@ -288,6 +416,7 @@ int AXIDMA::self_test(){
     // this->print_status(S2MM_DMASR);
 
     // Check if the data is the same
+    // printf("INFO [AXIDMA::self_test()] Checking that data matches\n");
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         if(src_addr[i] != dst_addr[i]){
             printf("ERROR [AXIDMA::self_test()] Self test failed. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
@@ -313,5 +442,23 @@ int AXIDMA::self_test(){
     munmap(src_addr, DMA_SELF_TEST_LEN);
     munmap(dst_addr, DMA_SELF_TEST_LEN);
 
+    // printf("INFO [AXIDMA::self_test()] Successfully unmapped memory\n");
     return 0;
+}
+#else // We're in scatter-gather mode
+
+// TODO: Implement self test for scatter gather mode
+int AXIDMA::self_test_sg(){
+
+    return 0;
+}
+
+#endif // DMA_SG_MODE
+
+int AXIDMA::self_test(){
+    #ifndef DMA_SG_MODE
+    return self_test_dr();
+    #else
+    return self_test_sg();
+    #endif
 }
