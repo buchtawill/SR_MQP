@@ -34,7 +34,7 @@
 #define KERNEL_RSVD_MEM_SIZE    0x02000000
 
 #define PHYS_MMAN_CHUNK_SIZE    512
-#define PHYS_MMAN_NUM_CHUNKS    (KERNEL_RSVD_MEM_SIZE / CHUNK_SIZE)
+#define PHYS_MMAN_NUM_CHUNKS    (KERNEL_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
 
 // Singleton class alias
 #define PHYSMMAN PhysMman::get_instance()
