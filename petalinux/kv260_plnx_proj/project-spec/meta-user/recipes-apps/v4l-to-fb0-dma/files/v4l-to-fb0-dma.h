@@ -1,13 +1,14 @@
-
+/**
+ * This file contains various definitions for the v4l-to-fb0-dma application
+ */
 
 
 #ifndef V4L_TO_FB0_DMA_H_
 #define V4L_TO_FB0_DMA_H_
 
-#include <sys/ioctl.h>
-#include <linux/videodev2.h>
-#include <linux/fb.h>
-#include <stdint.h>
+#include <linux/videodev2.h>    // V4L2 API
+#include <linux/fb.h>           // Framebuffer API
+#include <stdint.h> 
 
 // Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
 #define DMA_0_AXI_LITE_BASE			0xA0010000

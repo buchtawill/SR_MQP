@@ -4,9 +4,7 @@
 #include "bits.h"
 #include "dma-sg-bd.h"
 #include <stdint.h>
-
-#define KERNEL_RSVD_MEM_BASE		0x78000000
-#define KERNEL_RSVD_MEM_SIZE        0x02000000
+#include "phys-mman.h"
 
 // #define DMA_SG_MODE 1
 #define DMA_DIRECT_REG_MODE 1

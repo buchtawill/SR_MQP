@@ -13,6 +13,8 @@ SRC_URI = "file://v4l-to-fb0-dma.cpp \
 			file://axi-dma.h \
 			file://dma-sg-bd.h \
 			file://dma-sg-bd.cpp \
+			file://phys-mman.h \
+			file://phys-mman.cpp \
 			file://bits.h \
            file://Makefile \
 		  "
