@@ -11,10 +11,12 @@
 int PhysMman::init(int dev_mem_fd){
     this->dev_mem_fd = dev_mem_fd;
 
+    uint32_t mem_size = PHYS_MMAN_NUM_CHUNKS * PHYS_MMAN_CHUNK_SIZE;
+
     // mmap the entire reserved memory
     volatile void* mem_ptr = (volatile void*)mmap(
         NULL,                   // Let the kernel decide the virtual address
-        NUM_CHUNKS*CHUNK_SIZE,  // Size of memory to map 
+        mem_size,               // Size of memory to map 
         PROT_READ | PROT_WRITE, // Permissions: read and write
         MAP_SHARED,             // Changes are shared with other mappings
         this->dev_mem_fd,       // File descriptor for /dev/mem
@@ -37,8 +39,8 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     // Calculate the number of chunks needed for num_bytes
     // Find the next available block that has the required number of chunks
     // from free_mem_blocks
-    uint32_t num_chunks = (num_bytes / CHUNK_SIZE) + 1;
-    size_t actual_allocated = num_chunks * CHUNK_SIZE;
+    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE) + 1;
+    size_t actual_allocated = num_chunks * PHYS_MMAN_CHUNK_SIZE;
 
     // Find the next available block that has the required number of chunks
     uint32_t first_chunk = 0;
@@ -71,8 +73,8 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     pb_and_j.num_chunks  = num_chunks;
     used_mem_blocks.push_back(pb_and_j);
 
-    uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (CHUNK_SIZE * first_chunk);
-    volatile void* base_ptr = this->mem_base_ptr + (CHUNK_SIZE * first_chunk);
+    uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
+    volatile void* base_ptr = this->mem_base_ptr + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
 
     // Create an ID for the physical memory object
     uint32_t id = this->next_id;
@@ -94,8 +96,8 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
     }
 
     // mmap the base address and num bytes (rounded up to 4k)
-    uint32_t num_chunks = (num_bytes / CHUNK_SIZE) + 1;
-    size_t actual_allocated = num_chunks * CHUNK_SIZE;
+    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE) + 1;
+    size_t actual_allocated = num_chunks * PHYS_MMAN_CHUNK_SIZE;
 
     // Declare as volatile for no compiler optimizations --> immediate HW R/W
     volatile void* mem_ptr = (volatile void*)mmap(
@@ -152,9 +154,9 @@ int PhysMman::free(PhysMem* mem){
     }
 
     // Add it back to the free chunks
-    uint32_t num_freed_chunks = mem->size() / CHUNK_SIZE;
+    uint32_t num_freed_chunks = mem->size() / PHYS_MMAN_CHUNK_SIZE;
     uint32_t base_address = mem->get_phys_address();
-    uint32_t start_chunk = (base_address - KERNEL_RSVD_MEM_BASE) / CHUNK_SIZE;
+    uint32_t start_chunk = (base_address - KERNEL_RSVD_MEM_BASE) / PHYS_MMAN_CHUNK_SIZE;
 
     // Check if the freed block is contiguous with any existing free blocks, and can be merged
     bool merged = false;

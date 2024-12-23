@@ -1,37 +1,40 @@
 /**
  * This class serves to provide memory management for physical memory. This class is a singleton.
- * Each memory block will be represented by a class, PhysMem. It will contain a volatile void pointer 
+ * Each memory block will be represented by a container class, PhysMem. It will contain a volatile void pointer 
  * that can be used by the userspace application to r/w the physical memory, and a uint32_t representing
- * the physical address to be used by a DMA engine. All PhysMems are guarunteed to be contiguous.
+ * the physical address (which can be used by a DMA engine). All PhysMems are guarunteed to be have contiguous memory.
  * 
- * This PhysMem objects are mainly interpreted to be used as buffers.
+ * This PhysMem objects are mainly interpreted to be used as buffers or mappings to hardware registers.
  * 
  * The PhysMman class will create and keep track of buffers. Buffers can be created in an arbitrary physical memory space
  * by specifying the size of the buffer only, or can be created at a specific location by giving a base address and size.
- * PhysMem objects are destroyed and freed by the PhysMman class by 
+ * PhysMem objects are destroyed and freed by the PhysMman class.
  * Use cases: 
  *      - map frame buffer to user space --> specify base address and size
- *      - create a buffer, don't care where
+ *      - create a buffer, don't care where --> specify size only
  * 
  * Example
  *      PhysMem *rgb565_buf = PhysMman.create(RGB565_BUF_SIZE_BYTES);
  *      PhysMem *fb0_buf    = PhysMman.create(fixed_fb_info.smem_start, fb_size_bytes);
  * 
- * All memory will be allocated in chunks of CHUNK_SIZE
+ * All memory will be allocated in chunks of CHUNK_SIZE, defined in this header file
+ * 
+ * Author: Will Buchta
+ * Date:   23 December 2024 (Merry Christmas)
  */
 
 #ifndef PHYS_MMAN_H
 #define PHYS_MMAN_H
 
 #include <stdint.h>
-#include <stdlib.h>         // For size_t
+#include <stdlib.h> // For size_t
 #include <vector>
 
-#define KERNEL_RSVD_MEM_BASE		0x78000000
-#define KERNEL_RSVD_MEM_SIZE        0x02000000
+#define KERNEL_RSVD_MEM_BASE    0x78000000
+#define KERNEL_RSVD_MEM_SIZE    0x02000000
 
-#define CHUNK_SIZE 1024
-#define NUM_CHUNKS (KERNEL_RSVD_MEM_SIZE / CHUNK_SIZE)
+#define PHYS_MMAN_CHUNK_SIZE    512
+#define PHYS_MMAN_NUM_CHUNKS    (KERNEL_RSVD_MEM_SIZE / CHUNK_SIZE)
 
 // Singleton class alias
 #define PHYSMMAN PhysMman::get_instance()
@@ -71,7 +74,7 @@ private:
         physmem_list.clear();
 
         PhysBlock init;
-        init.num_chunks  = NUM_CHUNKS;
+        init.num_chunks  = PHYS_MMAN_NUM_CHUNKS;
         init.start_chunk = 0;
         free_mem_blocks.push_back(init);
     }
