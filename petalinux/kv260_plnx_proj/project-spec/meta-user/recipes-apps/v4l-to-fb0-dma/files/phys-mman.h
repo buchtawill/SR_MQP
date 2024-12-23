@@ -16,6 +16,8 @@
  * Example
  *      PhysMem *rgb565_buf = PhysMman.create(RGB565_BUF_SIZE_BYTES);
  *      PhysMem *fb0_buf    = PhysMman.create(fixed_fb_info.smem_start, fb_size_bytes);
+ * 
+ * All memory will be allocated in chunks of CHUNK_SIZE
  */
 
 #ifndef PHYS_MMAN_H
@@ -28,91 +30,102 @@
 #define KERNEL_RSVD_MEM_BASE		0x78000000
 #define KERNEL_RSVD_MEM_SIZE        0x02000000
 
+#define CHUNK_SIZE 1024
+#define NUM_CHUNKS (KERNEL_RSVD_MEM_SIZE / CHUNK_SIZE)
+
+// Singleton class alias
+#define PHYSMMAN PhysMman::get_instance()
+
 /**
- * TODO: Decide if this class should use boundary tag or bitfields to keep track of memory
+ * This class will allocate memory using the bitmask method, using an array of booleans to keep track of allocated memory
+ * The memory will be allocated in chunks of CHUNK_SIZE.
+ * A "chunk" is a CHUNK_SIZE area of memory
+ * A "block" is a number of contiguous chunks
  */
 class PhysMman {
 private:
 
-    std::vector<PhysMem*> used_mem;
-};
+    typedef struct{
+        uint32_t start_chunk;
+        uint32_t num_chunks;
+    } PhysBlock;
 
-class PhysMem{
-private:
+    // Keep track of what chunks are available
+    std::vector<PhysBlock> free_mem_blocks;
 
-    volatile void* mem_ptr;     // To be used by userspace application
-    size_t num_bytes;           // Size of the allocated memory (multiple of 1kB)
-    uint32_t mem_id;            // id to be used by PhysMman
-    uint32_t base_address;      // Physical address of memory
+    // Keep track of what chunks are used
+    std::vector<PhysBlock> used_mem_blocks;
+
+    // Maintain a list of allocated PhysMem objects
+    std::vector<PhysMem*> physmem_list;
+
+    volatile void *mem_base_ptr;    // Pointer to the reserved memory
+    int dev_mem_fd;                 // File descriptor for /dev/mem
+    int next_id = 0;                // Next id to be assigned to a memory block
+
+    // Private constructor for singleton
+    PhysMman(){
+        free_mem_blocks.clear();
+        used_mem_blocks.clear();
+
+        physmem_list.clear();
+
+        PhysBlock init;
+        init.num_chunks  = NUM_CHUNKS;
+        init.start_chunk = 0;
+        free_mem_blocks.push_back(init);
+    }
+    PhysMman(PhysMman const&);          // Don't allow copy
+    void operator=(PhysMman const&);    // Don't allow assignment
 
 public:
 
-    uint32_t get_phys_address(){
-        return base_address;
+    /**
+     * Free / unmap all the memory blocks that were allocated by this class
+     */
+    ~PhysMman();
+
+    static PhysMman& get_instance(){
+        static PhysMman instance;
+        return instance;
     }
 
-    volatile void* get_mem_ptr(){
-        return mem_ptr;
-    }
+    /**
+     * Initialize the memory manager with the file descriptor for /dev/mem and
+     * mmap the region
+     * @param dev_mem_fd File descriptor for /dev/mem
+     * @return 0 on success, -1 on error
+     */
+    int PhysMman::init(int dev_mem_fd);
 
     /**
-     * Return the size of the memory in bytes
+     * Create a new memory block of size num_bytes. The memory will be allocated from the kernel reserved memory
+     * @param num_bytes Size of the memory block in bytes
+     * @return Pointer to the allocated memory block
      */
-    size_t size(){
-        return num_bytes;
-    }
-
-    PhysMem(volatile void* addr, size_t size, uint32_t id, uint32_t base_addr);
+    PhysMem* alloc(size_t num_bytes);
 
     /**
-     * Memory freeing will be handled by PhysMman class
+     * Create a PhysMem instance that points to the specified physical address and is of size num_bytes.
+     * Will round up 4kB of space
+     * @param base_addr Base address of the memory block
+     * @param num_bytes Size of the memory block in bytes
+     * @return Pointer to the allocated memory block
      */
-    ~PhysMem();
+    PhysMem* alloc(uint32_t base_addr, size_t num_bytes);
 
     /**
-     * Copy num_bytes bytes from src into the base of this memory
-     * @param src Source address of data
-     * @param num_bytes Number of bytes to copy
-     * @return number of bytes copied on success, -1 on error
+     * Free the memory block pointed to by the PhysMem object
+     * @param mem Pointer to the memory block to be freed
+     * @return 0 on success, -1 on error
      */
-    int write_from(void *src, size_t num_bytes);
+    int free(PhysMem* mem);
 
     /**
-     * Copy num_bytes bytes from this memory into dst
-     * @param dst Destination of memory
-     * @param num_bytes Number of bytes to copy/read
+     * Print the memory blocks that are free and used
+     * @return None
      */
-    void read_into(void *dst, size_t num_bytes);
-
-    /**
-     * Write a word (data) to the specified address offset (byte_offset). Buyer beware - write to aligned address.
-     * @param byte_offset Byte address in the memory
-     * @param data Word to write
-     */
-    void write_word(uint32_t byte_offset, uint32_t data);
-    
-    /**
-     * Read a word from the relevant 
-     */
-    uint32_t read_word(uint32_t byte_offset);
-
-    /**
-     * Read the byte from the address at byte_offset
-     * @param byte_offset Memory address offset
-     */
-    uint8_t read_byte(uint32_t byte_offset);
-
-    /**
-     * Write data to byte_offset. Buyer beware - byte_offset must be aligned to 4 byte boundary
-     */
-    void write_word(uint8_t data, uint32_t byte_offset);
-    
-    /**
-     * Return true if the memory points to Null
-     * @return true if the memory is not allocated
-     */
-    bool is_null();
+    void print_mem_blocks();
 };
-
 
 #endif // PHYS_MMAN_H

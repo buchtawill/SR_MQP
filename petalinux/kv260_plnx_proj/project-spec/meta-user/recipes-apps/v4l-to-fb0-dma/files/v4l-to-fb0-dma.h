@@ -11,15 +11,17 @@
 #include <stdint.h> 
 
 // Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
-#define DMA_0_AXI_LITE_BASE			0xA0010000
-#define DMA_1_AXI_LITE_BASE			0xA0020000
+#define DMA_0_AXI_LITE_BASE		0xA0010000
+#define DMA_1_AXI_LITE_BASE		0xA0020000
 
-#define INPUT_VIDEO_WIDTH           720
-#define INPUT_VIDEO_HEIGHT          576
-#define INPUT_VIDEO_PIXEL_FMT       V4L2_PIX_FMT_YUYV
+#define INPUT_VIDEO_WIDTH       720
+#define INPUT_VIDEO_HEIGHT      576
+#define INPUT_VIDEO_BYTES_PP    2
+#define INPUT_VIDEO_PIXEL_FMT   V4L2_PIX_FMT_YUYV
 
-#define RBG565_BUF_BASE             KERNEL_RSVD_MEM_BASE
-#define RGB565_BUF_SIZE_BYTES       ((uint32_t)0x00100000)
+// TODO: Port to use PhysMman
+#define RBG565_BUF_BASE         0x78000000
+#define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * INPUT_VIDEO_BYTES_PP)
 
 /**
  * This struct contains all resources that the main program uses.

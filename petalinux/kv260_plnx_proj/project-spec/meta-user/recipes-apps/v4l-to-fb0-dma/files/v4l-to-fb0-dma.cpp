@@ -30,6 +30,8 @@ The video buffer is 720*576*2 = 720*576*2 bytes ~= 0.8MB
 #include <time.h>   // for jiffies
 
 #include "v4l-to-fb0-dma.h"
+// #include "phys-mman.h"
+// #include "PhysMem.h"
 
 // Global variable - use with caution! This should only ever be set to true 
 bool die_flag = false;

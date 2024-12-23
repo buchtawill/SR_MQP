@@ -1,61 +1,195 @@
 
 #include "phys-mman.h"
+#include "PhysMem.h"
 #include <stdlib.h>
 #include <string.h> //memcpy
 #include <sys/mman.h>
 
+#include <errno.h>
+#include <stdio.h>
 
-//////////////////////////////////////////////////////////////////////////////////
-//                                                                              //
-//                                                                              //
-//                         Functions for PhysMem class                          //
-//                                                                              //
-//                                                                              //
-//////////////////////////////////////////////////////////////////////////////////
+int PhysMman::init(int dev_mem_fd){
+    this->dev_mem_fd = dev_mem_fd;
 
-PhysMem::PhysMem(volatile void* addr, size_t size, uint32_t id, uint32_t base_addr){
-    this->mem_id = id;
-    this->mem_ptr = addr;
-    this->num_bytes = size;
-    this->base_address = base_addr;
-}
-
-PhysMem::~PhysMem(){
-    if(!is_null()){
-        munmap((void*)this->mem_ptr, size());
-    }
-}
-
-int PhysMem::write_from(void *src, size_t num_bytes){
-    memcpy((void*)this->mem_ptr, src, num_bytes);
-}
-
-void PhysMem::read_into(void *dst, size_t num_bytes){
-    memcpy(dst, (void*)this->mem_ptr, num_bytes);
-}
-
-void PhysMem::write_word(uint32_t byte_offset, uint32_t data){
-    uint32_t address = byte_offset & (~0x00000003);
-    ((uint32_t*)mem_ptr)[address] = data;
-}
-
-uint32_t PhysMem::read_word(uint32_t byte_offset){
-    uint32_t address = byte_offset & (~0x00000003);
-    return ((uint32_t*)mem_ptr)[address];
-}
-
-uint8_t PhysMem::read_byte(uint32_t byte_offset){
-    return ((uint8_t*)mem_ptr)[byte_offset];
-}
-
-void PhysMem::write_word(uint8_t data, uint32_t byte_offset){
-    ((uint8_t*)mem_ptr)[byte_offset] = data;
-}
-
-bool PhysMem::is_null(){
-    if(this->mem_ptr == nullptr || this->base_address == NULL){
-        return true;
+    // mmap the entire reserved memory
+    volatile void* mem_ptr = (volatile void*)mmap(
+        NULL,                   // Let the kernel decide the virtual address
+        NUM_CHUNKS*CHUNK_SIZE,  // Size of memory to map 
+        PROT_READ | PROT_WRITE, // Permissions: read and write
+        MAP_SHARED,             // Changes are shared with other mappings
+        this->dev_mem_fd,       // File descriptor for /dev/mem
+        KERNEL_RSVD_MEM_BASE    // Physical address of the reserved memory
+    );
+    if(mem_ptr == MAP_FAILED){
+        printf("ERROR [PhysMman::init()] Failed to map memory: %s\n", strerror(errno));
+        return -1;
     }
 
-    return false;
+    this->mem_base_ptr = mem_ptr;
+
+    return 0;
+}
+
+PhysMem* PhysMman::alloc(size_t num_bytes){
+    // Allocate to the next available block, don't care exactly where 
+    // as long as it is a physically contiguous block
+
+    // Calculate the number of chunks needed for num_bytes
+    // Find the next available block that has the required number of chunks
+    // from free_mem_blocks
+    uint32_t num_chunks = (num_bytes / CHUNK_SIZE) + 1;
+    size_t actual_allocated = num_chunks * CHUNK_SIZE;
+
+    // Find the next available block that has the required number of chunks
+    uint32_t first_chunk = 0;
+    bool found = false;
+    for(int i = 0; i < free_mem_blocks.size(); i++){
+        
+        // Reduce the number of free chunks from that entry
+        if(free_mem_blocks[i].num_chunks >= num_chunks){
+            found = true;
+            first_chunk = free_mem_blocks[i].start_chunk;
+
+            free_mem_blocks[i].start_chunk += num_chunks;
+            free_mem_blocks[i].num_chunks  -= num_chunks;
+
+            // Erase that entry if it's fully used
+            if(free_mem_blocks[i].num_chunks == 0) 
+                free_mem_blocks.erase(free_mem_blocks.begin() + i);
+
+            break;
+        }
+    }
+    if(!found){
+        printf("ERROR [PhysMman::alloc()] Not enough memory available\n");
+        return nullptr;
+    }
+
+    // Add the entry to the used blocks list
+    PhysBlock pb_and_j;
+    pb_and_j.start_chunk = first_chunk;
+    pb_and_j.num_chunks  = num_chunks;
+    used_mem_blocks.push_back(pb_and_j);
+
+    uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (CHUNK_SIZE * first_chunk);
+    volatile void* base_ptr = this->mem_base_ptr + (CHUNK_SIZE * first_chunk);
+
+    // Create an ID for the physical memory object
+    uint32_t id = this->next_id;
+    this->next_id++;
+
+    PhysMem *block = new PhysMem(base_ptr, actual_allocated, id, base_addr, false);
+
+    return block;
+}
+
+PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
+
+    // Allocate to a specific physical address (i.e., map a buffer)
+    if(base_addr >= KERNEL_RSVD_MEM_BASE && 
+        base_addr < KERNEL_RSVD_MEM_BASE + KERNEL_RSVD_MEM_SIZE)
+    {
+        printf("ERROR [PhysMman::alloc()] Cannot allocate to reserved memory. Use alloc(n_bytes) instead\n");
+        return nullptr;
+    }
+
+    // mmap the base address and num bytes (rounded up to 4k)
+    uint32_t num_chunks = (num_bytes / CHUNK_SIZE) + 1;
+    size_t actual_allocated = num_chunks * CHUNK_SIZE;
+
+    // Declare as volatile for no compiler optimizations --> immediate HW R/W
+    volatile void* mem_ptr = (volatile void*)mmap(
+        NULL,                   // Let the kernel decide the virtual address
+        actual_allocated,       // Size of memory to map 
+        PROT_READ | PROT_WRITE, // Permissions: read and write
+        MAP_SHARED,             // Changes are shared with other mappings
+        this->dev_mem_fd,       // File descriptor for /dev/mem
+        base_addr               // Physical address of the reserved memory
+    );
+    if(mem_ptr == MAP_FAILED){
+        printf("ERROR [PhysMman::alloc()] Failed to map memory: %s\n", strerror(errno));
+        return nullptr;
+    }
+
+    // Create an ID for the physical memory object
+    uint32_t id = this->next_id;
+    this->next_id++;
+    PhysMem *block_ptr = new PhysMem(mem_ptr, actual_allocated, id, base_addr, true);
+
+    physmem_list.push_back(block_ptr);
+
+    return block_ptr;
+}
+
+int PhysMman::free(PhysMem* mem){
+
+    bool found = false;
+    // Remove the mem from the list of mappings
+    for(int i = 0; i < physmem_list.size(); i++){
+        if(physmem_list[i]->get_id() == mem->get_id()){
+            physmem_list.erase(physmem_list.begin() + i);
+            found = true;
+            break;
+        }
+    }
+
+    if(!found){
+        printf("ERROR [PhysMman::free()] Memory block not found\n");
+        return -1;
+    }
+
+    // If it has its own mmap, munmap it. Don't care about adding back to free block list
+    if(mem->own_mmap() && !mem->is_null()){
+        munmap((void*)mem->get_mem_ptr(), mem->size());
+        delete mem;
+        return 0;
+    }
+
+    // Add it back to the free chunks
+    uint32_t num_freed_chunks = mem->size() / CHUNK_SIZE;
+    uint32_t base_address = mem->get_phys_address();
+    uint32_t start_chunk = (base_address - KERNEL_RSVD_MEM_BASE) / CHUNK_SIZE;
+
+    // Check if the freed block is contiguous with any existing free blocks, and can be merged
+    bool merged = false;
+    for(int i = 0; i < free_mem_blocks.size(); i++){
+        if(free_mem_blocks[i].start_chunk + free_mem_blocks[i].num_chunks == start_chunk){
+            free_mem_blocks[i].num_chunks += num_freed_chunks;
+            merged = true;
+            break;
+        }
+        else if(free_mem_blocks[i].start_chunk - num_freed_chunks == start_chunk){
+            free_mem_blocks[i].start_chunk -= num_freed_chunks;
+            free_mem_blocks[i].num_chunks += num_freed_chunks;
+            merged = true;
+            break;
+        }
+    }
+
+    // Otherwise, add it as a new free block (keeping the order)
+    if(!merged){
+        PhysBlock pb;
+        pb.start_chunk = start_chunk;
+        pb.num_chunks = num_freed_chunks;
+        for(int i = 0; i < free_mem_blocks.size(); i++){
+            if(free_mem_blocks[i].start_chunk > start_chunk){
+                free_mem_blocks.insert(free_mem_blocks.begin() + i, pb);
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+
+void PhysMman::print_mem_blocks(){
+    printf("INFO [PhysMman::print_mem_blocks()] Free memory blocks: \n");
+    for(int i = 0; i < free_mem_blocks.size(); i++){
+        printf("    Start chunk: %05d, Num chunks: %05d\n", free_mem_blocks[i].start_chunk, free_mem_blocks[i].num_chunks);
+    }
+
+    printf("INFO [PhysMman::print_mem_blocks()] Used memory blocks: \n");
+    for(int i = 0; i < used_mem_blocks.size(); i++){
+        printf("    Start chunk: %05d, Num chunks: %05d\n", used_mem_blocks[i].start_chunk, used_mem_blocks[i].num_chunks);
+    }
 }
