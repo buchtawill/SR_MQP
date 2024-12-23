@@ -121,6 +121,12 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
     return block_ptr;
 }
 
+PhysMman::~PhysMman(){
+    for(int i = 0; i < physmem_list.size(); i++){
+        free(physmem_list[i]);
+    }
+}
+
 int PhysMman::free(PhysMem* mem){
 
     bool found = false;
@@ -166,7 +172,7 @@ int PhysMman::free(PhysMem* mem){
         }
     }
 
-    // Otherwise, add it as a new free block (keeping the order)
+    // Otherwise, add it as a new free block (keeping the order / sortedness)
     if(!merged){
         PhysBlock pb;
         pb.start_chunk = start_chunk;
@@ -179,6 +185,7 @@ int PhysMman::free(PhysMem* mem){
         }
     }
 
+    delete mem;
     return 0;
 }
 
