@@ -327,15 +327,11 @@ int main(int argc, char *argv[]){
 	if(dma1.initialize() != 0){
         die_with_error("ERROR [v4l-to-fb0-dma] Failed to initialize DMA object\n", nullptr, &resources);
 	}
-    if(dma1.self_test() < 0){
+
+    // Run the self test twice in a row
+    if(dma1.self_test() < 0 || dma1.self_test() < 0){
         die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
     }
-    // for(int i = 0; i < 2; i++){
-    //     int result = dma1.self_test();
-    //     if(result < 0){
-    //         die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
-    //     }
-    // }
 
     printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
