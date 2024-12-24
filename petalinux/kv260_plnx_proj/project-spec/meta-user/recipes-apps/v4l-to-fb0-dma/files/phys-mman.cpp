@@ -27,6 +27,9 @@ int PhysMman::init(int dev_mem_fd){
         return -1;
     }
 
+    // For testing purposes
+    // volatile void* mem_ptr = (volatile void*)malloc(mem_size);
+
     this->mem_base_ptr = mem_ptr;
 
     return 0;
@@ -39,7 +42,10 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     // Calculate the number of chunks needed for num_bytes
     // Find the next available block that has the required number of chunks
     // from free_mem_blocks
-    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE) + 1;
+    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE);
+    if(num_bytes % PHYS_MMAN_CHUNK_SIZE != 0){
+        num_chunks++;
+    }
     size_t actual_allocated = num_chunks * PHYS_MMAN_CHUNK_SIZE;
 
     // Find the next available block that has the required number of chunks
@@ -67,11 +73,6 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
         return nullptr;
     }
 
-    // Add the entry to the used blocks list
-    PhysBlock pb_and_j;
-    pb_and_j.start_chunk = first_chunk;
-    pb_and_j.num_chunks  = num_chunks;
-    used_mem_blocks.push_back(pb_and_j);
 
     uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
 
@@ -83,9 +84,17 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     uint32_t id = this->next_id;
     this->next_id++;
 
-    PhysMem *block = new PhysMem(base_ptr, actual_allocated, id, base_addr, false);
+    PhysMem *block_ptr = new PhysMem(base_ptr, actual_allocated, id, base_addr, false);
+    physmem_list.push_back(block_ptr);
 
-    return block;
+    // Add the entry to the used blocks list
+    PhysBlock pb_and_j;
+    pb_and_j.start_chunk  = first_chunk;
+    pb_and_j.num_chunks   = num_chunks;
+    pb_and_j.physblock_id = id;
+    used_mem_blocks.push_back(pb_and_j);
+
+    return block_ptr;
 }
 
 PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
@@ -98,8 +107,11 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
         return nullptr;
     }
 
-    // mmap the base address and num bytes (rounded up to 4k)
-    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE) + 1;
+    // mmap the base address and num bytes (rounded up to PHYS_MMAN_CHUNK_SIZE)
+    uint32_t num_chunks = (num_bytes / PHYS_MMAN_CHUNK_SIZE);
+    if(num_bytes % PHYS_MMAN_CHUNK_SIZE != 0){
+        num_chunks++;
+    }
     size_t actual_allocated = num_chunks * PHYS_MMAN_CHUNK_SIZE;
 
     // Declare as volatile for no compiler optimizations --> immediate HW R/W
@@ -127,6 +139,7 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
 }
 
 PhysMman::~PhysMman(){
+    printf("INFO [PhysMman::~PhysMman()] Freeing all memory blocks\n");
     for(uint32_t i = 0; i < physmem_list.size(); i++){
         free(physmem_list[i]);
     }
@@ -134,9 +147,15 @@ PhysMman::~PhysMman(){
 
 int PhysMman::free(PhysMem* mem){
 
+    if(mem == nullptr){
+        printf("ERROR [PhysMman::free()] Mem ptr is nullptr\n");
+        return -1;
+    }
+
     bool found = false;
     // Remove the mem from the list of mappings
     for(uint32_t i = 0; i < physmem_list.size(); i++){
+        // printf(" List id: %d. mem id: %d\n", physmem_list[i]->get_id(), mem->get_id());
         if(physmem_list[i]->get_id() == mem->get_id()){
             physmem_list.erase(physmem_list.begin() + i);
             found = true;
@@ -190,18 +209,29 @@ int PhysMman::free(PhysMem* mem){
         }
     }
 
+    // Remove the used block entry with the same id
+    for(uint32_t i = 0; i < used_mem_blocks.size(); i++){
+        if(used_mem_blocks[i].physblock_id == mem->get_id()){
+            used_mem_blocks.erase(used_mem_blocks.begin() + i);
+            break;
+        }
+    }
+
     delete mem;
     return 0;
 }
 
 void PhysMman::print_mem_blocks(){
-    printf("INFO [PhysMman::print_mem_blocks()] Free memory blocks: \n");
+    printf("INFO [PhysMman::print_mem_blocks()] ~~~~~~~~~~~~~~~~~~~~\n");
+    printf("  Free memory blocks \n");
     for(uint32_t i = 0; i < free_mem_blocks.size(); i++){
-        printf("    Start chunk: %05d, Num chunks: %05d\n", free_mem_blocks[i].start_chunk, free_mem_blocks[i].num_chunks);
+        printf("   - Start chunk: %5d, Num chunks: %5d\n", free_mem_blocks[i].start_chunk, free_mem_blocks[i].num_chunks);
     }
 
-    printf("INFO [PhysMman::print_mem_blocks()] Used memory blocks: \n");
+    printf("  Used memory blocks \n");
     for(uint32_t i = 0; i < used_mem_blocks.size(); i++){
-        printf("    Start chunk: %05d, Num chunks: %05d\n", used_mem_blocks[i].start_chunk, used_mem_blocks[i].num_chunks);
+        printf("   - Start chunk: %5d, Num chunks: %5d\n", used_mem_blocks[i].start_chunk, used_mem_blocks[i].num_chunks);
     }
+
+    printf("\n");
 }

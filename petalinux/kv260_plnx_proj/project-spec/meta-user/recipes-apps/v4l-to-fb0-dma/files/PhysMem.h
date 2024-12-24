@@ -71,31 +71,33 @@ public:
      * Copy num_bytes bytes from this memory into dst
      * @param dst Destination of memory
      * @param num_bytes Number of bytes to copy/read
+     * @return number of bytes copied on success, -1 on error
      */
-    void read_into(void *dst, size_t num_bytes);
+    int read_into(void *dst, size_t num_bytes);
 
     /**
      * Write a word (data) to the specified address offset (byte_offset). Buyer beware - write to aligned address.
      * @param byte_offset Byte address in the memory
      * @param data Word to write
+     * @return 0 on success, -1 on error
      */
-    void write_word(uint32_t byte_offset, uint32_t data);
+    int write_word(uint32_t byte_offset, uint32_t data);
     
     /**
      * Read a word from the relevant 
      */
-    uint32_t read_word(uint32_t byte_offset);
+    int read_word(uint32_t byte_offset, uint32_t *data);
 
     /**
      * Read the byte from the address at byte_offset
      * @param byte_offset Memory address offset
      */
-    uint8_t read_byte(uint32_t byte_offset);
+    int read_byte(uint32_t byte_offset, uint8_t *data);
 
     /**
      * Write data to byte_offset. Buyer beware - byte_offset must be aligned to 4 byte boundary
      */
-    void write_word(uint8_t data, uint32_t byte_offset);
+    int write_byte(uint32_t byte_offset, uint8_t data);
     
     /**
      * Return true if the memory points to Null

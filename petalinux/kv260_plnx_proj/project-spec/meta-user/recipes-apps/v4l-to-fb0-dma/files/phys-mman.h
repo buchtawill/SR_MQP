@@ -39,7 +39,7 @@
 #define PHYS_MMAN_NUM_CHUNKS    (KERNEL_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
 
 // Singleton class alias
-#define PHYSMMAN PhysMman::get_instance()
+#define PMM PhysMman::get_instance()
 
 /**
  * This class will allocate memory using the bitmask method, using an array of booleans to keep track of allocated memory
@@ -53,6 +53,7 @@ private:
     typedef struct{
         uint32_t start_chunk;
         uint32_t num_chunks;
+        uint32_t physblock_id;
     } PhysBlock;
 
     // Keep track of what chunks are available
