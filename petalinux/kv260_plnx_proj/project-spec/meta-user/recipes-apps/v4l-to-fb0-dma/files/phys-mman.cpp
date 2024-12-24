@@ -45,7 +45,7 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     // Find the next available block that has the required number of chunks
     uint32_t first_chunk = 0;
     bool found = false;
-    for(int i = 0; i < free_mem_blocks.size(); i++){
+    for(uint32_t i = 0; i < free_mem_blocks.size(); i++){
         
         // Reduce the number of free chunks from that entry
         if(free_mem_blocks[i].num_chunks >= num_chunks){
@@ -127,7 +127,7 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
 }
 
 PhysMman::~PhysMman(){
-    for(int i = 0; i < physmem_list.size(); i++){
+    for(uint32_t i = 0; i < physmem_list.size(); i++){
         free(physmem_list[i]);
     }
 }
@@ -136,7 +136,7 @@ int PhysMman::free(PhysMem* mem){
 
     bool found = false;
     // Remove the mem from the list of mappings
-    for(int i = 0; i < physmem_list.size(); i++){
+    for(uint32_t i = 0; i < physmem_list.size(); i++){
         if(physmem_list[i]->get_id() == mem->get_id()){
             physmem_list.erase(physmem_list.begin() + i);
             found = true;
@@ -163,7 +163,7 @@ int PhysMman::free(PhysMem* mem){
 
     // Check if the freed block is contiguous with any existing free blocks, and can be merged
     bool merged = false;
-    for(int i = 0; i < free_mem_blocks.size(); i++){
+    for(uint32_t i = 0; i < free_mem_blocks.size(); i++){
         if(free_mem_blocks[i].start_chunk + free_mem_blocks[i].num_chunks == start_chunk){
             free_mem_blocks[i].num_chunks += num_freed_chunks;
             merged = true;
@@ -182,7 +182,7 @@ int PhysMman::free(PhysMem* mem){
         PhysBlock pb;
         pb.start_chunk = start_chunk;
         pb.num_chunks = num_freed_chunks;
-        for(int i = 0; i < free_mem_blocks.size(); i++){
+        for(uint32_t i = 0; i < free_mem_blocks.size(); i++){
             if(free_mem_blocks[i].start_chunk > start_chunk){
                 free_mem_blocks.insert(free_mem_blocks.begin() + i, pb);
                 break;
@@ -196,12 +196,12 @@ int PhysMman::free(PhysMem* mem){
 
 void PhysMman::print_mem_blocks(){
     printf("INFO [PhysMman::print_mem_blocks()] Free memory blocks: \n");
-    for(int i = 0; i < free_mem_blocks.size(); i++){
+    for(uint32_t i = 0; i < free_mem_blocks.size(); i++){
         printf("    Start chunk: %05d, Num chunks: %05d\n", free_mem_blocks[i].start_chunk, free_mem_blocks[i].num_chunks);
     }
 
     printf("INFO [PhysMman::print_mem_blocks()] Used memory blocks: \n");
-    for(int i = 0; i < used_mem_blocks.size(); i++){
+    for(uint32_t i = 0; i < used_mem_blocks.size(); i++){
         printf("    Start chunk: %05d, Num chunks: %05d\n", used_mem_blocks[i].start_chunk, used_mem_blocks[i].num_chunks);
     }
 }
