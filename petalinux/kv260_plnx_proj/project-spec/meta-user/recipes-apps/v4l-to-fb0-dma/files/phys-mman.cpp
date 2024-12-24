@@ -8,32 +8,94 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef PLATFORM_HAS_RSVD_MEM
 int PhysMman::init(int dev_mem_fd){
-    this->dev_mem_fd = dev_mem_fd;
 
-    uint32_t mem_size = PHYS_MMAN_NUM_CHUNKS * PHYS_MMAN_CHUNK_SIZE;
+    if(!initialized){
+        this->dev_mem_fd = dev_mem_fd;
 
-    // mmap the entire reserved memory
-    volatile void* mem_ptr = (volatile void*)mmap(
-        NULL,                   // Let the kernel decide the virtual address
-        mem_size,               // Size of memory to map 
-        PROT_READ | PROT_WRITE, // Permissions: read and write
-        MAP_SHARED,             // Changes are shared with other mappings
-        this->dev_mem_fd,       // File descriptor for /dev/mem
-        KERNEL_RSVD_MEM_BASE    // Physical address of the reserved memory
-    );
-    if(mem_ptr == MAP_FAILED){
-        printf("ERROR [PhysMman::init()] Failed to map memory: %s\n", strerror(errno));
-        return -1;
+        // uint32_t mem_size = PHYS_MMAN_NUM_CHUNKS * PHYS_MMAN_CHUNK_SIZE;
+
+        // mmap the entire reserved memory
+        volatile void* mem_ptr = (volatile void*)mmap(
+            NULL,                   // Let the kernel decide the virtual address
+            PMM_RSVD_MEM_SIZE,      // Size of memory to map 
+            PROT_READ | PROT_WRITE, // Permissions: read and write
+            MAP_SHARED,             // Changes are shared with other mappings
+            this->dev_mem_fd,       // File descriptor for /dev/mem
+            PMM_RSVD_MEM_BASE       // Physical address of the reserved memory
+        );
+        if(mem_ptr == MAP_FAILED){
+            printf("ERROR [PhysMman::init()] Failed to map memory: %s\n", strerror(errno));
+            return -1;
+        }
+
+        this->mem_base_ptr = mem_ptr;
+
+        initialized = true;
+
+        return 0;
     }
 
-    // For testing purposes
-    // volatile void* mem_ptr = (volatile void*)malloc(mem_size);
+    printf("ERROR [PhysMman::init()] PhysMman is already initialized\n");
+    return -1;
+}
 
-    this->mem_base_ptr = mem_ptr;
-
+int PhysMman::self_test(){
+    // Still need to implement
     return 0;
 }
+#else
+int PhysMman::init(){
+
+    if(!initialized){
+
+        uint32_t mem_size = PHYS_MMAN_NUM_CHUNKS * PHYS_MMAN_CHUNK_SIZE;
+
+        // For testing purposes
+        volatile void* mem_ptr = (volatile void*)malloc(mem_size);
+
+        this->mem_base_ptr = mem_ptr;
+        initialized = true;
+
+        return 0;
+    }
+    printf("ERROR [PhysMman::init()] PhysMman is already initialized\n");
+    return -1;
+}
+
+int PhysMman::self_test(){
+    // For test, don't need to pass in /dev/mem fd
+    PMM.init(69);
+
+    PMM.print_mem_blocks();
+    PhysMem *block1 = PMM.alloc(1024);
+    PhysMem *block2 = PMM.alloc(1000);
+    PhysMem *block3 = PMM.alloc(10000);
+    PhysMem *block4 = PMM.alloc(100*1024);
+
+    block1->write_byte(4, 0xEF);
+    block1->write_byte(5, 0xBE);
+    block1->write_byte(6, 0x0D);
+    block1->write_byte(7, 0xF0);
+
+    uint32_t data;
+    block1->read_word(4, &data);
+    printf("INFO [main()] Block 1 word: 0x%08X\n", data);
+    
+    // std::cout<<"Block 1 size: "<< block_1->size() << std::endl;
+
+    PMM.print_mem_blocks();
+    PMM.free(block3);
+
+    PMM.print_mem_blocks();
+
+    PMM.free(block1);
+    PMM.free(block2);
+    PMM.free(block4);
+}
+#endif
+
 
 PhysMem* PhysMman::alloc(size_t num_bytes){
     // Allocate to the next available block, don't care exactly where 
@@ -74,7 +136,7 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     }
 
 
-    uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
+    uint32_t base_addr = PMM_RSVD_MEM_BASE + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
 
     // Brain f*ck line
     // Cast the mem base pointer to uint8_t, add the offset, then cast back to volatile void*
@@ -100,8 +162,8 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
 PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
 
     // Allocate to a specific physical address (i.e., map a buffer)
-    if(base_addr >= KERNEL_RSVD_MEM_BASE && 
-        base_addr < KERNEL_RSVD_MEM_BASE + KERNEL_RSVD_MEM_SIZE)
+    if(base_addr >= PMM_RSVD_MEM_BASE && 
+        base_addr < PMM_RSVD_MEM_BASE + PMM_RSVD_MEM_SIZE)
     {
         printf("ERROR [PhysMman::alloc()] Cannot allocate to reserved memory. Use alloc(n_bytes) instead\n");
         return nullptr;
@@ -143,6 +205,12 @@ PhysMman::~PhysMman(){
     for(uint32_t i = 0; i < physmem_list.size(); i++){
         free(physmem_list[i]);
     }
+
+    #ifdef PLATFORM_HAS_RSVD_MEM
+    munmap((void*)(this->mem_base_ptr), PMM_RSVD_MEM_SIZE);
+    #else
+    free(this->mem_base_ptr);
+    #endif
 }
 
 int PhysMman::free(PhysMem* mem){
@@ -178,7 +246,7 @@ int PhysMman::free(PhysMem* mem){
     // Add it back to the free chunks
     uint32_t num_freed_chunks = mem->size() / PHYS_MMAN_CHUNK_SIZE;
     uint32_t base_address = mem->get_phys_address();
-    uint32_t start_chunk = (base_address - KERNEL_RSVD_MEM_BASE) / PHYS_MMAN_CHUNK_SIZE;
+    uint32_t start_chunk = (base_address - PMM_RSVD_MEM_BASE) / PHYS_MMAN_CHUNK_SIZE;
 
     // Check if the freed block is contiguous with any existing free blocks, and can be merged
     bool merged = false;

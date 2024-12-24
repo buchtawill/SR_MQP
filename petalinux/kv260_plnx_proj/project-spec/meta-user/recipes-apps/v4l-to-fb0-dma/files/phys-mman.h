@@ -32,11 +32,14 @@
 
 #include "PhysMem.h"
 
-#define KERNEL_RSVD_MEM_BASE    0x78000000
-#define KERNEL_RSVD_MEM_SIZE    0x02000000
+#define PMM_RSVD_MEM_BASE       0x78000000
+#define PMM_RSVD_MEM_SIZE       0x02000000
 
 #define PHYS_MMAN_CHUNK_SIZE    512
-#define PHYS_MMAN_NUM_CHUNKS    (KERNEL_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
+#define PHYS_MMAN_NUM_CHUNKS    (PMM_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
+
+#define PLATFORM_HAS_RSVD_MEM 1 // For running on kv260
+// #define PLATFORM_NO_RSVD_MEM // For running on other 
 
 // Singleton class alias
 #define PMM PhysMman::get_instance()
@@ -66,8 +69,13 @@ private:
     std::vector<PhysMem*> physmem_list;
 
     volatile void *mem_base_ptr;    // Pointer to the reserved memory
-    int dev_mem_fd;                 // File descriptor for /dev/mem
     int next_id = 0;                // Next id to be assigned to a memory block
+
+    bool initialized = false; // Whether or not this class has been init'd yet
+
+    #ifdef PLATFORM_HAS_RSVD_MEM
+    int dev_mem_fd;                 // File descriptor for /dev/mem
+    #endif
 
     // Private constructor for singleton
     PhysMman(){
@@ -96,6 +104,7 @@ public:
         return instance;
     }
 
+    #ifdef PLATFORM_HAS_RSVD_MEM
     /**
      * Initialize the memory manager with the file descriptor for /dev/mem and
      * mmap the region
@@ -103,6 +112,13 @@ public:
      * @return 0 on success, -1 on error
      */
     int init(int dev_mem_fd);
+    #else
+    /**
+     * Initialize the memory manager by using a simple malloc call
+     * @return 0 on success, -1 on error
+     */
+    int init(int dev_mem_fd);
+    #endif
 
     /**
      * Create a new memory block of size num_bytes. The memory will be allocated from the kernel reserved memory
@@ -132,6 +148,12 @@ public:
      * @return None
      */
     void print_mem_blocks();
+
+    /**
+     * Perform a basic self test on the PhysMman class.
+     * @return 0 on success, -1 on error
+     */
+    int self_test();
 };
 
 #endif // PHYS_MMAN_H
