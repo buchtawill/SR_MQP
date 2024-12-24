@@ -74,7 +74,10 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     used_mem_blocks.push_back(pb_and_j);
 
     uint32_t base_addr = KERNEL_RSVD_MEM_BASE + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
-    volatile void* base_ptr = this->mem_base_ptr + (PHYS_MMAN_CHUNK_SIZE * first_chunk);
+
+    // Brain f*ck line
+    // Cast the mem base pointer to uint8_t, add the offset, then cast back to volatile void*
+    volatile void* base_ptr = (volatile void*)((uint8_t*)(this->mem_base_ptr) + (PHYS_MMAN_CHUNK_SIZE * first_chunk));
 
     // Create an ID for the physical memory object
     uint32_t id = this->next_id;

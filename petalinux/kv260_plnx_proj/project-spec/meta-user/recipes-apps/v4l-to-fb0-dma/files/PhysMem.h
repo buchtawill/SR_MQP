@@ -10,7 +10,7 @@ private:
     volatile void* mem_ptr;     // To be used by userspace application
     size_t num_bytes;           // Size of the allocated memory (multiple of 1kB)
     uint32_t mem_id;            // id to be used by PhysMman
-    uint32_t base_address;      // Physical address of memory
+    uint32_t base_address = 0;  // Physical address of memory
     bool self_mmapped = false;  // True if allocated from kernel reserved memory. False if mapped to HW
 
 public:

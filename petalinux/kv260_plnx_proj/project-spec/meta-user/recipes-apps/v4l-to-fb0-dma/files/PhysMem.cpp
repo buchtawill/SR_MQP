@@ -17,6 +17,7 @@ PhysMem::~PhysMem(){
 
 int PhysMem::write_from(void *src, size_t num_bytes){
     memcpy((void*)this->mem_ptr, src, num_bytes);
+    return num_bytes;
 }
 
 void PhysMem::read_into(void *dst, size_t num_bytes){
@@ -42,7 +43,7 @@ void PhysMem::write_word(uint8_t data, uint32_t byte_offset){
 }
 
 bool PhysMem::is_null(){
-    if(this->mem_ptr == nullptr || this->base_address == NULL){
+    if(this->mem_ptr == nullptr || this->base_address == 0){
         return true;
     }
 

@@ -30,6 +30,8 @@
 #include <stdlib.h> // For size_t
 #include <vector>
 
+#include "PhysMem.h"
+
 #define KERNEL_RSVD_MEM_BASE    0x78000000
 #define KERNEL_RSVD_MEM_SIZE    0x02000000
 
@@ -99,7 +101,7 @@ public:
      * @param dev_mem_fd File descriptor for /dev/mem
      * @return 0 on success, -1 on error
      */
-    int PhysMman::init(int dev_mem_fd);
+    int init(int dev_mem_fd);
 
     /**
      * Create a new memory block of size num_bytes. The memory will be allocated from the kernel reserved memory
