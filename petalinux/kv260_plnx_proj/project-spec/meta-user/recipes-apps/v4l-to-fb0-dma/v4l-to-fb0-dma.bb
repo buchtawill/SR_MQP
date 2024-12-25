@@ -15,7 +15,6 @@ SRC_URI = "file://v4l-to-fb0-dma.cpp \
 			file://dma-sg-bd.cpp \
 			file://phys-mman.h \
 			file://phys-mman.cpp \
-			file://PhysMem.cpp \
 			file://PhysMem.h \
 			file://bits.h \
            file://Makefile \
