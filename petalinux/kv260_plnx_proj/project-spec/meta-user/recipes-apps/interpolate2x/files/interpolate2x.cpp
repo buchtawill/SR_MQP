@@ -1,14 +1,21 @@
 /*
 
-This program acts as a video passthrough application that will convert the input video format 
-(a composite video to USB decoder outputting YUYV) to the framebuffer format (RGB565), and copy 
-that directly to the frame buffer using DMA. After 1000 frames have elapsed, the program will
-end and display the frame rate.
+This program will read frames from a video device, convert them from YUYV 4:2:2 to RGB888, interpolate them with our HW, then 
+convert to RGB565 before displaying them on the framebuffer device.
+
+This thing is going to be so ungodly slow, but it is just a prototype. The main flow is this:
+ 1. Capture a frame from v4l2
+ 2. Convert the frame to RGB888
+ - Loop:
+   3. Send a tile down to the PL, one line at a time
+   4. Receive the tile and store it in a temporary buffer (can be in userspace)
+   5. Convert the tile to RGB565
+   6. Copy the tile to the frame buffer, one line at a time
+
+Steps 2, 4, 5, and 6 will all be deleted eventually
 
 Author: Will Buchta
-Date Modified: 12/25/2024 (Merry Christmas!)
-
-TODO: Measure difference between normal v4l2 frame grabs and ping pong buffering with threads
+Date Modified: 12/26/2024
 
 */
 
@@ -68,6 +75,39 @@ void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
 
         rgb565[i] = ((r0 & 0xF8) << 8) | ((g0 & 0xFC) << 3) | (b0 >> 3);
         rgb565[i + 1] = ((r1 & 0xF8) << 8) | ((g1 & 0xFC) << 3) | (b1 >> 3);
+    }
+}
+
+// Convert YUYV to RGB888
+void yuyv_to_rgb888(uint8_t *yuyv, uint8_t *rgb888, int width, int height) {
+    for (int i = 0; i < width * height; i += 2) {
+        int y0 = yuyv[i * 2];
+        int u = yuyv[i * 2 + 1] - 128;
+        int y1 = yuyv[i * 2 + 2];
+        int v = yuyv[i * 2 + 3] - 128;
+
+        int r0 = y0 + 1.403 * v;
+        int g0 = y0 - 0.344 * u - 0.714 * v;
+        int b0 = y0 + 1.770 * u;
+
+        int r1 = y1 + 1.403 * v;
+        int g1 = y1 - 0.344 * u - 0.714 * v;
+        int b1 = y1 + 1.770 * u;
+
+        r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
+        g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
+        b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
+
+        r1 = r1 < 0 ? 0 : (r1 > 255 ? 255 : r1);
+        g1 = g1 < 0 ? 0 : (g1 > 255 ? 255 : g1);
+        b1 = b1 < 0 ? 0 : (b1 > 255 ? 255 : b1);
+
+        rgb888[i * 3] = r0;
+        rgb888[i * 3 + 1] = g0;
+        rgb888[i * 3 + 2] = b0;
+        rgb888[(i + 1) * 3] = r1;
+        rgb888[(i + 1) * 3 + 1] = g1;
+        rgb888[(i + 1) * 3 + 2] = b1;
     }
 }
 
@@ -231,9 +271,9 @@ void setup_video(Resources *p_res){
 
     // Map the video buffer
     printf("INFO [v4l-to-fb0-dma::setup_video()] Mapping video buffer\n");
-    p_res->v4l2_frame_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     p_res->v4l2_frame_buf.memory = V4L2_MEMORY_MMAP;
-    p_res->v4l2_frame_buf.index = 0;
+    p_res->v4l2_frame_buf.index  = 0;
 
     if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_buf) == -1) {
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
@@ -244,7 +284,6 @@ void setup_video(Resources *p_res){
 
     // Map the video buffer to a PhysMem object
     p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
-
     if(p_res->vid_mem_block == nullptr){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
     }
@@ -337,8 +376,6 @@ int main(int argc, char *argv[]){
 
     printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
-    uint32_t frame_loop_count = 0;
-    unsigned long start_jiffies = get_jiffies();
     while(die_flag == false){
         
         // Capture a frame
@@ -349,6 +386,11 @@ int main(int argc, char *argv[]){
             die_with_error("ERROR [v4l-to-fb0-dma] Error dequeueing buffer: ", strerror(errno), &resources);
         }
 
+        // Convert v4l2 frame to RGB888
+        // Loop
+        //  - Send a tile down to the PL for interpolation
+        //  - Receive the tile, convert it to RGB565, and write it to the framebuffer
+
         // Convert the v4l2 input format to the framebuffer format
         yuyv_to_rgb565((uint8_t *)resources.vid_mem_block->get_mem_ptr(), \
                        (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
@@ -357,7 +399,7 @@ int main(int argc, char *argv[]){
         uint32_t rgb565_tmp_ptr = resources.rgb_565_block->get_phys_address();
         uint8_t  bytes_per_pixel = 2;
         for (int row = 0; (row < INPUT_VIDEO_HEIGHT); row++) {
-    			
+			
             // 32 byte boundary: lower 5 bits are all 0
             uint32_t dst_pix_addr = resources.fb_mem_block->get_phys_address() + \
                                    (resources.configurable_fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
@@ -366,16 +408,6 @@ int main(int argc, char *argv[]){
             if(result < 0){
                 die_with_error("ERROR [v4l-to-fb0-dma] DMA transfer failed\n", nullptr, &resources);
             }
-        }
-        frame_loop_count++;
-        if(frame_loop_count == 1000){
-            unsigned long end_jiffies = get_jiffies();
-            unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
-            unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
-
-            float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
-            printf("INFO [v4l-to-fb0-dma] FPS: %0.3f\n", fps);
-            die_flag = true;
         }
     }
 

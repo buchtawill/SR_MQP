@@ -1,11 +1,12 @@
-APP = v4l-to-fb0-dma
+APP = interpolate2x
+
 
 # Source directories
 APP_SRC_DIR = .
 COMMON_SRC_DIR = $(SR_MQP_ROOT)/petalinux/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src
 
 # Source files - add to this list as necessary
-APP_SRCS = $(APP_SRC_DIR)/v4l-to-fb0-dma.cpp
+APP_SRCS = $(APP_SRC_DIR)/interpolate2x.cpp
 COMMON_SRCS = $(COMMON_SRC_DIR)/axi-dma.cpp $(COMMON_SRC_DIR)/phys-mman.cpp
 
 # Object files
@@ -18,13 +19,12 @@ all: build
 build: $(APP)
 
 $(APP): $(APP_OBJS)
-	$(CXX) -o $@ $(APP_OBJS) $(LDFLAGS) $(LDLIBS) $(FLAGS) 
+	$(CXX) -o $@ $(APP_OBJS) $(LDFLAGS) $(LDLIBS) $(FLAGS)
 
 # Pattern rule for compiling .cpp to .o
 %.o: %.cpp
 	$(CXX) $(FLAGS) -c $< -o $@
 
-# Clean target
 clean:
-	rm -f $(APP) $(APP_OBJS)
+	rm -f $(APP) *.o
 	find $(COMMON_SRC_DIR) -name '*.o' -delete

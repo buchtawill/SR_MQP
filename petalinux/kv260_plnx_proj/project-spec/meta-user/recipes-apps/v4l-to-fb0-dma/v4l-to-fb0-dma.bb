@@ -13,12 +13,9 @@ SRC_URI = "file://v4l-to-fb0-dma.cpp \
 			file://v4l-to-fb0-dma.h \
 			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/axi-dma.cpp \
 			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/axi-dma.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/dma-sg-bd.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/dma-sg-bd.cpp \
 			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/phys-mman.h \
 			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/phys-mman.cpp \
 			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/PhysMem.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/bits.h \
            file://Makefile \
 		  "
 

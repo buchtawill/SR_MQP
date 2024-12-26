@@ -3,8 +3,8 @@
  */
 
 
-#ifndef V4L_TO_FB0_DMA_H_
-#define V4L_TO_FB0_DMA_H_
+#ifndef INTERPOLATE2X_H_
+#define INTERPOLATE2X_H_
 
 #include <linux/videodev2.h>    // V4L2 API
 #include <linux/fb.h>           // Framebuffer API
@@ -54,4 +54,4 @@ typedef struct {
 
 void cleanup_resources(Resources *p_res);
 
-#endif // V4L_TO_FB0_DMA_H_
+#endif // INTERPOLATE2X_H_
