@@ -124,13 +124,12 @@ void sigint_handler(int sig){
  * @return None
  */
 void init_resources(Resources *p_res, const char* video_device, const char* fb_device){
-    p_res->v4l2_fd    = -1;
-    p_res->fb_dev_fd  = -1;
-    p_res->dev_mem_fd = -1;
-    p_res->fb_mem_phys      = nullptr;
-    p_res->vid_mem_phys     = nullptr;
-    p_res->rgb_565_buf_pix  = nullptr;
-    p_res->rgb_565_buf_phys = nullptr;
+    p_res->v4l2_fd       = -1;
+    p_res->fb_dev_fd     = -1;
+    p_res->dev_mem_fd    = -1;
+    p_res->vid_mem_block = nullptr;
+    p_res->fb_mem_block  = nullptr;
+    p_res->rgb_565_block = nullptr;
 
     memset(&p_res->v4l2_fmt,             0, sizeof(p_res->v4l2_fmt));
     memset(&p_res->v4l2_req,             0, sizeof(p_res->v4l2_req));
@@ -142,8 +141,6 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     p_res->fb_size_bytes          = 0;
     p_res->vid_mem_phys_base      = 0;
     p_res->vid_mem_size_bytes     = 0;
-    p_res->rgb_565_buf_phys_base  = RBG565_BUF_BASE;
-    p_res->rgb_565_buf_size_bytes = RGB565_BUF_SIZE_BYTES;
 
     // Open /dev/mem
 	printf("INFO [v4l-to-fb0-dma::init_resources()] Opening /dev/mem\n");
@@ -151,6 +148,13 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
 	if(p_res->dev_mem_fd < 0){
 		die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Error opening /dev/mem: ", strerror(errno), p_res);
 	}
+
+    // Initialize the Physical Memory Manager
+    printf("INFO [v4l-to-fb0-dma::init_resources()] Initializing Physical Memory Manager\n");
+    int pmm_result = PMM.init(p_res->dev_mem_fd);
+    if(pmm_result != 0){
+        die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Failed to initialize Physical Memory Manager\n", nullptr, p_res);
+    }
 
     // Open the video device
     printf("INFO [v4l-to-fb0-dma::init_resources()] Opening video device %s\n", video_device);
@@ -167,11 +171,8 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     }
 
     // Setup the rgb565 buffer
-    p_res->rgb_565_buf_phys = mmap(NULL, RGB565_BUF_SIZE_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->dev_mem_fd, RBG565_BUF_BASE);
-    p_res->rgb_565_buf_pix = (uint16_t*)p_res->rgb_565_buf_phys;
-    if (p_res->rgb_565_buf_phys == MAP_FAILED) {        
-        die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Error mapping reserved memory: ", strerror(errno), p_res);
-    }
+    printf("INFO [v4l-to-fb0-dma::init_resources()] Setting up RGB565 buffer\n");
+    p_res->rgb_565_block = PMM.alloc(RGB565_BUF_SIZE_BYTES);
 }
 
 /**
@@ -180,15 +181,7 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
  * @return None
  */
 void cleanup_resources(Resources *p_res){
-    if(p_res->vid_mem_phys != nullptr){
-        munmap(p_res->vid_mem_phys, DMA_SELF_TEST_LEN);
-    }
-    if(p_res->fb_mem_phys != nullptr){
-        munmap(p_res->fb_mem_phys, DMA_SELF_TEST_LEN);
-    }
-    if(p_res->rgb_565_buf_phys != nullptr){
-        munmap(p_res->rgb_565_buf_phys, DMA_SELF_TEST_LEN);
-    }
+
     if(p_res->v4l2_fd != -1){
         close(p_res->v4l2_fd);
     }
@@ -198,6 +191,10 @@ void cleanup_resources(Resources *p_res){
     if(p_res->dev_mem_fd != -1){
         close(p_res->dev_mem_fd);
     }
+
+    PMM.free(p_res->rgb_565_block);
+    PMM.free(p_res->vid_mem_block);
+    PMM.free(p_res->fb_mem_block);
 }
 
 /**
@@ -243,10 +240,14 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    // Get a physical pointer to the video buffer
-    p_res->vid_mem_phys = mmap(NULL, p_res->v4l2_frame_buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
-    if (p_res->vid_mem_phys == MAP_FAILED) {
-        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error mapping video buffer: ", strerror(errno), p_res);
+    p_res->vid_mem_phys_base  = p_res->v4l2_frame_buf.m.offset;
+    p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
+
+    // Map the video buffer to a PhysMem object
+    p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
+
+    if(p_res->vid_mem_block == nullptr){
+        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
     }
 
     // Start video streaming
@@ -254,9 +255,6 @@ void setup_video(Resources *p_res){
     if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_frame_buf.type) == -1) {
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error starting video streaming: ", strerror(errno), p_res);
     }
-
-    p_res->vid_mem_phys_base = p_res->v4l2_frame_buf.m.offset;
-    p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
 }
 
 /**
@@ -283,17 +281,17 @@ void setup_framebuffer(Resources *p_res){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_framebuffer()] Error reading variable screen info: ", strerror(errno), p_res);
     }
     
-    // Map the framebuffer
+    // Map the framebuffer to a PhysMem object
     size_t fb_size = (p_res->configurable_fb_info.yres_virtual * p_res->configurable_fb_info.xres_virtual * p_res->configurable_fb_info.bits_per_pixel) / 8;
-    printf("INFO [v4l-to-fb0-dma::setup_framebuffer()] Mapping framebuffer physical address\n");
-    p_res->fb_mem_phys = mmap(NULL, fb_size, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->dev_mem_fd, p_res->fixed_fb_info.smem_start);
-    p_res->fb_mem_pix = (uint16_t*)p_res->fb_mem_phys;
-    if (p_res->fb_mem_phys == MAP_FAILED) {
-        die_with_error("ERROR [v4l-to-fb0-dma::setup_framebuffer()] Error mapping framebuffer: ", strerror(errno), p_res);
-    }
-
+    printf("INFO [v4l-to-fb0-dma::setup_framebuffer()] Mapping framebuffer to PhysMem\n");
+    
     p_res->fb_phys_base = p_res->fixed_fb_info.smem_start;
     p_res->fb_size_bytes = fb_size;
+    p_res->fb_mem_block = PMM.alloc(p_res->fb_phys_base, p_res->fb_size_bytes);
+
+    if(p_res->fb_mem_block == nullptr){
+        die_with_error("ERROR [v4l-to-fb0-dma::setup_framebuffer()] Failed to map framebuffer to PhysMem\n", nullptr, p_res);
+    }
 }
 
 int main(int argc, char *argv[]){
@@ -349,7 +347,9 @@ int main(int argc, char *argv[]){
         }
 
         // Convert the v4l2 input format to the framebuffer format
-        yuyv_to_rgb565((uint8_t *)resources.vid_mem_phys, resources.rgb_565_buf_pix, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+        yuyv_to_rgb565((uint8_t *)resources.vid_mem_block->get_mem_ptr(), \
+                       (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
+                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
 
         // Create BD rings
         // This programs each ring to point to the next
@@ -370,16 +370,19 @@ int main(int argc, char *argv[]){
         // printf("INFO [v4l-to-fb0-dma] Starting DMA transfer in scatter gather mode. No polling for completion though\n");
         // dma1.transfer_sg();
 
-        uint32_t rgb565_tmp_ptr = resources.rgb_565_buf_phys_base;
+        uint32_t rgb565_tmp_ptr = resources.rgb_565_block->get_phys_address();
         uint8_t  bytes_per_pixel = 2;
         for (int row = 0; (row < INPUT_VIDEO_HEIGHT); row++) {
             // Copy one row at a time from the rgb565 buf to the frame buffer
             // Each pixel is 2 bytes
             // Non-DMA memcpy:
-            // memcpy(&fb_pointer_pix[fb_info.xres_virtual * row], &rgb565_buf[INPUT_VIDEO_WIDTH * row], INPUT_VIDEO_WIDTH * sizeof(uint16_t));
+            // memcpy(&fb_pointer_pix[fb_info.xres_virtual * row], \
+                   &rgb565_buf[INPUT_VIDEO_WIDTH * row], \
+                   INPUT_VIDEO_WIDTH * bytes_per_pixel);
 			
             // 32 byte boundary: lower 5 bits are all 0
-            uint32_t dst_pix_addr = resources.fixed_fb_info.smem_start + (resources.configurable_fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
+            uint32_t dst_pix_addr = resources.fb_mem_block->get_phys_address() + \
+                                   (resources.configurable_fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
             rgb565_tmp_ptr += INPUT_VIDEO_WIDTH * bytes_per_pixel;
             int result = dma1.transfer(rgb565_tmp_ptr, dst_pix_addr, INPUT_VIDEO_WIDTH * bytes_per_pixel);            
         }

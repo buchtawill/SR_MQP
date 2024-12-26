@@ -11,9 +11,8 @@
 
 #define DMA_ADDRESS_SPACE_SIZE      0x00010000
 
-#define DMA_SELF_TEST_SRC_ADDR      KERNEL_RSVD_MEM_BASE   
-#define DMA_SELF_TEST_DST_ADDR      (KERNEL_RSVD_MEM_BASE + 0x1000) 
-#define DMA_SELF_TEST_LEN           0x1000
+// Length of DMA self test transfer in bytes
+#define DMA_SELF_TEST_LEN           ((uint32_t)4096)
 
 #define DMA_SYNC_TRIES				10000
 #define MAX_DMA_SYNC_TRIES          0xFFFFFFFF

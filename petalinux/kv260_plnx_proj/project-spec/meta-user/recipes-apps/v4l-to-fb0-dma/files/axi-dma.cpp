@@ -8,6 +8,9 @@
 #include <unistd.h> // for usleep
 #include <stdlib.h> // for rand
 
+#include "PhysMem.h"
+#include "phys-mman.h"
+
 AXIDMA::AXIDMA(uint32_t base_addr, int dev_mem_fd){
     this->base_address = base_addr;
     this->mem_fd = dev_mem_fd;
@@ -362,67 +365,39 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
 
 #ifndef DMA_SG_MODE
 int AXIDMA::self_test_dr(){
-    //mmap the source and destination addresses to the process
-    uint32_t *src_addr = (uint32_t *)mmap(
-        NULL,                   // Let the kernel decide the virtual address
-        DMA_SELF_TEST_LEN,      // Size of memory to map 
-        PROT_READ | PROT_WRITE, // Permissions: read and write
-        MAP_SHARED,             // Changes are shared with other mappings
-        this->mem_fd,           // File descriptor for /dev/mem
-        DMA_SELF_TEST_SRC_ADDR  // Physical address of the reserved memory
-    );
+    // Get buffers from PhysMman
+    // Write some random data to the source address, copy it to the dst address, and check if it's the same
+    PhysMem* src_block = PMM.alloc(DMA_SELF_TEST_LEN);
+    PhysMem* dst_block = PMM.alloc(DMA_SELF_TEST_LEN);
 
-    uint32_t *dst_addr = (uint32_t *)mmap(
-        NULL,                   // Let the kernel decide the virtual address
-        DMA_SELF_TEST_LEN,      // Size of memory to map 
-        PROT_READ | PROT_WRITE, // Permissions: read and write
-        MAP_SHARED,             // Changes are shared with other mappings
-        this->mem_fd,           // File descriptor for /dev/mem
-        DMA_SELF_TEST_DST_ADDR  // Physical address of the reserved memory
-    );
-
-    if(src_addr == MAP_FAILED || dst_addr == MAP_FAILED){
-        printf("ERROR [AXIDMA::self_test()] Failed to map memory: %s\n", strerror(errno));
-        return -2;
+    if(src_block == nullptr || dst_block == nullptr){
+        printf("ERROR [AXIDMA::self_test()] PMM to allocate memory blocks\n");
+        return -1;
     }
 
-    // printf("INFO [AXIDMA::self_test()] Writing random data to source block\n");
-    // Write some random data to the source address, copy it to the dst address, and check if it's the same
     // If size is 0x1000, that is 4096 bytes, so 1024 uint32_t
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
-        src_addr[i] = (uint32_t)rand();
-        // src_addr[i] = i;
+        src_block->write_word(i*4, (uint32_t)rand());
     }
 
     // printf("INFO [AXIDMA::self_test()] Status registers before transfer: \n");
     // this->print_status(MM2S_DMASR);
     // this->print_status(S2MM_DMASR);
     // printf("INFO [AXIDMA::self_test()] Starting transfer\n");
-    this->transfer(DMA_SELF_TEST_SRC_ADDR, DMA_SELF_TEST_DST_ADDR, DMA_SELF_TEST_LEN, true);
-
-    // printf("INFO [AXIDMA::self_test()] Status registers immediately after transfer (should be idle and no IOC): \n");
-    // this->print_status(MM2S_DMASR);
-    // this->print_status(S2MM_DMASR);
-
-    // usleep(100000);
-
-    // printf("INFO [AXIDMA::self_test()] Status registers 100ms after transfer: \n");
-    // this->print_status(MM2S_DMASR);
-    // this->print_status(S2MM_DMASR);
-
-    // this->clear_irq_bits();
-    // printf("INFO [AXIDMA::self_test()] Status registers after clearing IRQ bits: \n");
-    // this->print_status(MM2S_DMASR);
-    // this->print_status(S2MM_DMASR);
+    this->transfer(src_block->get_phys_address(), dst_block->get_phys_address(), DMA_SELF_TEST_LEN, true);
 
     // Check if the data is the same
     // printf("INFO [AXIDMA::self_test()] Checking that data matches\n");
     for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
-        if(src_addr[i] != dst_addr[i]){
+        // if(src_addr[i] != dst_addr[i]){
+        uint32_t src_word, dst_word;
+        src_block->read_word(i*4, &src_word);
+        dst_block->read_word(i*4, &dst_word);
+        if(src_word != dst_word){
             printf("ERROR [AXIDMA::self_test()] Self test failed. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
-                i, 
-                src_addr[i], 
-                dst_addr[i]);
+                i,
+                src_word, 
+                dst_word);
             // printf("Dumping memory contents to error_log.txt\n");
             // FILE *fp = fopen("error_log.txt", "w");
             // if(fp == NULL){
@@ -437,12 +412,11 @@ int AXIDMA::self_test_dr(){
         }
     }
 
-    printf("INFO [AXIDMA::self_test()] Self test passed\n");
+    printf("INFO [AXIDMA::self_test()] Self test passed!\n");
 
-    munmap(src_addr, DMA_SELF_TEST_LEN);
-    munmap(dst_addr, DMA_SELF_TEST_LEN);
+    PMM.free(src_block);
+    PMM.free(dst_block);
 
-    // printf("INFO [AXIDMA::self_test()] Successfully unmapped memory\n");
     return 0;
 }
 #else // We're in scatter-gather mode
