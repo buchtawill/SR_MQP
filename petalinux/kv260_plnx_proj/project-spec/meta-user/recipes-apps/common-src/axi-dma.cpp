@@ -350,15 +350,19 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
     this->set_s2mm_len(len);
 
     int num_tries1 = 0, num_tries2 = 0;
-    num_tries1 = this->sync_channel(MM2S_DMASR);
-    if(num_tries1 < 0){
-        return -1;
-    }
 
-    num_tries2 = this->sync_channel(S2MM_DMASR);
-    if(num_tries2 < 0){
-        return -1;
+    if(block){
+        num_tries1 = this->sync_channel(MM2S_DMASR);
+        if(num_tries1 < 0){
+            return -1;
+        }
+
+        num_tries2 = this->sync_channel(S2MM_DMASR);
+        if(num_tries2 < 0){
+            return -1;
+        }
     }
+    
     return num_tries1 + num_tries2;
 }
 #endif // DMA_SG_MODE
@@ -371,12 +375,12 @@ int AXIDMA::self_test_dr(){
     PhysMem* dst_block = PMM.alloc(DMA_SELF_TEST_LEN);
 
     if(src_block == nullptr || dst_block == nullptr){
-        printf("ERROR [AXIDMA::self_test()] PMM to allocate memory blocks\n");
+        printf("ERROR [AXIDMA::self_test()] PMM failed to allocate memory blocks\n");
         return -1;
     }
 
     // If size is 0x1000, that is 4096 bytes, so 1024 uint32_t
-    for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
+    for(uint32_t i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         src_block->write_word(i*4, (uint32_t)rand());
     }
 
@@ -388,7 +392,7 @@ int AXIDMA::self_test_dr(){
 
     // Check if the data is the same
     // printf("INFO [AXIDMA::self_test()] Checking that data matches\n");
-    for(int i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
+    for(uint32_t i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         // if(src_addr[i] != dst_addr[i]){
         uint32_t src_word, dst_word;
         src_block->read_word(i*4, &src_word);

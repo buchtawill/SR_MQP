@@ -1,10 +1,14 @@
 /*
 
-This program uses parts of the reserved memory from the kernel. 
-The reserved memory is used to store the RGB565 data that is to be displayed on the framebuffer.
-There are KERNEL_RSVD_MEM_SIZE bytes of reserved memory starting at KERNEL_RSVD_MEM_BASE.
-This is currently 32MB
-The video buffer is 720*576*2 = 720*576*2 bytes ~= 0.8MB
+This program acts as a video passthrough application that will convert the input video format 
+(a composite video to USB decoder outputting YUYV) to the framebuffer format (RGB565), and copy 
+that directly to the frame buffer using DMA. After 1000 frames have elapsed, the program will
+end and display the frame rate.
+
+Author: Will Buchta
+Date Modified: 12/25/2024 (Merry Christmas!)
+
+TODO: Measure difference between normal v4l2 frame grabs and ping pong buffering with threads
 
 */
 
@@ -74,7 +78,7 @@ void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
 /**
  * Print a given error message and clean up resources before exiting
  * @param error_msg The error message to print
- * @param err_str The error string to print (optional, given by strerror(errno))
+ * @param err_str The error string to print (optional, given by strerror(errno), set to nullptr if not using)
  * @param res Pointer to the resources struct
  * @return None
  */
@@ -109,8 +113,11 @@ void print_mem(void *virtual_address, int byte_count){
 }
 
 void sigint_handler(int sig){
-    printf("INFO [v4l-to-fb0-dma] Received signal, cleaning up...\n");
-    die_flag = true;
+
+    if(sig == SIGINT){
+        printf("INFO [v4l-to-fb0-dma] Received signal, cleaning up...\n");
+        die_flag = true;
+    }
 }
 
 /**
@@ -169,10 +176,6 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     if(p_res->fb_dev_fd < 0){
         die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Error opening framebuffer device: ", strerror(errno), p_res);
     }
-
-    // Setup the rgb565 buffer
-    printf("INFO [v4l-to-fb0-dma::init_resources()] Setting up RGB565 buffer\n");
-    p_res->rgb_565_block = PMM.alloc(RGB565_BUF_SIZE_BYTES);
 }
 
 /**
@@ -297,19 +300,24 @@ void setup_framebuffer(Resources *p_res){
 int main(int argc, char *argv[]){
 
     printf("INFO [v4l-to-fb0-dma] Entering main\n");
-	// if(argc < 3) {
-    //     printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
-    //     printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
-    //     return 1;
-    // }
-	// const char *video_device = argv[1];
-    // const char *fb_device = argv[2];
-    const char *video_device = "/dev/video0";
-    const char *fb_device = "/dev/fb0";
+    const char* video_device = nullptr;
+    const char* fb_device = nullptr;
+	if(argc < 3) {
+        // printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
+        // printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
+        video_device = "/dev/video0";
+        fb_device = "/dev/fb0";
+    }
+    else{
+        video_device = argv[1];
+        fb_device = argv[2];
+    }
 
+    // Register CTRL-C handler
     signal(SIGINT, sigint_handler);
 
-    // Open /dev/mem, video device, framebuffer device, and setup the rgb565 buffer
+    // Open /dev/mem, video device, framebuffer device
+    // Initialize Physical Memory Manager, setup the rgb565 buffer
     Resources resources;
     init_resources(&resources, video_device, fb_device);
 
@@ -334,7 +342,6 @@ int main(int argc, char *argv[]){
     printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
     uint32_t frame_loop_count = 0;
-    unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
     unsigned long start_jiffies = get_jiffies();
     while(die_flag == false){
         
@@ -376,15 +383,28 @@ int main(int argc, char *argv[]){
             // Copy one row at a time from the rgb565 buf to the frame buffer
             // Each pixel is 2 bytes
             // Non-DMA memcpy:
-            // memcpy(&fb_pointer_pix[fb_info.xres_virtual * row], \
-                   &rgb565_buf[INPUT_VIDEO_WIDTH * row], \
-                   INPUT_VIDEO_WIDTH * bytes_per_pixel);
+            // memcpy(&fb_pointer_pix[fb_info.xres_virtual * row], 
+            //        &rgb565_buf[INPUT_VIDEO_WIDTH * row], 
+            //        INPUT_VIDEO_WIDTH * bytes_per_pixel);
 			
             // 32 byte boundary: lower 5 bits are all 0
             uint32_t dst_pix_addr = resources.fb_mem_block->get_phys_address() + \
                                    (resources.configurable_fb_info.xres_virtual * row * bytes_per_pixel); // * 2 for bytes per pixel
             rgb565_tmp_ptr += INPUT_VIDEO_WIDTH * bytes_per_pixel;
-            int result = dma1.transfer(rgb565_tmp_ptr, dst_pix_addr, INPUT_VIDEO_WIDTH * bytes_per_pixel);            
+            int result = dma1.transfer(rgb565_tmp_ptr, dst_pix_addr, INPUT_VIDEO_WIDTH * bytes_per_pixel);
+            if(result < 0){
+                die_with_error("ERROR [v4l-to-fb0-dma] DMA transfer failed\n", nullptr, &resources);
+            }
+        }
+        frame_loop_count++;
+        if(frame_loop_count == 1000){
+            unsigned long end_jiffies = get_jiffies();
+            unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
+            unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
+
+            float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
+            printf("INFO [v4l-to-fb0-dma] FPS: %0.3f\n", fps);
+            die_flag = true;
         }
     }
 
