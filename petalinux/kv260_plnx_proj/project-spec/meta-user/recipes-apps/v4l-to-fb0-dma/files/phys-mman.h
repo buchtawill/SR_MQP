@@ -35,7 +35,7 @@
 #define PMM_RSVD_MEM_BASE       0x78000000
 #define PMM_RSVD_MEM_SIZE       0x02000000
 
-#define PHYS_MMAN_CHUNK_SIZE    512
+#define PHYS_MMAN_CHUNK_SIZE    256
 #define PHYS_MMAN_NUM_CHUNKS    (PMM_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
 
 #define PLATFORM_HAS_RSVD_MEM 1 // For running on kv260
@@ -123,7 +123,7 @@ public:
     /**
      * Create a new memory block of size num_bytes. The memory will be allocated from the kernel reserved memory
      * @param num_bytes Size of the memory block in bytes
-     * @return Pointer to the allocated memory block
+     * @return Pointer to the allocated memory block, or nullptr on error
      */
     PhysMem* alloc(size_t num_bytes);
 
@@ -132,7 +132,7 @@ public:
      * Will round up 4kB of space
      * @param base_addr Base address of the memory block
      * @param num_bytes Size of the memory block in bytes
-     * @return Pointer to the allocated memory block
+     * @return Pointer to the allocated memory block, or nullptr on error
      */
     PhysMem* alloc(uint32_t base_addr, size_t num_bytes);
 

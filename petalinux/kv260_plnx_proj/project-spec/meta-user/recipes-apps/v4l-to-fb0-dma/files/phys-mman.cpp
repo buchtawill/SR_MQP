@@ -98,6 +98,12 @@ int PhysMman::self_test(){
 
 
 PhysMem* PhysMman::alloc(size_t num_bytes){
+
+    if(!initialized){
+        printf("ERROR [PhysMman::alloc()] PhysMman not initialized\n");
+        return nullptr;
+    }
+
     // Allocate to the next available block, don't care exactly where 
     // as long as it is a physically contiguous block
 
@@ -160,6 +166,10 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
 }
 
 PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
+    if(!initialized){
+        printf("ERROR [PhysMman::alloc()] PhysMman not initialized\n");
+        return nullptr;
+    }
 
     // Allocate to a specific physical address (i.e., map a buffer)
     if(base_addr >= PMM_RSVD_MEM_BASE && 
@@ -220,8 +230,8 @@ int PhysMman::free(PhysMem* mem){
         return -1;
     }
 
-    bool found = false;
     // Remove the mem from the list of mappings
+    bool found = false;
     for(uint32_t i = 0; i < physmem_list.size(); i++){
         // printf(" List id: %d. mem id: %d\n", physmem_list[i]->get_id(), mem->get_id());
         if(physmem_list[i]->get_id() == mem->get_id()){
