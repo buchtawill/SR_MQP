@@ -1,3 +1,5 @@
+# gitignore for petalinux project
+
 */*/config.old
 */*/rootfs_config.old
 build/
@@ -8,8 +10,21 @@ pre-built/linux/
 *.o
 *.jou
 *.log
-/components/plnx_workspace
-/components/yocto
+
+# Yes this is a huge pain in the ass to unignore the one file
+components/*
+!components/yocto
+components/yocto/*
+!components/yocto/layers
+components/yocto/layers/*
+!components/yocto/layers/poky
+components/yocto/layers/poky/*
+!components/yocto/layers/poky/meta
+components/yocto/layers/poky/meta/*
+!components/yocto/layers/poky/meta/conf
+components/yocto/layers/poky/meta/conf/*
+!components/yocto/layers/poky/meta/conf/bitbake.conf
+
 hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.runs
 hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.xsa
 hardware/xilinx-kv260-starterkit-2023.1/xilinx-kv260-starterkit-2023.1.cache
