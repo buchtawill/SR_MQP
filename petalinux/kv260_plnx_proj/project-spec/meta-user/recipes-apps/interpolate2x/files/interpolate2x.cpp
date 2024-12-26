@@ -35,7 +35,7 @@ Date Modified: 12/26/2024
 #include <signal.h> //for sigint
 #include <time.h>   // for jiffies
 
-#include "v4l-to-fb0-dma.h"
+#include "interpolate2x.h"
 #include "phys-mman.h"
 #include "PhysMem.h"
 #include "axi-dma.h"

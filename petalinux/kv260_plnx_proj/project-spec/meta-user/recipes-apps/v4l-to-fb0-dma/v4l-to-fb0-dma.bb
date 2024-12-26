@@ -11,11 +11,11 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 SRC_URI = "file://v4l-to-fb0-dma.cpp \
 			file://v4l-to-fb0-dma.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/axi-dma.cpp \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/axi-dma.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/phys-mman.h \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/phys-mman.cpp \
-			file://${WORKDIR}/../../../../../../project-spec/meta-user/recipes-apps/common-src/PhysMem.h \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/axi-dma.cpp \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/axi-dma.h \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/phys-mman.h \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/phys-mman.cpp \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/PhysMem.h \
            file://Makefile \
 		  "
 
