@@ -4087,12 +4087,11 @@ CONFIG_Init-manager-systemd=y
 # user packages 
 #
 CONFIG_add-mult-test=y
-CONFIG_axi-dma-test=y
+CONFIG_interpolate2x=y
 CONFIG_jiffies-test=y
 CONFIG_print-fb-info=y
 CONFIG_v4l-to-fb0-aligned=y
 CONFIG_v4l-to-fb0-dma=y
-# CONFIG_vid-v4l-test is not set
 
 #
 # PetaLinux RootFS Settings

@@ -9,7 +9,7 @@ else
 	exit 1
 fi
 
-# APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test axi-dma-test dma-cpp print-fb-info vid-v4l-test")
+# APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test print-fb-info")
 APPS_LIST=("v4l-to-fb0-dma")
 
 # App location: 
