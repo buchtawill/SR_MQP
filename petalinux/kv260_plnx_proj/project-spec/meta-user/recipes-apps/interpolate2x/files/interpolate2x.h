@@ -22,6 +22,30 @@
 #define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2) // 2 bytes per pixel
 
 #define UPSCALE_FACTOR          2
+#define TILE_WIDTH_PIX          28
+#define TILE_HEIGHT_PIX         28
+
+/**
+ * Contains relevant information about a given image tile.
+ */
+typedef struct {
+    
+    // Physical address of each row in the source buffer
+    uint32_t src_row_addr[TILE_HEIGHT_PIX];
+
+    // Physical address of each row in the destination buffer
+    uint32_t dst_row_addr[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
+
+    // Pointer to each row from the source buffer
+    uint8_t* src_row_ptr[TILE_HEIGHT_PIX];
+
+    // Pointer to each row in the destination buffer
+    uint8_t* dst_row_ptr[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
+
+    uint16_t  tile_x; // x pixel coordinate of the tile
+    uint16_t  tile_y; // y pixel coordinate of the tile
+
+}TileInfo;
 
 /**
  * This struct contains all resources that the main program uses.
@@ -49,8 +73,9 @@ typedef struct {
     struct fb_var_screeninfo configurable_fb_info;
     struct fb_fix_screeninfo fixed_fb_info;
 
-    // RGB565 buffer resources
-    PhysMem *rgb_565_block;
+    // Various pixel buffer blocks
+    PhysMem *input888_block;
+    PhysMem *interp888_block;
 
 } Resources;
 
