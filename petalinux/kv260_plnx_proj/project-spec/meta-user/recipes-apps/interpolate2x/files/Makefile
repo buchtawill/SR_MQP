@@ -1,6 +1,5 @@
 APP = interpolate2x
 
-
 # Source directories
 APP_SRC_DIR = .
 # COMMON_SRC_DIR = $(SR_MQP_ROOT)/petalinux/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src
@@ -11,7 +10,7 @@ APP_SRCS = $(APP_SRC_DIR)/interpolate2x.cpp
 COMMON_SRCS = $(COMMON_SRC_DIR)/axi-dma.cpp $(COMMON_SRC_DIR)/phys-mman.cpp
 
 # Object files
-APP_OBJS = $(APP_SRCS:.cpp=.o) $(COMMON_SRCS:.cpp=.o) PhysMem.o
+APP_OBJS = $(APP_SRCS:.cpp=.o) $(COMMON_SRCS:.cpp=.o)
 
 # Compiler flags
 FLAGS = -Wall -O2 -Wextra -I$(COMMON_SRC_DIR)

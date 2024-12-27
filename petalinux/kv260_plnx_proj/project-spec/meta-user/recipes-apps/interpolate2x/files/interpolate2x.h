@@ -21,6 +21,8 @@
 
 #define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2) // 2 bytes per pixel
 
+#define UPSCALE_FACTOR          2
+
 /**
  * This struct contains all resources that the main program uses.
  */
