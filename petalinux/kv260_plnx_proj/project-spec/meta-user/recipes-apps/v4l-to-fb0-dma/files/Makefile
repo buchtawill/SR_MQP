@@ -13,7 +13,8 @@ COMMON_SRCS = $(COMMON_SRC_DIR)/axi-dma.cpp $(COMMON_SRC_DIR)/phys-mman.cpp
 APP_OBJS = $(APP_SRCS:.cpp=.o) $(COMMON_SRCS:.cpp=.o)
 
 # Compiler flags
-FLAGS = -Wall -O2 -Wextra -I$(COMMON_SRC_DIR)
+# Compile with -DDMA_DIRECT_REG_MODE=1 to use direct register mode
+FLAGS = -Wall -O2 -Wextra -I$(COMMON_SRC_DIR) -DDMA_DIRECT_REG_MODE=1
 
 all: build
 build: $(APP)

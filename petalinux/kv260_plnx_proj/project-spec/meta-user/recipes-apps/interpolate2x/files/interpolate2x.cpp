@@ -112,6 +112,24 @@ void yuyv_to_rgb888(uint8_t *yuyv, uint8_t *rgb888, int width, int height) {
 }
 
 /**
+ * Convert num_pixels pixels from RGB888 to RGB565, moving from rgb888 buffer to rgb565 buffer
+ * @param rgb888 Pointer to the RGB888 pixels
+ * @param rgb565 Pointer to the RGB565 pixels
+ * @param num_pixels The number of pixels to move
+*/
+void rgb888_to_rgb565(uint8_t *rgb888, uint16_t *rgb565, uint32_t num_pixels) {
+
+    // i is pixel index
+    for (uint32_t i = 0; i < num_pixels; i++) {
+        uint8_t r = rgb888[i * 3];
+        uint8_t g = rgb888[i * 3 + 1];
+        uint8_t b = rgb888[i * 3 + 2];
+
+        rgb565[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+}
+
+/**
  * Print a given error message and clean up resources before exiting
  * @param error_msg The error message to print
  * @param err_str The error string to print (optional, given by strerror(errno), set to nullptr if not using)
@@ -348,20 +366,71 @@ void setup_framebuffer(Resources *p_res){
     }
 }
 
-// void compute_tile_source_addresses(TileInfo *tile, PhysMem* src_block, uint16_t xres, uint16_t yres, \
-//                                     uint16_t tile_x, uint16_t tile_y, \
-//                                     uint8_t bytes_per_pixel){
+/**
+ * Compute the source address of every row in a TileInfo struct given the coordinates of the tile and PhysMem buffer.
+ * If the given coordinates end up with the tile being out of bounds, the tile will be shifted to the left or up,
+ * overlapping some with the previous tile.
+ * @param src_block Pointer to the PhysMem object containing the source image
+ * @param tile Pointer to the TileInfo struct
+ * @param xres The width of the source image
+ * @param yres The height of the source image
+ * @param bytes_pp The number of bytes per pixel in the source image
+ * @return None
+ */
+void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp){
 
-//     // Take care of if the tiles are on the bottom or right edge of the screen
-//     for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
+    // Compute pixel coordinates of top left corner of tile
+    uint32_t pixel_x = tile->tile_x * TILE_WIDTH_PIX;
+    uint32_t pixel_y = tile->tile_y * TILE_HEIGHT_PIX;
 
-//         // Start of the row (leftmost pixel)
-//         uint32_t row_start = (tile_y * TILE_HEIGHT_PIX + row) * xres * bytes_per_pixel;
+    // Handle tiles not being fully in the image
+    // 720: If pixel_x > 692, pixel_x = 692
+    // 576: If pixel_y > 548, pixel_y = 548
+    if(pixel_x > (xres - TILE_WIDTH_PIX)) pixel_x = xres - TILE_WIDTH_PIX;
+    if(pixel_y > (yres - TILE_HEIGHT_PIX)) pixel_y = yres - TILE_HEIGHT_PIX;
 
-//         // Add row offset
-//         row_start += tile_x * TILE_WIDTH_PIX * bytes_per_pixel;
-//     }
-// }
+    tile->src_pixel_x = pixel_x;
+    tile->src_pixel_y = pixel_y;
+
+    // Memory offset of the top left corner of the tile
+    //                                Linear pixel number
+    //                            vvvvvvvvvvvvvvvvvvvvvvvvvv
+    uint32_t tile_start_offset = ((pixel_y * yres) + pixel_x) * bytes_pp;
+    tile_start_offset += src_block->get_phys_address();
+
+    for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
+        uint32_t row_offset = row * xres * bytes_pp;
+        tile->src_row_offset[row] = tile_start_offset + row_offset;
+    }
+}
+
+/**
+ * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer.
+ * The user MUST call compute_tile_src_addr before calling this function.
+ * @param tile Pointer to the TileInfo struct - Must have source offsets populated by first calling compute_tile_src_offsets
+ * @param xres_in The width of the source image
+ * @param yres_in The height of the source image
+ * @param upscale_factor The factor by which the image is being upscaled
+ * @param bytes_pp The number of bytes per pixel in the source image
+ * @return None
+ */
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint16_t yres_in, uint32_t upscale_factor, uint8_t bytes_pp){
+
+    uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
+    uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
+
+    uint32_t xres_out = xres_in * upscale_factor;
+    uint32_t yres_out = yres_in * upscale_factor;
+
+    // Memory offset of the top left corner of the tile
+    uint32_t tile_start_offset = ((dst_pixel_y * yres_out) + dst_pixel_x) * bytes_pp;
+    tile_start_offset += dst_block->get_phys_address();
+
+    for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * upscale_factor); row++){
+        uint32_t row_offset = row * xres_out * bytes_pp;
+        tile->dst_row_offset[row] = tile_start_offset + row_offset;
+    }
+}
 
 int main(int argc, char *argv[]){
 
@@ -424,25 +493,60 @@ int main(int argc, char *argv[]){
         //  - Receive the tile in the interp_888 buffer / PMM block
         // Move to framebuffer, converting to RGB565 on the way
 
+        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_block->get_mem_ptr()), 
+                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
+                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
         TileInfo tile;
         uint16_t num_vert_tiles = INPUT_VIDEO_HEIGHT / TILE_HEIGHT_PIX;
         uint16_t num_horz_tiles = INPUT_VIDEO_WIDTH  / TILE_WIDTH_PIX;
         
+        // Handle partial tiles
         if((INPUT_VIDEO_HEIGHT % TILE_HEIGHT_PIX) != 0) num_vert_tiles++;
         if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
 
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
-                // Calculate source addresses for each row of the tile
+
+                // Calculate physical addresses for each row of the tile
                 // Send the tile down to the PL for interpolation
                 // Calculate destination addresses for each row of the tile
                 // Receive the tile in the interp_888 buffer / PMM block
 
-                // compute_tile_source_addresses(&tile, resources.input888_block, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, tx, ty, 3);
+                tile.tile_x = tx;
+                tile.tile_y = ty;
+                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3);
+
+                // Send pixels from input RGB888 buffer to the PL for interpolation
+                for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
+                    int result = dma1.transfer_mm2s(tile.src_row_offset[row], TILE_WIDTH_PIX * 3, true);
+                    if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data to PL ", nullptr, &resources);
+                }
+
+                // Calculate destination addresses for each row of the tile
+                // In the future, this will happen concurrently with the PL interpolation
+                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, UPSCALE_FACTOR, 3);
+
+                // Receive pixels from the PL and store them in the interp888 buffer
+                for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
+                    int result = dma1.transfer_s2mm(tile.dst_row_offset[row], TILE_WIDTH_PIX * UPSCALE_FACTOR * 3, true);
+                    if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data from PL ", nullptr, &resources);   
+                }
             }
         }
 
         // Move the interpolated frame to the framebuffer, converting to RGB565 on the way
+        // Transfer 1 row at a time to account for resolution differences
+        for(uint16_t row = 0; row < (INPUT_VIDEO_HEIGHT * UPSCALE_FACTOR); row++){
+            uint32_t rgb888_offset = row * INPUT_VIDEO_WIDTH * UPSCALE_FACTOR * 3; 
+            uint8_t *rgb888_row = (uint8_t*)(resources.interp888_block->get_mem_ptr()) + rgb888_offset;
+
+            // Do not multiply by bytes per pixel because each index in fb_row_ptr IS a pixel
+            uint32_t rgb565_offset = row * resources.configurable_fb_info.xres_virtual;
+            uint16_t *fb_row_ptr = (uint16_t*)(resources.fb_mem_block->get_mem_ptr()) + rgb565_offset;
+
+            rgb888_to_rgb565(rgb888_row, fb_row_ptr, INPUT_VIDEO_WIDTH * UPSCALE_FACTOR);
+        }
     }
 
     // Stop video streaming

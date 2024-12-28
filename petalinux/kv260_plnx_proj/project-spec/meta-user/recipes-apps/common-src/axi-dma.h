@@ -4,11 +4,19 @@
 #include "bits.h"
 #include "dma-sg-bd.h"
 #include <stdint.h>
-#include "phys-mman.h"
 
 // #define DMA_SG_MODE 1
-#define DMA_DIRECT_REG_MODE 1
+// #define DMA_DIRECT_REG_MODE 1
 
+// Default to direct register mode
+#ifndef DMA_SG_MODE
+#define DMA_DIRECT_REG_MODE 1
+#pragma message("INFO [axi-dma.h] AXI DMA is in Direct Register mode")
+#else
+#pragma message("INFO [axi-dma.h] AXI DMA is in Scatter Gather mode")
+#endif
+
+// Configured in Vivado
 #define DMA_ADDRESS_SPACE_SIZE      0x00010000
 
 // Length of DMA self test transfer in bytes
