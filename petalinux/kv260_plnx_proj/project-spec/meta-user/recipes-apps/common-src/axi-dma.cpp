@@ -394,7 +394,7 @@ int AXIDMA::self_test_dr(){
     // printf("INFO [AXIDMA::self_test()] Checking that data matches\n");
     for(uint32_t i = 0; i < DMA_SELF_TEST_LEN / 4; i++){
         // if(src_addr[i] != dst_addr[i]){
-        uint32_t src_word, dst_word;
+        uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
         src_block->read_word(i*4, &src_word);
         dst_block->read_word(i*4, &dst_word);
         if(src_word != dst_word){

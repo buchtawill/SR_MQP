@@ -32,8 +32,8 @@
 
 #include "PhysMem.h"
 
-#define PMM_RSVD_MEM_BASE       0x78000000
-#define PMM_RSVD_MEM_SIZE       0x08000000
+#define PMM_RSVD_MEM_BASE       ((uint32_t)0x78000000)
+#define PMM_RSVD_MEM_SIZE       ((uint32_t)0x08000000)
 
 // All PhysMem blocks will be aligned to CHUNK_SIZE byte boundary
 #define PHYS_MMAN_CHUNK_SIZE    256
