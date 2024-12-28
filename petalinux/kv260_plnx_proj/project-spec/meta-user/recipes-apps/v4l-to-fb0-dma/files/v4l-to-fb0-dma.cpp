@@ -31,6 +31,9 @@ TODO: Measure difference between normal v4l2 frame grabs and ping pong buffering
 #include "v4l-to-fb0-dma.h"
 #include "phys-mman.h"
 #include "PhysMem.h"
+
+// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h
+#define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
 // Global variable - use with caution! This should only ever be set to true 

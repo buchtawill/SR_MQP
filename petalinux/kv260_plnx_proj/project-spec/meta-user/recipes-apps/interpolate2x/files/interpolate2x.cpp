@@ -38,6 +38,9 @@ Date Modified: 12/26/2024
 #include "interpolate2x.h"
 #include "phys-mman.h"
 #include "PhysMem.h"
+
+// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h
+#define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
 // Global variable - use with caution! This should only ever be set to true 
