@@ -480,6 +480,8 @@ int main(int argc, char *argv[]){
 
     printf("INFO [interpolate2x] Starting video output\n");
     
+    uint32_t frame_loop_count = 0;
+    unsigned long start_jiffies = get_jiffies();
     while(!die_flag){
         
         // Capture a frame
@@ -550,7 +552,19 @@ int main(int argc, char *argv[]){
 
             rgb888_to_rgb565(rgb888_row, fb_row_ptr, INPUT_VIDEO_WIDTH * UPSCALE_FACTOR);
         }
-    }
+
+        // Calculate frame rate
+        frame_loop_count++;
+        if((frame_loop_count % 500) == 499){
+            unsigned long end_jiffies = get_jiffies();
+            unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
+            unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
+
+            float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
+            printf("INFO [interpolate2x] FPS: %0.3f\n", fps);
+        }
+    
+    } // End of while loop
 
     // Stop video streaming
     if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_frame_buf.type) == -1) {
