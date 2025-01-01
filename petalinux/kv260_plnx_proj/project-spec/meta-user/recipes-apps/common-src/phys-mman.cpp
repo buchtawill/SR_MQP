@@ -146,6 +146,7 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
 
     // Brain f*ck line
     // Cast the mem base pointer to uint8_t, add the offset, then cast back to volatile void*
+    // base_ptr is already mapped into the process
     volatile void* base_ptr = (volatile void*)((uint8_t*)(this->mem_base_ptr) + (PHYS_MMAN_CHUNK_SIZE * first_chunk));
 
     // Create an ID for the physical memory object
@@ -185,6 +186,8 @@ PhysMem* PhysMman::alloc(uint32_t base_addr, size_t num_bytes){
         num_chunks++;
     }
     size_t actual_allocated = num_chunks * PHYS_MMAN_CHUNK_SIZE;
+
+    printf("INFO [PhysMman::alloc()] Allocating %lu bytes to physical address 0x%08X\n", actual_allocated, base_addr);
 
     // Declare as volatile for no compiler optimizations --> immediate HW R/W
     volatile void* mem_ptr = (volatile void*)mmap(

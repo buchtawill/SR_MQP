@@ -24,6 +24,7 @@ TODO: Measure difference between normal v4l2 frame grabs and ping pong buffering
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <linux/fb.h>
+#include <sys/mman.h> // TEMPORARY solution for v4l2 buffer mapping
 
 #include <signal.h> //for sigint
 #include <time.h>   // for jiffies
@@ -134,6 +135,7 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     p_res->fb_dev_fd     = -1;
     p_res->dev_mem_fd    = -1;
     p_res->vid_mem_block = nullptr;
+    p_res->vid_mem_ptr   = nullptr;
     p_res->fb_mem_block  = nullptr;
     p_res->rgb_565_block = nullptr;
 
@@ -145,7 +147,6 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
 
     p_res->fb_phys_base           = 0;
     p_res->fb_size_bytes          = 0;
-    p_res->vid_mem_phys_base      = 0;
     p_res->vid_mem_size_bytes     = 0;
 
     // Open /dev/mem
@@ -176,7 +177,7 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
         die_with_error("ERROR [v4l-to-fb0-dma::init_resources()] Error opening framebuffer device: ", strerror(errno), p_res);
     }
 
-    // Setup the RGB565 buffer
+    // Setup the RGB565 block
     printf("INFO [v4l-to-fb0-dma::init_resources()] Setting up RGB565 buffer\n");
     p_res->rgb_565_block = PMM.alloc(RGB565_BUF_SIZE_BYTES);
     if(p_res->rgb_565_block == nullptr){
@@ -249,11 +250,14 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    p_res->vid_mem_phys_base  = p_res->v4l2_frame_buf.m.offset;
-    p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
+    // p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
+    p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
 
-    // Map the video buffer to a PhysMem object
-    p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
+    // Create a video buffer 
+    p_res->vid_mem_block = PMM.alloc(p_res->vid_mem_size_bytes);
+
+    // Map the video buffer
+    p_res->vid_mem_ptr = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
 
     if(p_res->vid_mem_block == nullptr){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
@@ -307,6 +311,17 @@ void setup_framebuffer(Resources *p_res){
     }
 }
 
+    // PhysMem *color_bar = PMM.alloc(720*2);
+    // if(color_bar == nullptr){
+    //     die_with_error("ERROR [v4l-to-fb0-dma] Failed to allocate color bar buffer\n", nullptr, &resources);
+    // }
+    // for(int i = 0; i < 360; i++){
+    //     ((uint16_t *)color_bar->get_mem_ptr())[i] = 0x07BF; // Cyan
+    // }
+    // for (int i = 360; i < 720; i++){
+    //     ((uint16_t *)color_bar->get_mem_ptr())[i] = 0xF800; // Red
+    // }
+
 int main(int argc, char *argv[]){
 
     printf("INFO [v4l-to-fb0-dma] Entering main\n");
@@ -353,6 +368,7 @@ int main(int argc, char *argv[]){
     
     uint32_t frame_loop_count = 0;
     unsigned long start_jiffies = get_jiffies();
+    unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
     while(die_flag == false){
         
         // Capture a frame
@@ -363,8 +379,15 @@ int main(int argc, char *argv[]){
             die_with_error("ERROR [v4l-to-fb0-dma] Error dequeueing buffer: ", strerror(errno), &resources);
         }
 
+
         // Convert the v4l2 input format to the framebuffer format
-        yuyv_to_rgb565((uint8_t *)resources.vid_mem_block->get_mem_ptr(), \
+        // yuyv_to_rgb565((uint8_t *)resources.vid_mem_block->get_mem_ptr(), \
+        //                (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
+        //                INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        // Temporary workaround for V4L2 DMA buffer
+        // memcpy((void*)resources.vid_mem_block->get_mem_ptr(), resources.vid_mem_ptr, resources.vid_mem_size_bytes);
+        yuyv_to_rgb565((uint8_t *)resources.vid_mem_ptr, \
                        (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
                        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
 
@@ -384,14 +407,13 @@ int main(int argc, char *argv[]){
         }
 
         frame_loop_count++;
-        if(frame_loop_count == 1000){
+        if(frame_loop_count % 100 == 99){
             unsigned long end_jiffies = get_jiffies();
             unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
-            unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
 
             float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
-            printf("INFO [v4l-to-fb0-dma] FPS: %0.3f\n", fps);
-            die_flag = true;
+            printf("INFO [v4l-to-fb0-dma] FPS: %0.2f\n", fps);
+            // die_flag = true;
         }
     }
 

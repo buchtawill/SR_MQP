@@ -31,6 +31,7 @@ Date Modified: 12/26/2024
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <linux/fb.h>
+#include <sys/mman.h> // TEMPORARY solution for v4l2 buffer mapping
 
 #include <signal.h> //for sigint
 #include <time.h>   // for jiffies
@@ -53,6 +54,7 @@ unsigned long get_jiffies(){
 }
 
 // Convert YUYV to RGB565
+// Verified to work
 void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
     for (int i = 0; i < width * height; i += 2) {
         int y0 = yuyv[i * 2];
@@ -82,6 +84,7 @@ void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
 }
 
 // Convert YUYV to RGB888
+// Verified to work
 void yuyv_to_rgb888(uint8_t *yuyv, uint8_t *rgb888, int width, int height) {
     for (int i = 0; i < width * height; i += 2) {
         int y0 = yuyv[i * 2];
@@ -192,6 +195,7 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     p_res->fb_dev_fd       = -1;
     p_res->dev_mem_fd      = -1;
     p_res->vid_mem_block   = nullptr;
+    p_res->vid_mem_ptr     = nullptr;
     p_res->fb_mem_block    = nullptr;
     p_res->input888_block  = nullptr;
     p_res->interp888_block = nullptr;
@@ -204,7 +208,6 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
 
     p_res->fb_phys_base           = 0;
     p_res->fb_size_bytes          = 0;
-    p_res->vid_mem_phys_base      = 0;
     p_res->vid_mem_size_bytes     = 0;
 
     // Open /dev/mem
@@ -236,18 +239,17 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     }
 
     // Create buffers for the RGB888 frame and interpolated RGB888 frame
-    printf("INFO [interpolate2x::init_resources()] Allocating input888 block\n");
     p_res->input888_block = PMM.alloc(INPUT_VIDEO_HEIGHT * INPUT_VIDEO_WIDTH * 3);
     if(p_res->input888_block == nullptr){
         die_with_error("ERROR [interpolate2x::init_resources()] Failed to allocate input888 block\n", nullptr, p_res);
     }
+    printf("INFO [interpolate2x::init_resources()] Allocated input888 block to address 0x%08X\n", p_res->input888_block->get_phys_address());
 
-    printf("INFO [interpolate2x::init_resources()] Allocating interp888 block\n");
-    p_res->interp888_block = PMM.alloc(INPUT_VIDEO_HEIGHT * UPSCALE_FACTOR * \
-                                        INPUT_VIDEO_WIDTH * UPSCALE_FACTOR * 3);
+    p_res->interp888_block = PMM.alloc(INPUT_VIDEO_HEIGHT * UPSCALE_FACTOR * INPUT_VIDEO_WIDTH * UPSCALE_FACTOR * 3);
     if(p_res->interp888_block == nullptr){
         die_with_error("ERROR [interpolate2x::init_resources()] Failed to allocate interp888 block\n", nullptr, p_res);
     }
+    printf("INFO [interpolate2x::init_resources()] Allocated interp888 block to address 0x%08X\n", p_res->interp888_block->get_phys_address());
 }
 
 /**
@@ -265,6 +267,10 @@ void cleanup_resources(Resources *p_res){
     }
     if(p_res->dev_mem_fd != -1){
         close(p_res->dev_mem_fd);
+    }
+
+    if (p_res->vid_mem_ptr != MAP_FAILED) {
+        munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
     }
 
     PMM.free(p_res->vid_mem_block);
@@ -316,13 +322,20 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [interpolate2x::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    p_res->vid_mem_phys_base  = p_res->v4l2_frame_buf.m.offset;
     p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
+    // p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
 
     // Map the video buffer to a PhysMem object
-    p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
+    // p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
+    p_res->vid_mem_block = PMM.alloc(p_res->vid_mem_size_bytes);
     if(p_res->vid_mem_block == nullptr){
         die_with_error("ERROR [interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
+    }
+
+    // Tempoarary mmap workaround for V4L2 DMA buffer
+    p_res->vid_mem_ptr = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
+    if(p_res->vid_mem_ptr == MAP_FAILED){
+        die_with_error("ERROR [interpolate2x::setup_video()] Failed to mmap video buffer\n", nullptr, p_res);
     }
 
     // Start video streaming
@@ -389,7 +402,7 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
     // Handle tiles not being fully in the image
     // 720: If pixel_x > 692, pixel_x = 692
     // 576: If pixel_y > 548, pixel_y = 548
-    if(pixel_x > (xres - TILE_WIDTH_PIX)) pixel_x = xres - TILE_WIDTH_PIX;
+    if(pixel_x > (xres - TILE_WIDTH_PIX))  pixel_x = xres - TILE_WIDTH_PIX;
     if(pixel_y > (yres - TILE_HEIGHT_PIX)) pixel_y = yres - TILE_HEIGHT_PIX;
 
     tile->src_pixel_x = pixel_x;
@@ -398,12 +411,13 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
     // Memory offset of the top left corner of the tile
     //                                Linear pixel number
     //                            vvvvvvvvvvvvvvvvvvvvvvvvvv
-    uint32_t tile_start_offset = ((pixel_y * yres) + pixel_x) * bytes_pp;
-    tile_start_offset += src_block->get_phys_address();
+    uint32_t tile_start_offset = ((pixel_y * xres) + pixel_x) * bytes_pp;
 
     for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
-        uint32_t row_offset = row * xres * bytes_pp;
+        uint32_t row_offset = row * (xres * bytes_pp);
         tile->src_row_offset[row] = tile_start_offset + row_offset;
+
+        tile->src_row_phys_addr[row] = tile->src_row_offset[row] + src_block->get_phys_address();
     }
 }
 
@@ -412,26 +426,23 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
  * The user MUST call compute_tile_src_addr before calling this function.
  * @param tile Pointer to the TileInfo struct - Must have source offsets populated by first calling compute_tile_src_offsets
  * @param xres_in The width of the source image
- * @param yres_in The height of the source image
  * @param upscale_factor The factor by which the image is being upscaled
  * @param bytes_pp The number of bytes per pixel in the source image
  * @return None
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint16_t yres_in, uint32_t upscale_factor, uint8_t bytes_pp){
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
 
-    uint32_t xres_out = xres_in * upscale_factor;
-    uint32_t yres_out = yres_in * upscale_factor;
-
-    // Memory offset of the top left corner of the tile
-    uint32_t tile_start_offset = ((dst_pixel_y * yres_out) + dst_pixel_x) * bytes_pp;
-    tile_start_offset += dst_block->get_phys_address();
+    // Memory address of the top left corner of the tile
+    uint32_t tile_start_offset = ((dst_pixel_y * xres_in * upscale_factor) + dst_pixel_x) * bytes_pp;
 
     for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * upscale_factor); row++){
-        uint32_t row_offset = row * xres_out * bytes_pp;
+        uint32_t row_offset = row * xres_in * upscale_factor * bytes_pp;
         tile->dst_row_offset[row] = tile_start_offset + row_offset;
+
+        tile->dst_row_phys_addr[row] = tile->dst_row_offset[row] + dst_block->get_phys_address();
     }
 }
 
@@ -478,10 +489,25 @@ int main(int argc, char *argv[]){
         die_with_error("ERROR [interpolate2x] DMA self test failed\n", nullptr, &resources);
     }
 
+    // Initialize the output buffer
+    for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
+        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
+        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
+        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
+    }
     printf("INFO [interpolate2x] Starting video output\n");
     
     uint32_t frame_loop_count = 0;
     unsigned long start_jiffies = get_jiffies();
+
+    TileInfo tile;
+    uint16_t num_vert_tiles = INPUT_VIDEO_HEIGHT / TILE_HEIGHT_PIX;
+    uint16_t num_horz_tiles = INPUT_VIDEO_WIDTH  / TILE_WIDTH_PIX;
+        
+    // Handle partial tiles
+    if((INPUT_VIDEO_HEIGHT % TILE_HEIGHT_PIX) != 0) num_vert_tiles++;
+    if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
+
     while(!die_flag){
         
         // Capture a frame
@@ -498,18 +524,15 @@ int main(int argc, char *argv[]){
         //  - Receive the tile in the interp_888 buffer / PMM block
         // Move to framebuffer, converting to RGB565 on the way
 
-        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_block->get_mem_ptr()), 
+        // yuyv_to_rgb888((uint8_t*)(resources.vid_mem_block->get_mem_ptr()), 
+        //                (uint8_t*)(resources.input888_block->get_mem_ptr()), 
+        //                INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        // Temporary workaround for V4L2 DMA buffer
+        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr), 
                        (uint8_t*)(resources.input888_block->get_mem_ptr()), 
                        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-
-        TileInfo tile;
-        uint16_t num_vert_tiles = INPUT_VIDEO_HEIGHT / TILE_HEIGHT_PIX;
-        uint16_t num_horz_tiles = INPUT_VIDEO_WIDTH  / TILE_WIDTH_PIX;
         
-        // Handle partial tiles
-        if((INPUT_VIDEO_HEIGHT % TILE_HEIGHT_PIX) != 0) num_vert_tiles++;
-        if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
-
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
 
@@ -522,26 +545,61 @@ int main(int argc, char *argv[]){
                 tile.tile_y = ty;
                 compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3);
 
-                // Send pixels from input RGB888 buffer to the PL for interpolation
-                for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
-                    int result = dma1.transfer_mm2s(tile.src_row_offset[row], TILE_WIDTH_PIX * 3, true);
-                    if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data to PL ", nullptr, &resources);
-                }
-
                 // Calculate destination addresses for each row of the tile
                 // In the future, this will happen concurrently with the PL interpolation
-                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, UPSCALE_FACTOR, 3);
+                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3);
+
+                // Send pixels from input RGB888 buffer to the PL for interpolation
+                for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
+                    int result = dma1.transfer_mm2s(tile.src_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
+                    if(result < 0) {
+                        dma1.print_debug_info();
+                        die_with_error("ERROR [interpolate2x] Error transferring data to PL ", nullptr, &resources);
+                    }
+                }
 
                 // Receive pixels from the PL and store them in the interp888 buffer
                 for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
-                    int result = dma1.transfer_s2mm(tile.dst_row_offset[row], TILE_WIDTH_PIX * UPSCALE_FACTOR * 3, true);
-                    if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data from PL ", nullptr, &resources);   
+                    int result = dma1.transfer_s2mm(tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * UPSCALE_FACTOR * 3, true);
+                    if(result < 0) {
+                        dma1.print_debug_info();
+                        die_with_error("ERROR [interpolate2x] Error transferring data from PL ", nullptr, &resources);
+                    }
                 }
+
+                // This works
+                // for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
+                //     // printf("INFO [interpolate2x] DMA transfer start address: 0x%08X, end address: 0x%08X, length: %d\n", 
+                //         tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3);
+                //     int result = dma1.transfer(tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
+                //     if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data to PL ", nullptr, &resources);
+                // }
+
+                // Set the pixels at the top left corner of the tile to red
+                uint32_t tile_offset = tile.dst_row_offset[0];
+                // printf("INFO [interpolate2x] interp888 size: %d\n", resources.interp888_block->size());
+                // printf("INFO [interpolate2x] Writing red pixels to tile at offset 0x%08X\n", tile_offset);
+                uint8_t red_pixels[6] = {0xFF, 0, 0, 0xFF, 0, 0};
+                if(resources.interp888_block->write_byte(tile_offset+0, 0x00) < 0) die_with_error("idek", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+1, 0xFF) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+3, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+4, 0xFF) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+5, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+
+                tile_offset = tile.dst_row_offset[1];
+                if(resources.interp888_block->write_byte(tile_offset+0, 0xFF) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+1, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+3, 0xFF) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+4, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+5, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
             }
         }
 
         // Move the interpolated frame to the framebuffer, converting to RGB565 on the way
         // Transfer 1 row at a time to account for resolution differences
+        // printf("INFO [interpolate2x] Moving interpolated frame to framebuffer\n");
         for(uint16_t row = 0; row < (INPUT_VIDEO_HEIGHT * UPSCALE_FACTOR); row++){
             uint32_t rgb888_offset = row * INPUT_VIDEO_WIDTH * UPSCALE_FACTOR * 3; 
             uint8_t *rgb888_row = (uint8_t*)(resources.interp888_block->get_mem_ptr()) + rgb888_offset;
@@ -555,15 +613,14 @@ int main(int argc, char *argv[]){
 
         // Calculate frame rate
         frame_loop_count++;
-        if((frame_loop_count % 500) == 499){
+        if((frame_loop_count % 100) == 99){
             unsigned long end_jiffies = get_jiffies();
             unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
             unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
 
             float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
             printf("INFO [interpolate2x] FPS: %0.3f\n", fps);
-        }
-    
+        }    
     } // End of while loop
 
     // Stop video streaming

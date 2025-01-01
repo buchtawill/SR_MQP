@@ -22,7 +22,8 @@
 #define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2) // 2 bytes per pixel
 
 /**
- * This struct contains all resources that the main program uses.
+ * This struct contains all resources that the main program uses
+ * Video pointer --> Video PhysMem --> RGB565 PhysMem --> DMA --> FB PhysMem
  */
 typedef struct {
 
@@ -33,7 +34,7 @@ typedef struct {
 
     // Video resources
     PhysMem *vid_mem_block;
-    uint32_t vid_mem_phys_base;
+    void *vid_mem_ptr;
     uint32_t vid_mem_size_bytes;
     struct v4l2_format v4l2_fmt;
     struct v4l2_requestbuffers v4l2_req;

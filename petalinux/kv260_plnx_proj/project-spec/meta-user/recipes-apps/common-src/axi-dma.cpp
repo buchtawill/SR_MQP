@@ -10,6 +10,7 @@
 
 #include "PhysMem.h"
 #include "phys-mman.h"
+#include <time.h> // for srand
 
 AXIDMA::AXIDMA(uint32_t base_addr, int dev_mem_fd){
     this->base_address = base_addr;
@@ -292,7 +293,18 @@ void AXIDMA::enable_s2mm_intr(){
 }
 
 #ifndef DMA_SG_MODE
+
+void AXIDMA::print_debug_info(){
+    printf("DEBUG [AXIDMA::print_debug_info()] Base address: 0x%08X\n", this->base_address);
+    printf("                                   Total good bytes MM2S: %d\n", this->total_bytes_mm2s);
+    printf("                                   Total good bytes S2MM: %d\n", this->total_bytes_s2mm);
+    printf("                                   Number of MM2S calls:  %d\n", this->n_mm2s_calls);
+    printf("                                   Number of S2MM calls:  %d\n", this->n_s2mm_calls);
+}
+
 int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
+
+    n_mm2s_calls++;
 
     this->clear_irq_bit(MM2S_DMASR);
 
@@ -306,26 +318,37 @@ int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
     // Setting the length register must be the last step
     this->set_mm2s_len(len);
 
-    if(block) this->sync_channel(MM2S_DMASR);
+    if(block){
+        int result = this->sync_channel(MM2S_DMASR);
+        if(result >= 0) total_bytes_mm2s += len;
+        return result;
+    }
 
     return 0;
 }
 
 int AXIDMA::transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block){
 
-    this->clear_irq_bit(S2MM_DMASR);
+    n_s2mm_calls++;
 
-    this->reset_s2mm();
-    this->halt_s2mm();
-    this->enable_s2mm_intr();
-    this->set_s2mm_dest(dst_addr);
+    this->clear_irq_bit(S2MM_DMASR); //
 
-    this->start_s2mm();
+    this->reset_s2mm();//
+    this->halt_s2mm();//
+    this->enable_s2mm_intr();//
+    this->set_s2mm_dest(dst_addr);//
+
+    this->start_s2mm();//
 
     // Setting the length register must be the last step
     this->set_s2mm_len(len);
 
-    if(block) this->sync_channel(S2MM_DMASR);
+    if(block) {
+        int result = this->sync_channel(S2MM_DMASR);
+        if(result >= 0) total_bytes_s2mm += len;
+        return result;
+    }
+
     return 0;
 }
 
@@ -388,7 +411,11 @@ int AXIDMA::self_test_dr(){
     // this->print_status(MM2S_DMASR);
     // this->print_status(S2MM_DMASR);
     // printf("INFO [AXIDMA::self_test()] Starting transfer\n");
-    this->transfer(src_block->get_phys_address(), dst_block->get_phys_address(), DMA_SELF_TEST_LEN, true);
+    int result = this->transfer(src_block->get_phys_address(), dst_block->get_phys_address(), DMA_SELF_TEST_LEN, true);
+    if(result < 0){
+        printf("ERROR [AXIDMA::self_test()] Transfer failed\n");
+        return -1;
+    }
 
     // Check if the data is the same
     // printf("INFO [AXIDMA::self_test()] Checking that data matches\n");
@@ -416,11 +443,75 @@ int AXIDMA::self_test_dr(){
         }
     }
 
-    printf("INFO [AXIDMA::self_test()] Self test passed!\n");
+    printf("INFO [AXIDMA::self_test()] transfer() self test passed!\n");
+
+    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////
+    // Test with transfer_mm2s and transfer_s2mm /////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////
+    
+    // The FIFO is 1024 x 32 bits
+    // Test on 512 entries
+    // Refill the source block with new random data
+    uint32_t individual_len = 512*4;
+    for(uint32_t i = 0; i < individual_len / 4; i++){
+        // src_block->write_word(i*4, (uint32_t)rand());
+        src_block->write_word(i*4, i);
+    }
+
+    result = this->transfer_mm2s(src_block->get_phys_address(), individual_len, true);
+    if(result < 0){
+        printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
+        return -1;
+    }
+
+    result = this->transfer_s2mm(dst_block->get_phys_address(), individual_len, true);
+    if(result < 0){
+        printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
+        return -1;
+    }
+
+    // Read 4 words before the start of src and dst block
+    // uint32_t* src_block_ptr = (uint32_t*)src_block->get_mem_ptr();
+    // uint32_t* dst_block_ptr = (uint32_t*)dst_block->get_mem_ptr();
+
+    // printf("INFO [AXIDMA::self_test()] -4: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-4), *(dst_block_ptr-4));
+    // printf("INFO [AXIDMA::self_test()] -3: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-3), *(dst_block_ptr-3));
+    // printf("INFO [AXIDMA::self_test()] -2: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-2), *(dst_block_ptr-2));
+    // printf("INFO [AXIDMA::self_test()] -1: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-1), *(dst_block_ptr-1));
+
+    // Check if the data is the same
+    for(uint32_t i = 0; i < individual_len / 4; i++){
+        // if(src_addr[i] != dst_addr[i]){
+        uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
+        src_block->read_word(i*4, &src_word);
+        dst_block->read_word(i*4, &dst_word);
+        if(src_word != dst_word){
+            printf("ERROR [AXIDMA::self_test()] Self test failed. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
+                i,
+                src_word, 
+                dst_word);
+            printf("Dumping memory contents to error_log.txt\n");
+            FILE *fp = fopen("error_log.txt", "w");
+            if(fp == NULL){
+                printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
+                return -1;
+            }
+            for(int j = 0; j < individual_len / 4; j++){
+                src_block->read_word(j*4, &src_word);
+                dst_block->read_word(j*4, &dst_word);
+                fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_word, dst_word);
+            }
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    printf("INFO [AXIDMA::self_test()] transfer_mm2s and transfer_s2mm self test passed!\n");
 
     PMM.free(src_block);
     PMM.free(dst_block);
-
     return 0;
 }
 #else // We're in scatter-gather mode
@@ -434,6 +525,9 @@ int AXIDMA::self_test_sg(){
 #endif // DMA_SG_MODE
 
 int AXIDMA::self_test(){
+
+    srand(time(NULL));
+
     #ifndef DMA_SG_MODE
     return self_test_dr();
     #else

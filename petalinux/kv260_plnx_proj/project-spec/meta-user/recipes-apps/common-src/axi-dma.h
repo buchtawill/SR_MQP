@@ -108,9 +108,13 @@
 
 class AXIDMA {
 private:
-    uint32_t base_address;               // Base address of the AXI Lite port
-    int mem_fd = -1;                     // File descriptor for /dev/mem
-    volatile uint32_t *dma_phys_addr;    // Pointer after doing MMAP to AXI Lite base
+    uint32_t base_address;              // Base address of the AXI Lite port
+    uint32_t total_bytes_mm2s = 0;      // Total bytes transferred in MM2S channel
+    uint32_t total_bytes_s2mm = 0;      // Total bytes transferred in S2MM channel
+    uint32_t n_s2mm_calls = 0;
+    uint32_t n_mm2s_calls = 0;
+    int mem_fd = -1;                    // File descriptor for /dev/mem
+    volatile uint32_t *dma_phys_addr;   // Pointer after doing MMAP to AXI Lite base
 
     #ifdef DMA_SG_MODE
     volatile DMA_SG_BD *mm2s_bd_arr;     // Scatter Gather buffer descriptor for MM2S
@@ -153,6 +157,11 @@ public:
 
     // Read from a DMA register
     uint32_t read_dma(uint32_t reg);
+
+    /**
+     * Print some debug info about the DMA core
+     */
+    void print_debug_info();
 
     /**
      * Read-Modify-Write to a DMA register

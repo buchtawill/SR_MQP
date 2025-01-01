@@ -30,11 +30,17 @@
  */
 typedef struct {
     
-    // Memory offset of the start of a row. Relative to address of top left pixel of whole image
+    // Memory offset (in bytes) of the start of a row. Relative to address of top left pixel of whole image
     uint32_t src_row_offset[TILE_HEIGHT_PIX];
 
-    // Memory offset of the start of a row. Relative to address of top left pixel of whole image
+    // Memory address of the start of a row.
+    uint32_t src_row_phys_addr[TILE_HEIGHT_PIX];
+
+    // Memory address of the start of a row. Relative to address of top left pixel of whole image
     uint32_t dst_row_offset[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
+
+    // Memory address of the start of a row.
+    uint32_t dst_row_phys_addr[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
 
     uint16_t tile_x; // Requested x tile coordinate (in units of tiles)
     uint16_t tile_y; // Requested y tile coordinate (in units of tiles)
@@ -56,8 +62,8 @@ typedef struct {
 
     // Video resources
     PhysMem *vid_mem_block;
-    uint32_t vid_mem_phys_base;
     uint32_t vid_mem_size_bytes;
+    void* vid_mem_ptr;
     struct v4l2_format v4l2_fmt;
     struct v4l2_requestbuffers v4l2_req;
     struct v4l2_buffer v4l2_frame_buf;

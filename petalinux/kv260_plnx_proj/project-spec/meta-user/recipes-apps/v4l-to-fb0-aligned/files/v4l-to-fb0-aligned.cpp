@@ -61,14 +61,18 @@ void sigint_handler(int sig){
 
 int main(int argc, char *argv[]) {
 
-    if(argc < 3) {
-        printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
-        printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
-        return 1;
+    const char* video_device = nullptr;
+    const char* fb_device = nullptr;
+	if(argc < 3) {
+        // printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
+        // printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
+        video_device = "/dev/video0";
+        fb_device = "/dev/fb0";
     }
-
-    const char *video_device = argv[1];
-    const char *fb_device = argv[2];
+    else{
+        video_device = argv[1];
+        fb_device = argv[2];
+    }
 
     signal(SIGINT, sigint_handler);
 
@@ -160,6 +164,7 @@ int main(int argc, char *argv[]) {
     }
 
     void *video_buffer = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, video_fd, buf.m.offset);
+    printf("INFO [v4l-to-fb0-aligned.cpp] Video Physical Address: 0x%08X\n", buf.m.offset);
     if (video_buffer == MAP_FAILED) {
         perror("Mapping video buffer");
         close(video_fd);

@@ -27,6 +27,14 @@ public:
     }
 
     /**
+     * Set the pointer to the memory region
+     * @param ptr Pointer to the memory region
+     */
+    void set_mem_ptr(volatile void* ptr){
+        this->mem_ptr = ptr;
+    }
+
+    /**
      * Get the physical address of the memory
      * @return Physical address of the memory
      */
