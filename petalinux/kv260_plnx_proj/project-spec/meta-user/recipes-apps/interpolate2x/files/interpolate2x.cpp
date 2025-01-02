@@ -567,33 +567,11 @@ int main(int argc, char *argv[]){
                     }
                 }
 
-                // This works
-                // for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
-                //     // printf("INFO [interpolate2x] DMA transfer start address: 0x%08X, end address: 0x%08X, length: %d\n", 
-                //         tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3);
-                //     int result = dma1.transfer(tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
-                //     if(result < 0) die_with_error("ERROR [interpolate2x] Error transferring data to PL ", nullptr, &resources);
-                // }
-
-                // Set the pixels at the top left corner of the tile to red
+                // Set a pixel at the top left corner of the tile to red
                 uint32_t tile_offset = tile.dst_row_offset[0];
-                // printf("INFO [interpolate2x] interp888 size: %d\n", resources.interp888_block->size());
-                // printf("INFO [interpolate2x] Writing red pixels to tile at offset 0x%08X\n", tile_offset);
-                uint8_t red_pixels[6] = {0xFF, 0, 0, 0xFF, 0, 0};
-                if(resources.interp888_block->write_byte(tile_offset+0, 0x00) < 0) die_with_error("idek", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+1, 0xFF) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+3, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+4, 0xFF) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+5, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-
-                tile_offset = tile.dst_row_offset[1];
-                if(resources.interp888_block->write_byte(tile_offset+0, 0xFF) < 0) die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+1, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+3, 0xFF) < 0) die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+4, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+5, 0x00) < 0)    die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+0, 0xFF) < 0) die_with_error("idek", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+1, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
             }
         }
 

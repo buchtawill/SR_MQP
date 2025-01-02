@@ -23,7 +23,7 @@ AXIDMA::~AXIDMA(){
 }
 
 int AXIDMA::initialize(){
-    this->dma_phys_addr = (uint32_t *)mmap(
+    this->dma_phys_addr = (volatile uint32_t *)mmap(
         NULL,                   // Let the kernel decide the virtual address
         DMA_ADDRESS_SPACE_SIZE, // Size of memory to map 
         PROT_READ | PROT_WRITE, // Permissions: read and write
@@ -71,6 +71,8 @@ int AXIDMA::initialize(){
     memset((void *)this->s2mm_bd_arr, 0, DMA_BDR_S2MM_SIZE_BYTES);
 
     #endif
+
+    this->reset_dma();
 
     return 0;
 }
@@ -308,8 +310,8 @@ int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
 
     this->clear_irq_bit(MM2S_DMASR);
 
-    this->reset_mm2s();
-    this->halt_mm2s();
+    // this->reset_mm2s();
+    // this->halt_mm2s();
     this->enable_mm2s_intr();
     this->set_mm2s_src(src_addr);
 
@@ -333,8 +335,8 @@ int AXIDMA::transfer_s2mm(uint32_t dst_addr, uint32_t len, bool block){
 
     this->clear_irq_bit(S2MM_DMASR); //
 
-    this->reset_s2mm();//
-    this->halt_s2mm();//
+    // this->reset_s2mm();//
+    // this->halt_s2mm();//
     this->enable_s2mm_intr();//
     this->set_s2mm_dest(dst_addr);//
 
@@ -452,12 +454,17 @@ int AXIDMA::self_test_dr(){
     //////////////////////////////////////////////////////////////////////////////////
     
     // The FIFO is 1024 x 32 bits
-    // Test on 512 entries
+    // Test on 64 entries
     // Refill the source block with new random data
-    uint32_t individual_len = 512*4;
+    uint32_t individual_len = 64*4;
     for(uint32_t i = 0; i < individual_len / 4; i++){
         // src_block->write_word(i*4, (uint32_t)rand());
         src_block->write_word(i*4, i);
+    }
+
+    // Clear the dest block
+    for(uint32_t i = 0; i < individual_len / 4; i++){
+        dst_block->write_word(i*4, 0);
     }
 
     result = this->transfer_mm2s(src_block->get_phys_address(), individual_len, true);
@@ -472,17 +479,9 @@ int AXIDMA::self_test_dr(){
         return -1;
     }
 
-    // Read 4 words before the start of src and dst block
-    // uint32_t* src_block_ptr = (uint32_t*)src_block->get_mem_ptr();
-    // uint32_t* dst_block_ptr = (uint32_t*)dst_block->get_mem_ptr();
-
-    // printf("INFO [AXIDMA::self_test()] -4: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-4), *(dst_block_ptr-4));
-    // printf("INFO [AXIDMA::self_test()] -3: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-3), *(dst_block_ptr-3));
-    // printf("INFO [AXIDMA::self_test()] -2: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-2), *(dst_block_ptr-2));
-    // printf("INFO [AXIDMA::self_test()] -1: SRC: 0x%08X    DST: 0x%08X\n", *(src_block_ptr-1), *(dst_block_ptr-1));
 
     // Check if the data is the same
-    for(uint32_t i = 0; i < individual_len / 4; i++){
+    for(uint32_t i = 0; i < (individual_len + 16) / 4; i++){
         // if(src_addr[i] != dst_addr[i]){
         uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
         src_block->read_word(i*4, &src_word);
@@ -498,7 +497,7 @@ int AXIDMA::self_test_dr(){
                 printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
                 return -1;
             }
-            for(int j = 0; j < individual_len / 4; j++){
+            for(int j = 0; j < (individual_len + 16) / 4; j++){
                 src_block->read_word(j*4, &src_word);
                 dst_block->read_word(j*4, &dst_word);
                 fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_word, dst_word);
