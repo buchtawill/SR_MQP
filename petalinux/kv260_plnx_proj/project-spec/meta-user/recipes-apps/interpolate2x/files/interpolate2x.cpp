@@ -44,6 +44,8 @@ Date Modified: 12/26/2024
 #define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
+#include "argparse.hpp"
+
 // Global variable - use with caution! This should only ever be set to true 
 bool die_flag = false;
 
@@ -446,20 +448,74 @@ void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in,
     }
 }
 
+void draw_dots(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
+    uint32_t tile_offset = tile->dst_row_offset[0];
+    if(block->write_byte(tile_offset+0, r) < 0) die_with_error("Error writing byte", nullptr, res);
+    if(block->write_byte(tile_offset+1, g) < 0) die_with_error("Error writing byte", nullptr, res);
+    if(block->write_byte(tile_offset+2, b) < 0) die_with_error("Error writing byte", nullptr, res);
+}
+
+void draw_outline(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
+    // Draw the first and last rows
+    uint8_t pixel[] = {r, g, b};
+
+    // Draw the top and bottom rows
+    for(uint16_t i = 0; i < (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3); i++){
+        if(block->write_byte(tile->dst_row_offset[0] + i, pixel[i % 3]) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1] + i, pixel[i % 3]) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+    }
+
+    // Draw the first and last columns
+    for(uint32_t i = 0; i < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); i++){
+        if(block->write_byte(tile->dst_row_offset[i], r) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + 1, g) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + 2, b) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 3, r) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 2, g) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 1, b) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+    }
+}
+
 int main(int argc, char *argv[]){
 
     printf("INFO [interpolate2x] Entering main\n");
     const char* video_device = nullptr;
     const char* fb_device = nullptr;
-	if(argc < 3) {
-        // printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
-        // printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
-        video_device = "/dev/video0";
-        fb_device = "/dev/fb0";
+
+    argparse::ArgumentParser parser("interpolate2x");
+    parser.add_argument("-vid", "--video_device").help("Video device to read frames from").default_value("/dev/video0");
+    parser.add_argument("-fb", "--fb_device").help("Framebuffer device to write frames to").default_value("/dev/fb0");
+    parser.add_argument("--dots").help("Flag to show start of a tile with a red dot").flag();
+    parser.add_argument("--outline").help("Flag to draw an outline around all tiles").flag();
+
+    try{
+        parser.parse_args(argc, argv);
     }
-    else{
-        video_device = argv[1];
-        fb_device = argv[2];
+    catch(const std::runtime_error& err){
+        std::cout << err.what() << std::endl;
+        return -1;
+    }
+
+    video_device = parser.get<std::string>("--video_device").c_str();
+    fb_device = parser.get<std::string>("--fb_device").c_str();
+
+    printf("INFO [interpolate2x] Video device: %s\n", video_device);
+    printf("INFO [interpolate2x] Framebuffer device: %s\n", fb_device);
+
+    if(parser["--dots"] == true){
+        printf("INFO [interpolate2x] Drawing red dots at start of each tile\n");
+    }
+    else if(parser["--outline"] == true){
+        printf("INFO [interpolate2x] Drawing outline around all tiles\n");
     }
 
     // Register CTRL-C handler
@@ -568,10 +624,12 @@ int main(int argc, char *argv[]){
                 }
 
                 // Set a pixel at the top left corner of the tile to red
-                uint32_t tile_offset = tile.dst_row_offset[0];
-                if(resources.interp888_block->write_byte(tile_offset+0, 0xFF) < 0) die_with_error("idek", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+1, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(parser["--dots"] == true){
+                    draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
+                }
+                else if(parser["--outline"] == true){
+                    draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
+                }
             }
         }
 

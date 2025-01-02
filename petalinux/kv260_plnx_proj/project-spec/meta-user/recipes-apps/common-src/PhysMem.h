@@ -177,6 +177,7 @@ public:
      * Write data to byte_offset. Buyer beware - byte_offset must be aligned to 4 byte boundary
      * @param byte_offset Byte address in the memory
      * @param data Byte to write
+     * @return 0 on success, -1 on error
      */
     inline int write_byte(uint32_t byte_offset, uint8_t data){
 
