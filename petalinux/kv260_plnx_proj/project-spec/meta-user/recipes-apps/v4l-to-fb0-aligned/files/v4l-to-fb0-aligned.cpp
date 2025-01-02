@@ -15,14 +15,14 @@
 
 #define INPUT_WIDTH  720
 #define INPUT_HEIGHT 576
-#define INPUT_PIXEL_FORMAT V4L2_PIX_FMT_YUYV // Match the framebuffer pixel format (e.g., RGB565)
+#define INPUT_PIXEL_FORMAT V4L2_PIX_FMT_YUYV // Wii input format 
 
 // Global variable - use with caution! This should only ever be set to true 
 bool die_flag = false;
 
 // Convert YUYV to RGB565
-void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int width, int height) {
-    for (int i = 0; i < width * height; i += 2) {
+void yuyv_to_rgb565(uint8_t *yuyv, uint16_t *rgb565, int num_pixels) {
+    for (int i = 0; i < num_pixels; i += 2) {
         int y0 = yuyv[i * 2];
         int u = yuyv[i * 2 + 1] - 128;
         int y1 = yuyv[i * 2 + 2];
@@ -61,14 +61,18 @@ void sigint_handler(int sig){
 
 int main(int argc, char *argv[]) {
 
-    if(argc < 3) {
-        printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
-        printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
-        return 1;
+    const char* video_device = nullptr;
+    const char* fb_device = nullptr;
+	if(argc < 3) {
+        // printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
+        // printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
+        video_device = "/dev/video0";
+        fb_device = "/dev/fb0";
     }
-
-    const char *video_device = argv[1];
-    const char *fb_device = argv[2];
+    else{
+        video_device = argv[1];
+        fb_device = argv[2];
+    }
 
     signal(SIGINT, sigint_handler);
 
@@ -160,6 +164,7 @@ int main(int argc, char *argv[]) {
     }
 
     void *video_buffer = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, video_fd, buf.m.offset);
+    printf("INFO [v4l-to-fb0-aligned.cpp] Video Physical Address: 0x%08X\n", buf.m.offset);
     if (video_buffer == MAP_FAILED) {
         perror("Mapping video buffer");
         close(video_fd);
@@ -229,15 +234,19 @@ int main(int argc, char *argv[]) {
         // Copy the video buffer to the framebuffer to capture 1 frame
         // printf("INFO [v4l-to-fb0-aligned.cpp] Copying video buffer to frame buffer...\n");
         
-        yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
+        // yuyv_to_rgb565((uint8_t *)video_buffer, rgb565_buf, INPUT_WIDTH, INPUT_HEIGHT);
         // // memcpy(fb_buffer, rgb565_buf, buf.bytesused);
 
         uint32_t line_size_pixels = fb_info.xres_virtual;
         uint16_t *fb_pointer_pix = (uint16_t*)fb_buffer;
+        uint16_t *vid_buf_pix = (uint16_t*)video_buffer;
         for (int row = 0; row < INPUT_HEIGHT; row++) {
             // Copy one row at a time from the rgb565 buf to the frame buffer
             // Each pixel is 2 bytes
-            memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
+            // memcpy(&fb_pointer_pix[line_size_pixels * row], &rgb565_buf[INPUT_WIDTH * row], INPUT_WIDTH * sizeof(uint16_t));
+
+            // Convert YUYV to RGB565 and place in frame buffer
+            yuyv_to_rgb565((uint8_t*)(vid_buf_pix + (row * INPUT_WIDTH)), &fb_pointer_pix[line_size_pixels * row], INPUT_WIDTH);
         }
         frame_loop_count++;
         if(frame_loop_count == 1000){
@@ -251,7 +260,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // sleep(5); // sleep for 5 seconds so the terminal doesn't overwrite the frame
 
     if(die_flag){
         printf("\nINFO [v4l-to-fb0-aligned.cpp] Ctrl-c detected, exiting program\n");

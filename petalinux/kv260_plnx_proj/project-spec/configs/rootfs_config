@@ -416,7 +416,7 @@ CONFIG_mtd-utils=y
 #
 # xz 
 #
-CONFIG_xz=y
+# CONFIG_xz is not set
 # CONFIG_xz-dev is not set
 # CONFIG_xz-dbg is not set
 # CONFIG_liblzma is not set
@@ -2607,9 +2607,9 @@ CONFIG_packagegroup-core-boot=y
 #
 # packagegroup-core-buildessential 
 #
-CONFIG_packagegroup-core-buildessential=y
-CONFIG_packagegroup-core-buildessential-dbg=y
-CONFIG_packagegroup-core-buildessential-dev=y
+# CONFIG_packagegroup-core-buildessential is not set
+# CONFIG_packagegroup-core-buildessential-dbg is not set
+# CONFIG_packagegroup-core-buildessential-dev is not set
 
 #
 # packagegroup-core-sdk 
@@ -3409,7 +3409,7 @@ CONFIG_watchdog-init=y
 #
 # gstreamer1.0 
 #
-CONFIG_gstreamer1.0=y
+# CONFIG_gstreamer1.0 is not set
 # CONFIG_gstreamer1.0-dev is not set
 # CONFIG_gstreamer1.0-dbg is not set
 
@@ -3923,7 +3923,7 @@ CONFIG_u-boot-tools=y
 #
 # packagegroup-petalinux-display-debug 
 #
-CONFIG_packagegroup-petalinux-display-debug=y
+# CONFIG_packagegroup-petalinux-display-debug is not set
 # CONFIG_packagegroup-petalinux-display-debug-dbg is not set
 # CONFIG_packagegroup-petalinux-display-debug-dev is not set
 
@@ -4057,7 +4057,7 @@ CONFIG_packagegroup-petalinux-v4lutils=y
 #
 # packagegroup-petalinux-x11 
 #
-CONFIG_packagegroup-petalinux-x11=y
+# CONFIG_packagegroup-petalinux-x11 is not set
 # CONFIG_packagegroup-petalinux-x11-dev is not set
 # CONFIG_packagegroup-petalinux-x11-dbg is not set
 
@@ -4087,12 +4087,11 @@ CONFIG_Init-manager-systemd=y
 # user packages 
 #
 CONFIG_add-mult-test=y
-CONFIG_axi-dma-test=y
+CONFIG_interpolate2x=y
 CONFIG_jiffies-test=y
 CONFIG_print-fb-info=y
 CONFIG_v4l-to-fb0-aligned=y
 CONFIG_v4l-to-fb0-dma=y
-# CONFIG_vid-v4l-test is not set
 
 #
 # PetaLinux RootFS Settings

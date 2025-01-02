@@ -5,17 +5,22 @@
 #include "dma-sg-bd.h"
 #include <stdint.h>
 
-#define KERNEL_RSVD_MEM_BASE		0x78000000
-#define KERNEL_RSVD_MEM_SIZE        0x02000000
-
 // #define DMA_SG_MODE 1
-#define DMA_DIRECT_REG_MODE 1
+// #define DMA_DIRECT_REG_MODE 1
 
+// Default to direct register mode
+#ifndef DMA_SG_MODE
+#define DMA_DIRECT_REG_MODE 1
+#pragma message("INFO [axi-dma.h] AXI DMA is in Direct Register mode")
+#else
+#pragma message("INFO [axi-dma.h] AXI DMA is in Scatter Gather mode")
+#endif
+
+// Configured in Vivado
 #define DMA_ADDRESS_SPACE_SIZE      0x00010000
 
-#define DMA_SELF_TEST_SRC_ADDR      KERNEL_RSVD_MEM_BASE   
-#define DMA_SELF_TEST_DST_ADDR      (KERNEL_RSVD_MEM_BASE + 0x1000) 
-#define DMA_SELF_TEST_LEN           0x1000
+// Length of DMA self test transfer in bytes
+#define DMA_SELF_TEST_LEN           ((uint32_t)4096)
 
 #define DMA_SYNC_TRIES				10000
 #define MAX_DMA_SYNC_TRIES          0xFFFFFFFF
@@ -103,9 +108,13 @@
 
 class AXIDMA {
 private:
-    uint32_t base_address;               // Base address of the AXI Lite port
-    int mem_fd = -1;                     // File descriptor for /dev/mem
-    volatile uint32_t *dma_phys_addr;    // Pointer after doing MMAP to AXI Lite base
+    uint32_t base_address;              // Base address of the AXI Lite port
+    uint32_t total_bytes_mm2s = 0;      // Total bytes transferred in MM2S channel
+    uint32_t total_bytes_s2mm = 0;      // Total bytes transferred in S2MM channel
+    uint32_t n_s2mm_calls = 0;
+    uint32_t n_mm2s_calls = 0;
+    int mem_fd = -1;                    // File descriptor for /dev/mem
+    volatile uint32_t *dma_phys_addr;   // Pointer after doing MMAP to AXI Lite base
 
     #ifdef DMA_SG_MODE
     volatile DMA_SG_BD *mm2s_bd_arr;     // Scatter Gather buffer descriptor for MM2S
@@ -148,6 +157,11 @@ public:
 
     // Read from a DMA register
     uint32_t read_dma(uint32_t reg);
+
+    /**
+     * Print some debug info about the DMA core
+     */
+    void print_debug_info();
 
     /**
      * Read-Modify-Write to a DMA register

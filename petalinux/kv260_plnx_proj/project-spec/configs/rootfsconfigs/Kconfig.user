@@ -3,8 +3,8 @@ config add-mult-test
 	 bool "add-mult-test"
 	 help
 	
-config axi-dma-test  
-	 bool "axi-dma-test"
+config interpolate2x  
+	 bool "interpolate2x"
 	 help
 	
 config jiffies-test  
@@ -21,10 +21,6 @@ config v4l-to-fb0-aligned
 	
 config v4l-to-fb0-dma  
 	 bool "v4l-to-fb0-dma"
-	 help
-	
-config vid-v4l-test  
-	 bool "vid-v4l-test"
 	 help
 	
 endmenu
