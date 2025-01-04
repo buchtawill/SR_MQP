@@ -22,8 +22,8 @@
 #define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2) // 2 bytes per pixel
 
 #define UPSCALE_FACTOR          1
-#define TILE_WIDTH_PIX          (uint32_t)28
-#define TILE_HEIGHT_PIX         (uint32_t)28
+#define TILE_WIDTH_PIX          ((uint32_t)28)
+#define TILE_HEIGHT_PIX         ((uint32_t)28)
 
 /**
  * Contains relevant information about a given image tile.
