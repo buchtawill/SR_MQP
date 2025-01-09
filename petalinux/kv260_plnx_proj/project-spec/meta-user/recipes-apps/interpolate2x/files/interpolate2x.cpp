@@ -630,6 +630,14 @@ int main(int argc, char *argv[]){
                     }
                 }
 
+                // for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
+                //     int result = dma1.transfer(tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
+                //     if(result < 0) {
+                //         dma1.print_debug_info();
+                //         die_with_error("ERROR [interpolate2x] Error transferring DMA", nullptr, &resources);
+                //     }
+                // }
+
                 // Set a pixel at the top left corner of the tile to red
                 if(parser["--dots"] == true){
                     draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
