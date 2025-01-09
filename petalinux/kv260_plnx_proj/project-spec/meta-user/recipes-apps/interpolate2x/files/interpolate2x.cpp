@@ -44,6 +44,8 @@ Date Modified: 12/26/2024
 #define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
+#include "argparse.hpp"
+
 // Global variable - use with caution! This should only ever be set to true 
 bool die_flag = false;
 
@@ -190,7 +192,7 @@ void sigint_handler(int sig){
  * @param fb_device The framebuffer device
  * @return None
  */
-void init_resources(Resources *p_res, const char* video_device, const char* fb_device){
+void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev){
     p_res->v4l2_fd         = -1;
     p_res->fb_dev_fd       = -1;
     p_res->dev_mem_fd      = -1;
@@ -225,15 +227,15 @@ void init_resources(Resources *p_res, const char* video_device, const char* fb_d
     }
 
     // Open the video device
-    printf("INFO [interpolate2x::init_resources()] Opening video device %s\n", video_device);
-    p_res->v4l2_fd = open(video_device, O_RDWR);
+    printf("INFO [interpolate2x::init_resources()] Opening video device %s\n", video_dev);
+    p_res->v4l2_fd = open(video_dev, O_RDWR);
     if(p_res->v4l2_fd < 0){
         die_with_error("ERROR [interpolate2x::init_resources()] Error opening video device: ", strerror(errno), p_res);
     }
 
     // Open the framebuffer device
-    printf("INFO [interpolate2x::init_resources()] Opening framebuffer device %s\n", fb_device);
-    p_res->fb_dev_fd = open(fb_device, O_RDWR);
+    printf("INFO [interpolate2x::init_resources()] Opening framebuffer device %s\n", fb_dev);
+    p_res->fb_dev_fd = open(fb_dev, O_RDWR);
     if(p_res->fb_dev_fd < 0){
         die_with_error("ERROR [interpolate2x::init_resources()] Error opening framebuffer device: ", strerror(errno), p_res);
     }
@@ -446,20 +448,80 @@ void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in,
     }
 }
 
-int main(int argc, char *argv[]){
+void draw_dots(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
+    uint32_t tile_offset = tile->dst_row_offset[0];
+    if(block->write_byte(tile_offset+0, r) < 0) die_with_error("Error writing byte", nullptr, res);
+    if(block->write_byte(tile_offset+1, g) < 0) die_with_error("Error writing byte", nullptr, res);
+    if(block->write_byte(tile_offset+2, b) < 0) die_with_error("Error writing byte", nullptr, res);
+}
 
-    printf("INFO [interpolate2x] Entering main\n");
-    const char* video_device = nullptr;
-    const char* fb_device = nullptr;
-	if(argc < 3) {
-        // printf("Usage: %s <video_device> <fb_device>\n", argv[0]);
-        // printf("Example: sudo %s /dev/video0 /dev/fb0\n", argv[0]);
-        video_device = "/dev/video0";
-        fb_device = "/dev/fb0";
+void draw_outline(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
+    // Draw the first and last rows
+    uint8_t pixel[] = {r, g, b};
+
+    // Draw the top and bottom rows
+    for(uint16_t i = 0; i < (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3); i++){
+        if(block->write_byte(tile->dst_row_offset[0] + i, pixel[i % 3]) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1] + i, pixel[i % 3]) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
     }
-    else{
-        video_device = argv[1];
-        fb_device = argv[2];
+
+    // Draw the first and last columns
+    for(uint32_t i = 0; i < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); i++){
+        if(block->write_byte(tile->dst_row_offset[i], r) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + 1, g) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + 2, b) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 3, r) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 2, g) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+        if(block->write_byte(tile->dst_row_offset[i] + (TILE_WIDTH_PIX * UPSCALE_FACTOR * 3) - 1, b) < 0) 
+            die_with_error("draw_outline: Error writing byte", nullptr, res);
+    }
+}
+
+int main(int argc, char *argv[]){
+    printf("INFO [interpolate2x] Entering main\n");
+    
+    Resources resources;
+
+    argparse::ArgumentParser parser("interpolate2x");
+    parser.add_argument("-vid", "--video_device").help("Video device to read frames from").default_value("/dev/video0");
+    parser.add_argument("-fbd", "--fb_device").help("Framebuffer device to write frames to").default_value("/dev/fb0");
+    parser.add_argument("--dots").help("Flag to show start of a tile with a red dot").flag();
+    parser.add_argument("--lines").help("Flag to draw an outline around all tiles").flag(); // .flag = .default_value(false).implicit_value(true);
+    parser.add_argument("--no_self_test").help("Flag to skip the DMA self test").flag();
+
+    try{
+        parser.parse_args(argc, argv);
+    }
+    catch(const std::runtime_error& err){
+        std::cout << err.what() << std::endl;
+        return -1;
+    }
+
+    std::string video_dev_str = parser.get<std::string>("--video_device");
+    std::string fb_dev_str = parser.get<std::string>("--fb_device");
+
+    const char *video_device = video_dev_str.c_str();
+    const char *fb_device = fb_dev_str.c_str();
+
+    printf("INFO [interpolate2x::main()] Video device: %s\n", video_device);
+    printf("INFO [interpolate2x::main()] Framebuffer device: %s\n", fb_device);
+
+    if(parser["--dots"] == true){
+        printf("INFO [interpolate2x] Drawing red dots at start of each tile\n");
+    }
+    else if(parser["--lines"] == true){
+        printf("INFO [interpolate2x] Drawing outline around all tiles\n");
+    }
+    if(parser["--no_self_test"] == true){
+        printf("INFO [interpolate2x] Skipping DMA self test\n");
     }
 
     // Register CTRL-C handler
@@ -468,7 +530,6 @@ int main(int argc, char *argv[]){
     // Open /dev/mem, video device, framebuffer device
     // Initialize Physical Memory Manager
     // Initialize input888 buffer, interpolated888 buffer
-    Resources resources;
     init_resources(&resources, video_device, fb_device);
 
     // Setup video reosources
@@ -485,8 +546,10 @@ int main(int argc, char *argv[]){
 	}
 
     // Run the self test twice in a row
-    if(dma1.self_test() < 0 || dma1.self_test() < 0){
-        die_with_error("ERROR [interpolate2x] DMA self test failed\n", nullptr, &resources);
+    if(parser["--no_self_test"] == false){
+        if(dma1.self_test() < 0 || dma1.self_test() < 0){
+            die_with_error("ERROR [interpolate2x] DMA self test failed\n", nullptr, &resources);
+        }
     }
 
     // Initialize the output buffer
@@ -568,10 +631,12 @@ int main(int argc, char *argv[]){
                 }
 
                 // Set a pixel at the top left corner of the tile to red
-                uint32_t tile_offset = tile.dst_row_offset[0];
-                if(resources.interp888_block->write_byte(tile_offset+0, 0xFF) < 0) die_with_error("idek", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+1, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
-                if(resources.interp888_block->write_byte(tile_offset+2, 0x00) < 0) die_with_error("Error writing byte", nullptr, &resources);
+                if(parser["--dots"] == true){
+                    draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
+                }
+                else if(parser["--lines"] == true){
+                    draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
+                }
             }
         }
 

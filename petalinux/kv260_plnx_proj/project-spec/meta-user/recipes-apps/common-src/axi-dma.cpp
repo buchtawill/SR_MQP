@@ -497,7 +497,7 @@ int AXIDMA::self_test_dr(){
                 printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
                 return -1;
             }
-            for(int j = 0; j < (individual_len + 16) / 4; j++){
+            for(uint32_t j = 0; j < (individual_len + 16) / 4; j++){
                 src_block->read_word(j*4, &src_word);
                 dst_block->read_word(j*4, &dst_word);
                 fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_word, dst_word);

@@ -15,6 +15,7 @@ SRC_URI =  "file://interpolate2x.cpp \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/phys-mman.h \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/phys-mman.cpp \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/PhysMem.h \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/argparse.hpp \
 		  "
 
 S = "${WORKDIR}"

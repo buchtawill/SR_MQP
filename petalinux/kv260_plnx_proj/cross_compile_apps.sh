@@ -10,7 +10,7 @@ else
 fi
 
 # APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test print-fb-info")
-APPS_LIST=("v4l-to-fb0-dma interpolate2x")
+APPS_LIST=("interpolate2x")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>
