@@ -26,3 +26,16 @@ Programming the FPGA:
         - cp <bitsream>.bit /lib/firmware 
 
     - echo system.bit > /sys/class/fpga_manager/fpga0/firmware
+
+    Using bootgen from vivado:
+     - Create a bif file containing the path to a bitstream:
+
+----- Start test_bif.bif -----
+all:
+{
+    C:/Users/bucht/OneDrive/Desktop/ubuntu_vm_shared/bitstreams/invert_fifo.bit
+}
+------ End test_bif.bif ------
+
+     - bootgen -arch zynqmp -image "<path to bif>" -process_bitstream bin
+     - petalinux@kv260> fpgautil -b <bitstream.bit.bin>
