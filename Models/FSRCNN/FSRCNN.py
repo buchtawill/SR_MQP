@@ -37,44 +37,56 @@ class FSRCNN(nn.Module):
         
         print("INFO [FSRCNN.py::__init__()] Num input channels:", self.input_channels)
         
-        # Feature extraction layer.
+        # Feature extraction layer
         self.feature_extraction = nn.Sequential(
-            nn.Conv2d(self.input_channels, mid_f_maps, (5, 5), (1, 1), (2, 2)),
+            nn.Conv2d(in_channels=self.input_channels, out_channels=mid_f_maps, 
+                      kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)),
             nn.PReLU(mid_f_maps)
         )
 
-        # Shrinking layer.
+        # Shrinking layer
         self.shrink = nn.Sequential(
-            nn.Conv2d(mid_f_maps, 12, (1, 1), (1, 1), (0, 0)),
+            nn.Conv2d(in_channels=mid_f_maps, out_channels=12, 
+                      kernel_size=(1, 1), stride=(1, 1), padding=(0, 0)),
             nn.PReLU(12)
         )
 
-        # Mapping layer.
+        # Mapping layer
         # 'm' mapping layers - paper uses 4 for best results
         self.map = nn.Sequential(
-            nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
+            nn.Conv2d(in_channels=12, out_channels=12, 
+                        kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.PReLU(12),
-            nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
+            nn.Conv2d(in_channels=12, out_channels=12, 
+                        kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.PReLU(12),
-            nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
+            nn.Conv2d(in_channels=12, out_channels=12, 
+                        kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.PReLU(12),
-            nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
+            nn.Conv2d(in_channels=12, out_channels=12, 
+                        kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.PReLU(12)
         )
 
-        # Expanding layer.
+        # Expanding layer
         self.expand = nn.Sequential(
-            nn.Conv2d(12, mid_f_maps, (1, 1), (1, 1), (0, 0)),
+            nn.Conv2d(in_channels=12, out_channels=mid_f_maps, 
+                      kernel_size=(1, 1), stride=(1, 1), padding=(0, 0)),
             nn.PReLU(mid_f_maps)
         )
 
-        # Deconvolution layer.
-        self.deconv = nn.ConvTranspose2d(mid_f_maps, self.input_channels, (9, 9), (upscale_factor, upscale_factor), (4, 4), (upscale_factor - 1, upscale_factor - 1))
+        # Deconvolution layer
+        # Output dimensionality is 3 for RGB, 1 for YUV; match the input
+        self.deconv = nn.ConvTranspose2d(in_channels=mid_f_maps, out_channels=self.input_channels, 
+                                         kernel_size=(9, 9), 
+                                         stride=(upscale_factor, upscale_factor), 
+                                         padding=(4, 4), 
+                                         output_padding=(upscale_factor - 1, upscale_factor - 1))
 
-        #nearest or bilinear
+        # Nearest or bilinear
         self.simple_upscale = nn.Upsample(scale_factor=upscale_factor, mode='nearest')
 
-        # Initialize model weights.
+        # Initialize model weights
         self._initialize_weights()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
