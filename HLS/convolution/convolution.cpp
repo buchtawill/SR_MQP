@@ -1,10 +1,10 @@
 #include "convolution.h"
 
 // Convolve the input matrix with the kernel matrix element-wise
-void convolution_top(hls::stream<axi_stream> &in_stream, hls::stream<axi_stream> &out_stream, hls::stream<axi_stream> &kernel_stream) {
+void convolution_top(hls::stream<axi_stream> &in_stream, hls::stream<axi_stream> &out_stream, hls::stream<axi_lite> &kernel_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
-    #pragma HLS INTERFACE axis port=kernel_stream
+    #pragma HLS INTERFACE s_axilite port=kernel_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
     // Declare input matrix, kernel, and output matrix for variable channels
@@ -31,7 +31,7 @@ void convolution_top(hls::stream<axi_stream> &in_stream, hls::stream<axi_stream>
         for (int j = 0; j < KERNEL_SIZE; j++) {
             for (int ch = 0; ch < NUM_CHANNELS; ch++) {
                 #pragma HLS PIPELINE II=1
-                axi_stream kernel_data = kernel_stream.read();
+                axi_lite kernel_data = kernel_stream.read();
                 kernel[i][j][ch] = kernel_data.data;
             }
         }

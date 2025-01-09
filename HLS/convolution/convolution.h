@@ -15,5 +15,11 @@ struct axi_stream {
     bool last;
 };
 
+// Define the AXI-Stream interface for input/output matrices
+struct axi_lite {
+    pixel_t data;
+    bool last;
+};
+
 //Function declarations
-void convolution_top(hls::stream<axi_stream> &in_stream, hls::stream<axi_stream> &out_stream, hls::stream<axi_stream> &kernel_stream);
+void convolution_top(hls::stream<axi_stream> &in_stream, hls::stream<axi_stream> &out_stream, hls::stream<axi_lite> &kernel_stream);

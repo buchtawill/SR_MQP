@@ -60,7 +60,7 @@ int main() {
     // Step 2: Initialize AXI-Stream interfaces
     hls::stream<axi_stream> in_stream;
     hls::stream<axi_stream> out_stream;
-    hls::stream<axi_stream> kernel_stream;
+    hls::stream<axi_lite> kernel_stream;
 
     // Feed the input matrix into in_stream
     for (int row = 0; row < MATRIX_SIZE; row++) {
@@ -78,7 +78,7 @@ int main() {
     for (int k_row = 0; k_row < KERNEL_SIZE; ++k_row) {
         for (int k_col = 0; k_col < KERNEL_SIZE; ++k_col) {
             for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
-                axi_stream kernel_data;
+                axi_lite kernel_data;
                 kernel_data.data = kernel[k_row][k_col][ch];
                 kernel_stream.write(kernel_data);
             }
