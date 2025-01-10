@@ -2,14 +2,14 @@
 
 // Testbench to validate the BilinearInterpolation function
 void testbench() {
-    hls::stream<axi_stream> in_stream;
-    hls::stream<axi_stream> out_stream;
+    hls::stream<axis_t> in_stream;
+    hls::stream<axis_t> out_stream;
 
     // Generate input image with a simple pattern
     for (int row = 0; row < HEIGHT_IN; row++) {
         for (int col = 0; col < WIDTH_IN; col++) {
             for (int ch = 0; ch < CHANNELS; ch++) {
-                axi_stream input_data;
+                axis_t input_data;
                 input_data.data = (row + col + ch) % 256;  // A simple test pattern
                 input_data.last = (row == HEIGHT_IN - 1 && col == WIDTH_IN - 1 && ch == CHANNELS - 1);
                 in_stream.write(input_data);
@@ -25,7 +25,7 @@ void testbench() {
     for (int row_out = 0; row_out < HEIGHT_OUT; row_out++) {
         for (int col_out = 0; col_out < WIDTH_OUT; col_out++) {
             for (int ch = 0; ch < CHANNELS; ch++) {
-                axi_stream output_data = out_stream.read();
+                axis_t output_data = out_stream.read();
 
                 // Calculate the expected value based on input
                 // Since the interpolation is not really applied yet, we are just checking direct mapping
