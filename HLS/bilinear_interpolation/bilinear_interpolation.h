@@ -15,7 +15,7 @@
 #define HEIGHT_OUT (HEIGHT_IN * SCALE_FACTOR)
 
 // Define pixel_t as an 8-bit unsigned integer (ap_uint<8> from HLS)
-typedef ap_uint<32> pixel_t; // 8-bit per channel for each pixel
+typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
 
 typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
 

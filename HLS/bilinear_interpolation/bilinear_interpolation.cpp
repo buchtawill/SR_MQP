@@ -7,13 +7,40 @@ void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][C
     // Perform Bilinear Interpolation
     for (int row_out = 0; row_out < HEIGHT_OUT; row_out++) {
         for (int col_out = 0; col_out < WIDTH_OUT; col_out++) {
-            // Calculate corresponding position in the input image
-            int row_in = row_out / SCALE_FACTOR;
-            int col_in = col_out / SCALE_FACTOR;
+            // Calculate corresponding position in the input image (floating point to allow interpolation)
+            float row_in = row_out / (float)SCALE_FACTOR;
+            float col_in = col_out / (float)SCALE_FACTOR;
 
-            // For simplicity, directly map input pixel to output pixel (refine with bilinear interpolation)
+            // Integer coordinates of the top-left pixel (floor values)
+            int x1 = (int)row_in;
+            int y1 = (int)col_in;
+
+            // Fractional part of the coordinates (to calculate interpolation weights)
+            float x_frac = row_in - x1;
+            float y_frac = col_in - y1;
+
+            // Clamping for boundary conditions (handling edges)
+            int x2 = (x1 + 1) < HEIGHT_IN ? x1 + 1 : x1;
+            int y2 = (y1 + 1) < WIDTH_IN ? y1 + 1 : y1;
+
+            // Interpolation for each channel (e.g., RGB)
             for (int ch = 0; ch < CHANNELS; ch++) {
-                image_out[row_out][col_out][ch] = image_in[row_in][col_in][ch];
+                // Interpolate horizontally first: between (x1, y1) and (x1, y2) for the top row,
+                // and between (x2, y1) and (x2, y2) for the bottom row.
+                float top_left = image_in[x1][y1][ch];
+                float top_right = image_in[x1][y2][ch];
+                float bottom_left = image_in[x2][y1][ch];
+                float bottom_right = image_in[x2][y2][ch];
+
+                // Perform bilinear interpolation in both horizontal and vertical directions
+                float top_interp = (1 - y_frac) * top_left + y_frac * top_right; // Horizontal interpolation for top row
+                float bottom_interp = (1 - y_frac) * bottom_left + y_frac * bottom_right; // Horizontal for bottom row
+
+                // Now perform vertical interpolation between top_interp and bottom_interp
+                float interpolated_value = (1 - x_frac) * top_interp + x_frac * bottom_interp;
+
+                // Assign the interpolated value to the output image (clamping to pixel range)
+                image_out[row_out][col_out][ch] = (pixel_t)(interpolated_value);
             }
         }
     }
