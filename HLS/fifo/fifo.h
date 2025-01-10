@@ -19,6 +19,7 @@ typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
 
 typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
 
+
 // Function declaration for the main bilinear interpolation function
 void fifo(hls::stream<axis_t> &in_stream,
                              hls::stream<axis_t> &out_stream);
@@ -26,4 +27,4 @@ void fifo(hls::stream<axis_t> &in_stream,
 // Testbench function declaration
 void testbench();
 
-#endif // FIFO_H
+#endif
