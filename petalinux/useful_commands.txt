@@ -37,5 +37,5 @@ all:
 }
 ------ End test_bif.bif ------
 
-     - bootgen -arch zynqmp -image "<path to bif>" -process_bitstream bin
+     - bootgen -arch zynqmp -image <path to bif> -process_bitstream bin
      - petalinux@kv260> fpgautil -b <bitstream.bit.bin>
