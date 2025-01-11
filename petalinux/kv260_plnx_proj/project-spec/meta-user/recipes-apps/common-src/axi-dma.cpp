@@ -398,6 +398,8 @@ int AXIDMA::self_test_dr(){
     // Write some random data to the source address, copy it to the dst address, and check if it's the same
     PhysMem* src_block = PMM.alloc(DMA_SELF_TEST_LEN);
     PhysMem* dst_block = PMM.alloc(DMA_SELF_TEST_LEN);
+    PhysMem* src_block2 = PMM.alloc(DMA_SELF_TEST_LEN);
+    PhysMem* dst_block2 = PMM.alloc(DMA_SELF_TEST_LEN);
 
     if(src_block == nullptr || dst_block == nullptr){
         printf("ERROR [AXIDMA::self_test()] PMM failed to allocate memory blocks\n");
@@ -409,6 +411,7 @@ int AXIDMA::self_test_dr(){
         src_block->write_word(i*4, (uint32_t)rand());
     }
 
+/*
     // printf("INFO [AXIDMA::self_test()] Status registers before transfer: \n");
     // this->print_status(MM2S_DMASR);
     // this->print_status(S2MM_DMASR);
@@ -446,6 +449,7 @@ int AXIDMA::self_test_dr(){
     }
 
     printf("INFO [AXIDMA::self_test()] transfer() self test passed!\n");
+*/
 
     //////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////
@@ -456,32 +460,65 @@ int AXIDMA::self_test_dr(){
     // The FIFO is 1024 x 32 bits
     // Test on 64 entries
     // Refill the source block with new random data
-    uint32_t individual_len = 64*4;
+    uint32_t individual_len = 2352; // = 1 tile of bytes
+    uint32_t bytes_per_row = 28*3;
     for(uint32_t i = 0; i < individual_len / 4; i++){
         // src_block->write_word(i*4, (uint32_t)rand());
         src_block->write_word(i*4, i);
+        src_block2->write_word(i*4, (uint32_t)rand());
     }
 
     // Clear the dest block
     for(uint32_t i = 0; i < individual_len / 4; i++){
         dst_block->write_word(i*4, 0);
+        dst_block2->write_word(i*4, 0);
     }
 
-    result = this->transfer_mm2s(src_block->get_phys_address(), individual_len, true);
-    if(result < 0){
-        printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
-        return -1;
+    // int result = this->transfer_mm2s(src_block->get_phys_address(), individual_len, true);
+    // if(result < 0){
+    //     printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
+    //     return -1;
+    // }
+
+    // result = this->transfer_s2mm(dst_block->get_phys_address(), individual_len, true);
+    // if(result < 0){
+    //     printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
+    //     return -1;
+    // }
+
+
+    // // do it again
+    // result = this->transfer_mm2s(src_block2->get_phys_address(), individual_len, true);
+    // if(result < 0){
+    //     printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
+    //     return -1;
+    // }
+
+    // result = this->transfer_s2mm(dst_block2->get_phys_address(), individual_len, true);
+    // if(result < 0){
+    //     printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
+    //     return -1;
+    // }
+
+    // Transfer 1 row at a time
+    for(int i = 0; i < 28; i++){
+        int result = this->transfer_mm2s(src_block->get_phys_address() + (bytes_per_row * i), bytes_per_row, true);
+        if(result < 0){
+            printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
+            return -1;
+        }
     }
 
-    result = this->transfer_s2mm(dst_block->get_phys_address(), individual_len, true);
-    if(result < 0){
-        printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
-        return -1;
+    for(int i = 0; i < 28; i++){
+        int result = this->transfer_s2mm(dst_block->get_phys_address()+(bytes_per_row * i), bytes_per_row, true);
+        if(result < 0){
+            printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
+            return -1;
+        }
     }
 
-
-    // Check if the data is the same
-    for(uint32_t i = 0; i < (individual_len + 16) / 4; i++){
+    // Check if the data is the same for src_block and dst_block
+    for(uint32_t i = 0; i < (individual_len) / 4; i++){
         // if(src_addr[i] != dst_addr[i]){
         uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
         src_block->read_word(i*4, &src_word);
@@ -491,26 +528,39 @@ int AXIDMA::self_test_dr(){
                 i,
                 src_word, 
                 dst_word);
-            printf("Dumping memory contents to error_log.txt\n");
-            FILE *fp = fopen("error_log.txt", "w");
-            if(fp == NULL){
-                printf("ERROR [AXIDMA::self_test()] Failed to open error_log.txt\n");
-                return -1;
-            }
-            for(uint32_t j = 0; j < (individual_len + 16) / 4; j++){
-                src_block->read_word(j*4, &src_word);
-                dst_block->read_word(j*4, &dst_word);
-                fprintf(fp, "%08d: SRC: 0x%08X    DST: 0x%08X\n", j, src_word, dst_word);
-            }
-            fclose(fp);
+            PMM.free(src_block);
+            PMM.free(dst_block);
+            PMM.free(src_block2);
+            PMM.free(dst_block2);
             return -1;
         }
     }
+
+    // Do the same thing for src_block2 and dst_block2
+    // for(uint32_t i = 0; i < (individual_len) / 4; i++){
+    //     // if(src_addr[i] != dst_addr[i]){
+    //     uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
+    //     src_block2->read_word(i*4, &src_word);
+    //     dst_block2->read_word(i*4, &dst_word);
+    //     if(src_word != dst_word){
+    //         printf("ERROR [AXIDMA::self_test()] Self test failed on 2nd attempt. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
+    //             i,
+    //             src_word, 
+    //             dst_word);
+    //         PMM.free(src_block);
+    //         PMM.free(dst_block);
+    //         PMM.free(src_block2);
+    //         PMM.free(dst_block2);
+    //         return -1;
+    //     }
+    // }
 
     printf("INFO [AXIDMA::self_test()] transfer_mm2s and transfer_s2mm self test passed!\n");
 
     PMM.free(src_block);
     PMM.free(dst_block);
+    PMM.free(src_block2);
+    PMM.free(dst_block2);
     return 0;
 }
 #else // We're in scatter-gather mode
