@@ -1,5 +1,5 @@
-#ifndef BILINEAR_INTERPOLATION_H
-#define BILINEAR_INTERPOLATION_H
+#ifndef FIFO_H
+#define FIFO_H
 
 #include <hls_stream.h>
 #include <ap_int.h>
@@ -19,22 +19,12 @@ typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
 
 typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
 
-/*
-// Define the AXI-stream interface for input and output
-struct axi_stream {
-    pixel_t data;  // Data representing a pixel value
-    bool last;     // To indicate the last element in the stream
-}; */
-
-// Function declaration for Bilinear Interpolation calculations
-void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][CHANNELS],
-                                         pixel_t image_out[HEIGHT_OUT][WIDTH_OUT][CHANNELS]);
 
 // Function declaration for the main bilinear interpolation function
-void bilinear_interpolation(hls::stream<axis_t> &in_stream,
+void fifo(hls::stream<axis_t> &in_stream,
                              hls::stream<axis_t> &out_stream);
 
 // Testbench function declaration
 void testbench();
 
-#endif // BILINEAR_INTERPOLATION_H
+#endif
