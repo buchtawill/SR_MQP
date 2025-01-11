@@ -14,8 +14,8 @@
 
 
 // Define pixel_t as an 8-bit unsigned integer
-typedef ap_uint<BITS_PER_PIXEL> pixel_t; // 8-bit per channel for each pixel
-typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
+typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
+typedef ap_uint<32> data_streamed;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
