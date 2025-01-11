@@ -17,25 +17,24 @@ void fifo(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     int row = 0, col = 0, ch = 0;
 
     while (!in_stream.empty()) {
-        #pragma HLS PIPELINE II=1
-        axis_t input_data = in_stream.read(); // Read data from the stream
+		#pragma HLS PIPELINE II=1
+		axis_t input_data = in_stream.read(); // Read data from the stream
+			// Store the data in the buffer
+			image_in[row][col][ch] = (int)input_data.data;
 
-        // Store the data in the buffer
-        image_in[row][col][ch] = input_data.data;
-
-        // Increment indices
-        ch++;
-        if (ch == CHANNELS) {
-            ch = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-                if (row == HEIGHT_IN) {
-                    break; // Stop reading when the buffer is filled
-                }
-            }
-        }
+			// Increment indices
+			ch++;
+			if (ch == CHANNELS) {
+				ch = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+					if (row == HEIGHT_IN) {
+						break; // Stop reading when the buffer is filled
+					}
+				}
+			}
     }
 
     // Step 2: Write the values from the buffer back to the stream
@@ -45,7 +44,7 @@ void fifo(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
                 #pragma HLS PIPELINE II=1
                 axis_t output_data;
                 output_data.data = image_in[row_out][col_out][ch_out]; // Read data from the buffer
-                output_data.last = (row_out == HEIGHT_IN - 1 && col_out == WIDTH_IN - 1 && ch_out == CHANNELS - 1); // Indicate last value
+                output_data.last = (col_out == WIDTH_IN - 1 && ch_out == CHANNELS - 1); // Indicate last value in row
                 out_stream.write(output_data); // Write data to the output stream
             }
         }

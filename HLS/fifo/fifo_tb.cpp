@@ -14,6 +14,8 @@ int main() {
                 axis_t input_data;
                 input_data.data = row + col + ch; // Example: simple pattern for testing
                 input_data.last = (row == HEIGHT_IN - 1 && col == WIDTH_IN - 1 && ch == CHANNELS - 1);
+                input_data.keep = 1;
+                input_data.strb = 1;
                 in_stream.write(input_data);
             }
         }
