@@ -31,6 +31,7 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
         i++;
     }
 
+    //transfer values from array
     for(int j = 0; j < NUM_TRANSFERS; j++){
         axis_t output_data;
 
@@ -48,5 +49,10 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
 
         // Write data to output stream
         out_stream.write(output_data);
+    }
+
+    //reset array
+    for(int j = 0; j < NUM_TRANSFERS; j++){
+    	input_data_stored[j] = 0;
     }
 }
