@@ -5,6 +5,8 @@
 #include <ap_int.h>
 #include <ap_axi_sdata.h>
 
+#define BYTES_TRANSFERRED 16
+
 // Define pixel_t as an 8-bit unsigned integer
 typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
 
