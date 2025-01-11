@@ -12,10 +12,10 @@ int main() {
     // Define the number of test values
     //const int TEST_SIZE = 16;
 
-    bytes_streamed test_data[NUM_TRANSFERS];
+    data_streamed test_data[NUM_TRANSFERS];
 
     for(int i = 0; i < NUM_TRANSFERS; i++){
-    	bytes_streamed temp = rand() % 256;
+    	data_streamed temp = rand() % 256;
     	test_data[i] = temp;
     }
 
@@ -27,10 +27,12 @@ int main() {
 
     // Fill the input stream with test data
     for (int i = 0; i < NUM_TRANSFERS; i++) {
-        axis_t input_element;
-        input_element.data = test_data[i];
-        input_element.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-        in_stream.write(input_element);
+        axis_t input_stream;
+        input_stream.data = test_data[i];
+        input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
+        input_stream.keep = 0xf;
+        input_stream.strb = 0xf;
+        in_stream.write(input_stream);
     }
 
 
@@ -57,12 +59,21 @@ int main() {
         	success = true;
         }
 
+        if(output_element.keep != 0xf || output_element.strb != 0xf){
+        	success = false;
+        	std:: cout << "keep or strb wrong";
+        	break;
+        }
+
+
         if(i < (NUM_TRANSFERS - 1) && output_element.last == true){
         	success = false;
+        	std::cout << "last triggered before end\n";
         	break;
         }
         else if(i == (NUM_TRANSFERS - 1) && output_element.last == false){
         	success = false;
+        	std::cout << "last not triggered at end\n";
         	break;
         }
 

@@ -6,32 +6,45 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
-	axis_t input_stored[NUM_TRANSFERS];
+	data_streamed input_data_stored[NUM_TRANSFERS];
+	//bool input_last_stored[NUM_TRANSFERS];
+	//ap_uint<BITS_PER_PIXEL / 8> input_keep_stored[NUM_TRANSFERS];
+
 
 	int i = 0;
     // Process each input element
     while (!in_stream.empty()) {
 
+    	//backup if more transfers than wanted are transferred
         if(i == NUM_TRANSFERS){
         	break;
         }
 
         #pragma HLS PIPELINE II=1
+
         // Read data from input stream
         axis_t input_data = in_stream.read();
-        input_stored[i] = input_data;
+        input_data_stored[i] = input_data.data;
+        //input_last_stored[i] = input_data.last;
+        //input_keep_stored[i] = input_data.keep;
 
         i++;
     }
 
     for(int j = 0; j < NUM_TRANSFERS; j++){
-        axis_t output_data = input_stored[j];
+        axis_t output_data;
 
-        /*
-        output_data.data = input_data.data;
-        output_data.last = input_data.last;
-        output_data.keep = 1;
-        output_data.strb = 1; */
+        output_data.data = input_data_stored[j];
+        output_data.keep = 0xf;
+        output_data.strb = 0xf;
+
+        if(j == (NUM_TRANSFERS - 1)){
+        	output_data.last = 1;
+        }
+        else{
+        	output_data.last = 0;
+        }
+
 
         // Write data to output stream
         out_stream.write(output_data);
