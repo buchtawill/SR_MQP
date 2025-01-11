@@ -1,6 +1,6 @@
-#include "fifo.h"
+#include "fifo_32.h"
 
-void fifo(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+void fifo_32(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -16,27 +16,34 @@ void fifo(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     // Step 1: Read input values from the stream and store them in the buffer
     int row = 0, col = 0, ch = 0;
 
-    while (!in_stream.empty()) {
-        #pragma HLS PIPELINE II=1
-        axis_t input_data = in_stream.read(); // Read data from the stream
+	while (!in_stream.empty()) {
+		#pragma HLS PIPELINE II=1
+		axis_t input_data = in_stream.read(); // Read data from the stream
+		std::cerr << "Reading from stream: " << (int)input_data.data << std::endl;
 
-        // Store the data in the buffer
-        image_in[row][col][ch] = input_data.data;
+		// Unpack 4 pixels from the 32-bit input_data.data
+		for (int i = 0; i < 4; i++) {
+			pixel_t pixel = (input_data.data >> (i * 8)) & 0xFF;
+			image_in[row][col][ch] = pixel;
 
-        // Increment indices
-        ch++;
-        if (ch == CHANNELS) {
-            ch = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-                if (row == HEIGHT_IN) {
-                    break; // Stop reading when the buffer is filled
-                }
-            }
-        }
-    }
+			std::cerr << "Data subset: " << (int)pixel << std::endl;
+
+			// Increment indices
+			ch++;
+			if (ch == CHANNELS) {
+				ch = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+					if (row == HEIGHT_IN) {
+						break; // Stop reading when the buffer is filled
+						std::cerr << "Breaking " << std::endl;
+					}
+				}
+			}
+		}
+	}
 
     // Step 2: Write the values from the buffer back to the stream
     for (int row_out = 0; row_out < HEIGHT_IN; row_out++) {

@@ -22,8 +22,8 @@ typedef ap_uint<32> stream_t;
 typedef hls::axis<stream_t, 0, 0, 0> axis_t;
 
 // Function declaration for the main bilinear interpolation function
-void fifo(hls::stream<axis_t> &in_stream,
-                             hls::stream<axis_t> &out_stream);
+void fifo_32(hls::stream<axis_t> &in_stream,
+             hls::stream<axis_t> &out_stream);
 
 // Testbench function declaration
 void testbench();
