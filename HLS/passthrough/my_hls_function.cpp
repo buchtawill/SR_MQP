@@ -15,7 +15,7 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
 
         // Read data from input stream
         axis_t input_data = in_stream.read();
-        if(i < 16){
+        if(i < BYTES_TRANSFERRED){
         	data_stored[i] = input_data;
         }
 

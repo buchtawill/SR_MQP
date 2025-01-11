@@ -39,6 +39,7 @@ int main() {
 
     // Check the output stream
     bool success = false;
+    int num_correct = 0;
     for (int i = 0; i < BYTES_TRANSFERRED; i++) {
         // Read the output stream
         axis_t output_element = out_stream.read();
@@ -52,6 +53,7 @@ int main() {
         }
         else {
         	success = true;
+        	num_correct++;
         }
 
     }
@@ -59,6 +61,7 @@ int main() {
     // Final result
     if (success) {
         std::cout << "Test Passed: All output data matches input data.\n";
+        std::cout << "Number of matches: " << num_correct << "\n";
     } else {
         std::cout << "Test Failed: Output data does not match input data.\n";
     }
