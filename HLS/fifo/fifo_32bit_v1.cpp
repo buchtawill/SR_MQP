@@ -37,28 +37,33 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
         i++;
     }
 
-    //transfer values from array
-    for(int j = 0; j < NUM_TRANSFERS; j++){
-        axis_t output_data = input_stored[j];
+    //once all the data has been read in
+    if(i >= (NUM_TRANSFERS - 1)){
 
-        /*
-        output_data.data = input_data_stored[j];
-        output_data.last = input_last_stored[j];
-        output_data.keep = input_keep_stored[j];
-        output_data.strb = input_keep_stored[j]; */
+        //transfer values from array
+        for(int j = 0; j < NUM_TRANSFERS; j++){
+            axis_t output_data = input_stored[j];
 
-        /*
-        if(j == (NUM_TRANSFERS - 1)){
-        	output_data.last = 1;
+            /*
+            output_data.data = input_data_stored[j];
+            output_data.last = input_last_stored[j];
+            output_data.keep = input_keep_stored[j];
+            output_data.strb = input_keep_stored[j]; */
+
+            /*
+            if(j == (NUM_TRANSFERS - 1)){
+            	output_data.last = 1;
+            }
+            else{
+            	output_data.last = 0;
+            } */
+
+
+            // Write data to output stream
+            out_stream.write(output_data);
         }
-        else{
-        	output_data.last = 0;
-        } */
-
-
-        // Write data to output stream
-        out_stream.write(output_data);
     }
+
 
     //reset array
     /*
