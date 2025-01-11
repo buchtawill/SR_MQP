@@ -6,20 +6,24 @@ void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_st
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
+	axis_t data_stored[16];
+
+	int i = 0;
     // Process each input element
     while (!in_stream.empty()) {
         #pragma HLS PIPELINE II=1
 
         // Read data from input stream
         axis_t input_data = in_stream.read();
+        if(i < 16){
+        	data_stored[i] = input_data;
+        }
 
-        axis_t output_data;
-        output_data.data = input_data.data;
-        output_data.last = 1;
-        output_data.keep = 1;
-        output_data.strb = 1;
+        i++;
+    }
 
-        // Write data to output stream
-        out_stream.write(output_data);
+
+    for(int j = 0; j < 16; j++){
+    	out_stream.write(data_stored[j]);
     }
 }
