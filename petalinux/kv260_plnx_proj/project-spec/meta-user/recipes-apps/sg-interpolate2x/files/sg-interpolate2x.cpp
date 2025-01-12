@@ -15,9 +15,14 @@ This thing is going to be so ungodly slow, but it is just a prototype. The main 
 Steps 2, 4, 5, and 6 will all be deleted eventually
 
 Author: Will Buchta
-Date Modified: 12/26/2024
+Date Modified: 1/11/2025
 
 */
+// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h or any headers that include it
+// #define DMA_SG_MODE 1
+// #ifdef DMA_DIRECT_REG_MODE
+// #undef DMA_DIRECT_REG_MODE
+// #endif
 
 #include <stdio.h>
 #include <unistd.h>
@@ -40,8 +45,6 @@ Date Modified: 12/26/2024
 #include "phys-mman.h"
 #include "PhysMem.h"
 
-// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h
-#define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
 #include "argparse.hpp"
@@ -558,7 +561,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    // Initialize the output buffer
+    // Initialize the output buffer to cyan
     for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
@@ -593,11 +596,7 @@ int main(int argc, char *argv[]){
         //  - Receive the tile in the interp_888 buffer / PMM block
         // Move to framebuffer, converting to RGB565 on the way
 
-        // yuyv_to_rgb888((uint8_t*)(resources.vid_mem_block->get_mem_ptr()), 
-        //                (uint8_t*)(resources.input888_block->get_mem_ptr()), 
-        //                INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-
-        // Temporary workaround for V4L2 DMA buffer
+        // Temporary workaround for V4L2 DMA buffer. vid mem is NOT a PhysMem object
         yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr), 
                        (uint8_t*)(resources.input888_block->get_mem_ptr()), 
                        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
@@ -606,6 +605,7 @@ int main(int argc, char *argv[]){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
 
                 // Calculate physical addresses for each row of the tile
+                // Set the BD rings appropriately
                 // Send the tile down to the PL for interpolation
                 // Calculate destination addresses for each row of the tile
                 // Receive the tile in the interp_888 buffer / PMM block
@@ -618,31 +618,6 @@ int main(int argc, char *argv[]){
                 // In the future, this will happen concurrently with the PL interpolation
                 compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3);
 
-                // Send pixels from input RGB888 buffer to the PL for interpolation
-                for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
-                    int result = dma1.transfer_mm2s(tile.src_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
-                    if(result < 0) {
-                        dma1.print_debug_info();
-                        die_with_error("ERROR [sg-interpolate2x] Error transferring data to PL ", nullptr, &resources);
-                    }
-                }
-
-                // Receive pixels from the PL and store them in the interp888 buffer
-                for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
-                    int result = dma1.transfer_s2mm(tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * UPSCALE_FACTOR * 3, true);
-                    if(result < 0) {
-                        dma1.print_debug_info();
-                        die_with_error("ERROR [sg-interpolate2x] Error transferring data from PL ", nullptr, &resources);
-                    }
-                }
-
-                // for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
-                //     int result = dma1.transfer(tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
-                //     if(result < 0) {
-                //         dma1.print_debug_info();
-                //         die_with_error("ERROR [sg-interpolate2x] Error transferring DMA", nullptr, &resources);
-                //     }
-                // }
 
                 // Set a pixel at the top left corner of the tile to red
                 if(parser["--dots"] == true){

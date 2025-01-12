@@ -97,7 +97,7 @@ int PhysMman::self_test(){
 #endif
 
 
-PhysMem* PhysMman::alloc(size_t num_bytes){
+PhysMem* PhysMman::alloc(size_t num_bytes, bool clear){
 
     if(!initialized){
         printf("ERROR [PhysMman::alloc()] PhysMman not initialized\n");
@@ -148,6 +148,10 @@ PhysMem* PhysMman::alloc(size_t num_bytes){
     // Cast the mem base pointer to uint8_t, add the offset, then cast back to volatile void*
     // base_ptr is already mapped into the process
     volatile void* base_ptr = (volatile void*)((uint8_t*)(this->mem_base_ptr) + (PHYS_MMAN_CHUNK_SIZE * first_chunk));
+
+    if(clear){
+        memset((void*)base_ptr, 0, actual_allocated);
+    }
 
     // Create an ID for the physical memory object
     uint32_t id = this->next_id;

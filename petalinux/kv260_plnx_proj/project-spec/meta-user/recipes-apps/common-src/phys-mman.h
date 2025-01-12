@@ -36,7 +36,7 @@
 #define PMM_RSVD_MEM_SIZE       ((uint32_t)0x08000000)
 
 // All PhysMem blocks will be aligned to CHUNK_SIZE byte boundary
-#define PHYS_MMAN_CHUNK_SIZE    256
+#define PHYS_MMAN_CHUNK_SIZE    128
 #define PHYS_MMAN_NUM_CHUNKS    (PMM_RSVD_MEM_SIZE / PHYS_MMAN_CHUNK_SIZE)
 
 #define PLATFORM_HAS_RSVD_MEM 1 // For running on kv260
@@ -124,9 +124,10 @@ public:
     /**
      * Create a new memory block of size num_bytes. The memory will be allocated from the kernel reserved memory
      * @param num_bytes Size of the memory block in bytes
+     * @param clear Whether or not to clear the memory block
      * @return Pointer to the allocated memory block, or nullptr on error
      */
-    PhysMem* alloc(size_t num_bytes);
+    PhysMem* alloc(size_t num_bytes, bool clear = false);
 
     /**
      * Create a PhysMem instance that points to the specified physical address and is of size num_bytes.

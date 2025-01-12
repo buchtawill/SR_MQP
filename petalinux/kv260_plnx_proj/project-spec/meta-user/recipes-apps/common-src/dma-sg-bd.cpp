@@ -12,7 +12,7 @@ uint32_t s2mm_bd_idx_to_addr(uint32_t index){
     return DMA_BDR_S2MM_BASE + (index * sizeof(DMA_SG_BD));
 }
 
-void set_buffer_length(volatile DMA_SG_BD *bd, uint32_t len){
+void set_buffer_length(BD_PTR bd, uint32_t len){
     // Set the buffer length in the control register by RMW'ing it
 
     uint32_t temp = bd->control;
@@ -21,7 +21,7 @@ void set_buffer_length(volatile DMA_SG_BD *bd, uint32_t len){
     bd->control = temp;
 }
 
-void set_txsof_bit(volatile DMA_SG_BD *bd, uint32_t val){
+void set_sof_bit(BD_PTR bd, uint32_t val){
     // Bit 27 of control register
     uint32_t temp = bd->control;
     temp &= ~BIT27;
@@ -29,7 +29,7 @@ void set_txsof_bit(volatile DMA_SG_BD *bd, uint32_t val){
     bd->control = temp;
 }
 
-void set_txeof_bit(volatile DMA_SG_BD *bd, uint32_t val){
+void set_eof_bit(BD_PTR bd, uint32_t val){
     // Bit 26 of control register
     uint32_t temp = bd->control;
     temp &= ~BIT26;
@@ -37,17 +37,24 @@ void set_txeof_bit(volatile DMA_SG_BD *bd, uint32_t val){
     bd->control = temp;
 }
 
-uint32_t get_bd_cmplt_bit(volatile DMA_SG_BD *bd){
+uint32_t get_bd_cmplt_bit(BD_PTR bd){
     uint32_t temp = bd->status;
     temp &= BIT31;
     if(temp == BIT31) return 1;
     else              return 0;
 }
 
-uint32_t get_transferred_bytes(volatile DMA_SG_BD *bd){
+uint32_t get_transferred_bytes(BD_PTR bd){
 
     // Lower 26 bits of register
     return bd->status & 0x03FFFFFF;
+}
+
+void clear_cmplt_bit(BD_PTR bd){
+    // Clear the cmplt bit in the status register
+    uint32_t temp = bd->status;
+    temp &= ~BIT31;
+    bd->status = temp;
 }
 
 #endif // DMA_SG_MODE

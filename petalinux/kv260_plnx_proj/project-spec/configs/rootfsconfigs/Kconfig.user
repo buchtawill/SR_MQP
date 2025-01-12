@@ -15,6 +15,10 @@ config print-fb-info
 	 bool "print-fb-info"
 	 help
 	
+config sg-interpolate2x  
+	 bool "sg-interpolate2x"
+	 help
+	
 config v4l-to-fb0-aligned  
 	 bool "v4l-to-fb0-aligned"
 	 help
