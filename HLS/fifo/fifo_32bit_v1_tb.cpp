@@ -1,5 +1,5 @@
 #include <iostream>
-#include "my_hls_function.h"
+#include "fifo_32bit_v1.h"
 #include <cstdlib>
 
 
@@ -37,7 +37,7 @@ int main() {
 
 
     // Call the HLS function
-    my_hls_function(in_stream, out_stream);
+    fifo_32bit_v1(in_stream, out_stream);
 
     // Check the output stream
     bool success = false;

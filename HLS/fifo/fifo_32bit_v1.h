@@ -20,6 +20,6 @@ typedef ap_uint<32> data_streamed;
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
 
-void my_hls_function(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
+void fifo_32bit_v1(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
 #endif
