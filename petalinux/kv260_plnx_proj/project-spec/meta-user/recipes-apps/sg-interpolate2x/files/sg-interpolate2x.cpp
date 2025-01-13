@@ -18,11 +18,6 @@ Author: Will Buchta
 Date Modified: 1/11/2025
 
 */
-// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h or any headers that include it
-// #define DMA_SG_MODE 1
-// #ifdef DMA_DIRECT_REG_MODE
-// #undef DMA_DIRECT_REG_MODE
-// #endif
 
 #include <stdio.h>
 #include <unistd.h>
@@ -46,6 +41,7 @@ Date Modified: 1/11/2025
 #include "PhysMem.h"
 
 #include "axi-dma.h"
+#include "dma-sg-bd.h"
 
 #include "argparse.hpp"
 
@@ -161,20 +157,6 @@ void die_with_error(const char* error_msg, const char* err_str, Resources* res){
 
     cleanup_resources(res);
     exit(-1);
-}
-
-void print_mem(void *virtual_address, int byte_count){
-	char *data_ptr = (char*)virtual_address;
-
-	for(int i=0;i<byte_count;i++){
-		printf("%02X", data_ptr[i]);
-
-		// print a space every 4 bytes (0 indexed)
-		if(i%4==3){
-			printf(" ");
-		}
-	}
-	printf("\n");
 }
 
 void sigint_handler(int sig){
@@ -389,16 +371,18 @@ void setup_framebuffer(Resources *p_res){
 
 /**
  * Compute the source address of every row in a TileInfo struct given the coordinates of the tile and PhysMem buffer.
+ * Additionally, program the buffer descriptors for the MM2S channel and reset their complete bit.
  * If the given coordinates end up with the tile being out of bounds, the tile will be shifted to the left or up,
  * overlapping some with the previous tile.
  * @param src_block Pointer to the PhysMem object containing the source image
- * @param tile Pointer to the TileInfo struct
- * @param xres The width of the source image
- * @param yres The height of the source image
+ * @param tile Pointer to the TileInfo struct containing tile x and y coordinates
+ * @param xres The width of the source image in pixels
+ * @param yres The height of the source image in pixels
  * @param bytes_pp The number of bytes per pixel in the source image
+ * @param mm2s_bds Pointer to the MM2S buffer descriptor array to be programmed
  * @return None
  */
-void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp){
+void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp, PhysMem** mm2s_bds){
 
     // Compute pixel coordinates of top left corner of tile
     uint32_t pixel_x = tile->tile_x * TILE_WIDTH_PIX;
@@ -423,19 +407,24 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
         tile->src_row_offset[row] = tile_start_offset + row_offset;
 
         tile->src_row_phys_addr[row] = tile->src_row_offset[row] + src_block->get_phys_address();
+
+        ((BD_PTR)(mm2s_bds[row]->get_mem_ptr()))->buffer_address = tile->src_row_phys_addr[row];
+        clear_cmplt_bit((BD_PTR)(mm2s_bds[row]->get_mem_ptr()));
     }
 }
 
 /**
- * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer.
+ * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer. Additionally,
+ * program DMA buffer descriptors for the S2MM channel and reset their complete bit.
  * The user MUST call compute_tile_src_addr before calling this function.
  * @param tile Pointer to the TileInfo struct - Must have source offsets populated by first calling compute_tile_src_offsets
  * @param xres_in The width of the source image
  * @param upscale_factor The factor by which the image is being upscaled
  * @param bytes_pp The number of bytes per pixel in the source image
+ * @param s2mm_bds Pointer to the S2MM buffer descriptor array to be programmed
  * @return None
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp){
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
@@ -448,7 +437,80 @@ void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in,
         tile->dst_row_offset[row] = tile_start_offset + row_offset;
 
         tile->dst_row_phys_addr[row] = tile->dst_row_offset[row] + dst_block->get_phys_address();
+    
+        ((BD_PTR)(s2mm_bds[row]->get_mem_ptr()))->buffer_address = tile->dst_row_phys_addr[row];
+        clear_cmplt_bit((BD_PTR)(s2mm_bds[row]->get_mem_ptr()));
     }
+}
+
+/**
+ * Initialize buffer descriptor chains for the MM2S and S2MM channels
+ * @param mm2s Pointer to the MM2S buffer descriptor array
+ * @param s2mm Pointer to the S2MM buffer descriptor array
+ * @param mm2s_size The number of MM2S buffer descriptors
+ * @param upscale_factor The factor by which the image is being upscaled
+ * @param bytes_pp_in The number of bytes per pixel in the source image
+ * @param bytes_pp_out The number of bytes per pixel in the destination image after passing thru HW
+ * @return 0 on success, -1 on failure
+ */
+int init_buffer_descriptors(PhysMem **mm2s, PhysMem **s2mm, uint32_t mm2s_size, uint32_t upscale_factor, uint8_t bytes_pp_in, uint8_t bytes_pp_out){
+
+    // Allocate physical memory for the buffer descriptors
+    for(uint32_t i = 0; i < mm2s_size; i++){
+        mm2s[i] = PMM.alloc(SG_BD_SIZE_BYTES);
+
+        if(mm2s[i] == nullptr){
+            printf("ERROR [sg-interpolate2x::init_buffer_descriptors()] Failed to allocate mm2s buffer descriptor\n");
+            return -1;
+        }
+        memset((void*)mm2s[i]->get_mem_ptr(), 0, SG_BD_SIZE_BYTES);
+    }
+
+    for(uint32_t i = 0; i < (mm2s_size * upscale_factor); i++){
+        s2mm[i] = PMM.alloc(SG_BD_SIZE_BYTES);
+
+        if(s2mm[i] == nullptr){
+            printf("ERROR [sg-interpolate2x::init_buffer_descriptors()] Failed to allocate s2mm buffer descriptor\n");
+            return -1;
+        }
+        memset((void*)s2mm[i]->get_mem_ptr(), 0, SG_BD_SIZE_BYTES);
+    }
+
+    // Program mm2s to be linked lists
+    // Set the SOF bit for the first BD
+    // Set the buffer lengths
+    // Set the next desc ptr and index
+    // Set the EOF bit for the last BD
+    set_sof_bit(((BD_PTR)mm2s[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < mm2s_size - 1; i++){
+        BD_PTR current_bd = (BD_PTR)(mm2s[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, TILE_WIDTH_PIX * bytes_pp_in);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = mm2s[i+1]->get_phys_address();
+    }
+    BD_PTR last_mm2s = (BD_PTR)(mm2s[mm2s_size - 1]->get_mem_ptr());
+    set_eof_bit(last_mm2s, 1);
+    set_buffer_length(last_mm2s, TILE_WIDTH_PIX * bytes_pp_in);
+    last_mm2s->next_desc_ptr = mm2s[0]->get_phys_address();
+    last_mm2s->next_desc_index = 0;
+
+    // Same for s2mm
+    set_sof_bit(((BD_PTR)s2mm[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < (mm2s_size * upscale_factor) - 1; i++){
+        BD_PTR current_bd = (BD_PTR)(s2mm[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, TILE_WIDTH_PIX * upscale_factor * bytes_pp_out);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = s2mm[i+1]->get_phys_address();
+    }
+    BD_PTR last_s2mm = (BD_PTR)(s2mm[(mm2s_size * upscale_factor) - 1]->get_mem_ptr());
+    set_eof_bit(last_s2mm, 1);
+    set_buffer_length(last_s2mm, TILE_WIDTH_PIX * upscale_factor * bytes_pp_out);
+    last_s2mm->next_desc_ptr = s2mm[0]->get_phys_address();
+    last_s2mm->next_desc_index = 0;
+
+    return 0;
 }
 
 void draw_dots(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
@@ -567,7 +629,6 @@ int main(int argc, char *argv[]){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
     }
-    printf("INFO [sg-interpolate2x] Starting video output\n");
     
     uint32_t frame_loop_count = 0;
     unsigned long start_jiffies = get_jiffies();
@@ -580,6 +641,16 @@ int main(int argc, char *argv[]){
     if((INPUT_VIDEO_HEIGHT % TILE_HEIGHT_PIX) != 0) num_vert_tiles++;
     if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
 
+    // Initialize scatter gather buffer descriptors for tiles
+    PhysMem* mm2s_bds[TILE_HEIGHT_PIX];
+    PhysMem* s2mm_bds[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
+    if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 3, 3) < 0){
+        die_with_error("ERROR [sg-interpolate2x] Failed to initialize buffer descriptors\n", nullptr, &resources);
+    }
+    BD_PTR last_mm2s_bd = (BD_PTR)(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_mem_ptr());
+    BD_PTR last_s2mm_bd = (BD_PTR)(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_mem_ptr());
+
+    printf("INFO [sg-interpolate2x] Starting video output\n");
     while(!die_flag){
         
         // Capture a frame
@@ -612,12 +683,29 @@ int main(int argc, char *argv[]){
 
                 tile.tile_x = tx;
                 tile.tile_y = ty;
-                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3);
+                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds);
+
+                // dma1.halt_mm2s();
+                dma1.set_mm2s_curdesc(mm2s_bds[0]->get_phys_address());
+                dma1.start_mm2s();
+                dma1.set_mm2s_taildesc(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_phys_address());
+                // dma1.print_status(MM2S_DMASR);
+                if(dma1.poll_bd_cmplt(last_mm2s_bd) < 0){
+                    die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer failed\n", nullptr, &resources);
+                }
 
                 // Calculate destination addresses for each row of the tile
                 // In the future, this will happen concurrently with the PL interpolation
-                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3);
+                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
+                // dma1.halt_s2mm();
+                dma1.set_s2mm_curdesc(s2mm_bds[0]->get_phys_address());
+                dma1.start_s2mm();
+                dma1.set_s2mm_taildesc(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_phys_address());
+                // dma1.print_status(S2MM_DMASR);
+                if(dma1.poll_bd_cmplt(last_s2mm_bd) < 0){
+                    die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer failed\n", nullptr, &resources);
+                }
 
                 // Set a pixel at the top left corner of the tile to red
                 if(parser["--dots"] == true){
@@ -626,6 +714,8 @@ int main(int argc, char *argv[]){
                 else if(parser["--lines"] == true){
                     draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
                 }
+
+                // die_with_error("INFO [sg-interpolate2x] Exiting early\n", nullptr, &resources);
             }
         }
 

@@ -37,6 +37,9 @@ int AXIDMA::initialize(){
 	}
 
     this->reset_dma();
+    this->halt_mm2s();
+    this->halt_s2mm();
+    this->enable_all_intr();
 
     return 0;
 }

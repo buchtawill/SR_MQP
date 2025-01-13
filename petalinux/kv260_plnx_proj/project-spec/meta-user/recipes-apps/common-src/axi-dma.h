@@ -249,27 +249,53 @@ public:
     #else // Scatter gather mode
 
     /**
-     * Reset the s2mm BD ring, creating a ring that has num_bds buffer descriptors. 
-     * TODO: Right now, this resets all BD memory. In the future, have it return a new set of buffer descriptors
-     * The ring will start at index 0 and end at index num_bds - 1
-     * This function will set the next desc addresses and RXSOF/RXEOF appropriately. 
+     * Set the current descriptor pointer for the MM2S channel
+     * @param addr Physical address of the current descriptor
      */
-    void create_s2mm_bd_ring(int num_bds);
+    void set_mm2s_curdesc(uint32_t addr){
+        write_dma(MM2S_CURDESC, addr);
+    } 
 
     /**
-     * Reset the mm2s BD ring, creating a ring that has num_bds buffer descriptors. 
-     * TODO: Right now, this resets all BD memory. In the future, have it return a new set of buffer descriptors
-     * The ring will start at index 0 and end at index num_bds - 1
-     * This function will set the next desc addresses and SOF/EOF appropriately. 
+     * Set the tail descriptor pointer for the MM2S channel
+     * @param addr Physical address of the tail descriptor
      */
-    void create_mm2s_bd_ring(int num_bds);
+    void set_mm2s_taildesc(uint32_t addr){
+        write_dma(MM2S_TAILDESC, addr);
+    }
 
     /**
-     * Start a transfer using both the MM2S and S2MM BD rings. Block until complete or timeout
-     * This function assumes mm2s_tail_address and s2mm_tail_address are already set in this class
-     * @return 0 on success, -1 on error
+     * Set the current descriptor pointer for the S2MM channel
+     * @param addr Physical address of the current descriptor
      */
-    int transfer_sg();
+    void set_s2mm_curdesc(uint32_t addr){
+        write_dma(S2MM_CURDESC, addr);
+    }
+
+    /**
+     * Set the tail descriptor pointer for the S2MM channel
+     * @param addr Physical address of the tail descriptor
+     */
+    void set_s2mm_taildesc(uint32_t addr){
+        write_dma(S2MM_TAILDESC, addr);
+    }
+
+    /**
+     * Poll the BD completion bit in a buffer descriptor
+     * @param buf_desc Pointer to the buffer descriptor
+     * @param max_tries Maximum number of tries before timeout. Default is MAX_DMA_SYNC_TRIES
+     * @return Number of tries on success, -1 on timeout
+     */
+    int poll_bd_cmplt(BD_PTR buf_desc, uint32_t max_tries = MAX_DMA_SYNC_TRIES){
+        uint32_t tries = 0;
+        while(!get_bd_cmplt_bit(buf_desc)){
+            tries++;
+            if(tries > max_tries){
+                return -1;
+            }
+        }
+        return tries;
+    }
 
     #endif // Scatter gather mode
 

@@ -19,12 +19,6 @@ Date Modified: 1/11/2025
 
 */
 
-// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h or any headers that include it
-#define DMA_DIRECT_REG_MODE 1
-#ifdef DMA_SG_MODE
-#undef DMA_SG_MODE
-#endif
-
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

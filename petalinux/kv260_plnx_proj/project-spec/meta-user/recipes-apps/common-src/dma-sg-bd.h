@@ -7,6 +7,8 @@
 
 #define BD_CONTROL_BUF_LEN_MASK 0x03ffffff
 
+#define SG_BD_SIZE_BYTES 64
+
 // See Scatter Gather descriptor table in PG021. Starts at page 36 of v7.1
 // Buffer descriptors must be in memory that is accessible by the DMA engine,
 // and must be aligned to a 16-word boundary (64 bytes).
