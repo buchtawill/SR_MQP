@@ -3,6 +3,8 @@
 #include "dma-sg-bd.h"
 #include "bits.h"
 
+#include <stdio.h>
+
 #ifdef DMA_SG_MODE
 uint32_t mm2s_bd_idx_to_addr(uint32_t index){
     return DMA_BDR_MM2S_BASE + (index * sizeof(DMA_SG_BD));
@@ -55,6 +57,15 @@ void clear_cmplt_bit(BD_PTR bd){
     uint32_t temp = bd->status;
     temp &= ~BIT31;
     bd->status = temp;
+}
+
+void print_bd_info(BD_PTR bd){
+    // printf("INFO [dma-sg-bd] BD @ 0x%08X\n", bd->get_phys_address());
+    printf("INFO [dma-sg-bd] Control:        0x%08X\n", bd->control);
+    printf("INFO [dma-sg-bd] Status:         0x%08X\n", bd->status);
+    printf("INFO [dma-sg-bd] Buffer address: 0x%08X\n", bd->buffer_address);
+    printf("INFO [dma-sg-bd] Next desc ptr:  0x%08X\n", bd->next_desc_ptr);
+    
 }
 
 #endif // DMA_SG_MODE

@@ -63,6 +63,14 @@ typedef volatile DMA_SG_BD * BD_PTR;
 // void set_bd_status(BD_PTR bd, uint32_t status);
 
 /**
+ * Print various debug info about the given Buffer Descriptor including status register flags
+ * buffer length and address, etc
+ * @param bd Pointer to the buffer descriptor
+ * @return None
+ */
+void print_bd_info(BD_PTR bd);
+
+/**
  * Program this bd's buffer length field. Maximum size: 26 bits. Same for both S2MM and MM2s
  * @param bd Pointer to the buffer descriptor
  * @param len Length of the transfer in bytes

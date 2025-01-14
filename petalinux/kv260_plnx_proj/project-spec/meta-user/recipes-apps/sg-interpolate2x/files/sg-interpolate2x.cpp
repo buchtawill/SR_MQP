@@ -650,6 +650,11 @@ int main(int argc, char *argv[]){
     BD_PTR last_mm2s_bd = (BD_PTR)(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_mem_ptr());
     BD_PTR last_s2mm_bd = (BD_PTR)(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_mem_ptr());
 
+    dma1.set_mm2s_curdesc(mm2s_bds[0]->get_phys_address());
+    dma1.set_s2mm_curdesc(s2mm_bds[0]->get_phys_address());
+    dma1.start_mm2s();
+    dma1.start_s2mm();
+
     printf("INFO [sg-interpolate2x] Starting video output\n");
     while(!die_flag){
         
@@ -685,26 +690,20 @@ int main(int argc, char *argv[]){
                 tile.tile_y = ty;
                 compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds);
 
-                // dma1.halt_mm2s();
-                dma1.set_mm2s_curdesc(mm2s_bds[0]->get_phys_address());
-                dma1.start_mm2s();
                 dma1.set_mm2s_taildesc(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_phys_address());
                 // dma1.print_status(MM2S_DMASR);
-                if(dma1.poll_bd_cmplt(last_mm2s_bd) < 0){
-                    die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer failed\n", nullptr, &resources);
+                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0){
+                    die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
                 }
 
                 // Calculate destination addresses for each row of the tile
                 // In the future, this will happen concurrently with the PL interpolation
                 compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
-                // dma1.halt_s2mm();
-                dma1.set_s2mm_curdesc(s2mm_bds[0]->get_phys_address());
-                dma1.start_s2mm();
                 dma1.set_s2mm_taildesc(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_phys_address());
                 // dma1.print_status(S2MM_DMASR);
-                if(dma1.poll_bd_cmplt(last_s2mm_bd) < 0){
-                    die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer failed\n", nullptr, &resources);
+                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0){
+                    die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
                 }
 
                 // Set a pixel at the top left corner of the tile to red
