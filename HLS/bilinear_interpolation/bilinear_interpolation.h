@@ -13,18 +13,17 @@
 #define SCALE_FACTOR 2
 #define WIDTH_OUT (WIDTH_IN * SCALE_FACTOR)
 #define HEIGHT_OUT (HEIGHT_IN * SCALE_FACTOR)
+#define BITS_PER_TRANSFER 32
+#define BITS_PER_PIXEL 8
+#define NUM_TRANSFERS (MATRIX_WIDTH*MATRIX_HEIGHT*CHANNELS*BITS_PER_PIXEL/BITS_PER_TRANSFER) //for 28x28x3 this is 588
 
-// Define pixel_t as an 8-bit unsigned integer (ap_uint<8> from HLS)
-typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
+// Define pixel_t as an 8-bit unsigned integer
+typedef ap_uint<BITS_PER_PIXEL> pixel_t; // 8-bit per channel for each pixel
+typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
 
-typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
+// Define axis_t with data width of 32 bits and no additional signals
+typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
 
-/*
-// Define the AXI-stream interface for input and output
-struct axi_stream {
-    pixel_t data;  // Data representing a pixel value
-    bool last;     // To indicate the last element in the stream
-}; */
 
 // Function declaration for Bilinear Interpolation calculations
 void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][CHANNELS],

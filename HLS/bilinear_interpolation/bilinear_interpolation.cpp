@@ -6,7 +6,9 @@ void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][C
 
     // Perform Bilinear Interpolation
     for (int row_out = 0; row_out < HEIGHT_OUT; row_out++) {
+
         for (int col_out = 0; col_out < WIDTH_OUT; col_out++) {
+
             // Calculate corresponding position in the input image (floating point to allow interpolation)
             float row_in = row_out / (float)SCALE_FACTOR;
             float col_in = col_out / (float)SCALE_FACTOR;
@@ -23,8 +25,9 @@ void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][C
             int x2 = (x1 + 1) < HEIGHT_IN ? x1 + 1 : x1;
             int y2 = (y1 + 1) < WIDTH_IN ? y1 + 1 : y1;
 
-            // Interpolation for each channel (e.g., RGB)
+            // Interpolation for each channel (e.g., BGR)
             for (int ch = 0; ch < CHANNELS; ch++) {
+
                 // Interpolate horizontally first: between (x1, y1) and (x1, y2) for the top row,
                 // and between (x2, y1) and (x2, y2) for the bottom row.
                 float top_left = image_in[x1][y1][ch];
@@ -60,18 +63,79 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     static pixel_t image_out[HEIGHT_OUT][WIDTH_OUT][CHANNELS]; // Output image buffer
 	#pragma HLS BIND_STORAGE variable=image_out type=RAM_1P impl=URAM
 
-    // Step 1: Read input image data from AXI-Stream to image_in
-    while(!in_stream.empty()){
-		for (int row = 0; row < HEIGHT_IN; row++) {
-			for (int col = 0; col < WIDTH_IN; col++) {
-				for (int ch = 0; ch < CHANNELS; ch++) {
-					#pragma HLS PIPELINE II=1
-					axis_t input_data = in_stream.read();
-					image_in[row][col][ch] = input_data.data;
-				}
-			}
-		}
+
+    // Local variables for indexing the 3D matrix
+    int row = 0, col = 0, channel = 0;
+
+    // Read data while the stream is not empty
+    while (!in_stream.empty()) {
+
+        // Read a 32-bit transfer
+        axis_t transfer = in_stream.read();
+        data_streamed data = transfer.data; // Extract the data field
+
+        // Extract 4 8-bit values from the 32-bit data
+        pixel_t pixel_0 = (data >> 0) & 0xFF;
+        pixel_t pixel_1 = (data >> 8) & 0xFF;
+        pixel_t pixel_2 = (data >> 16) & 0xFF;
+        pixel_t pixel_3 = (data >> 24) & 0xFF;
+
+        // Store the 4 values into the matrix
+        image_in[row][col][channel] = pixel_0;
+        channel++;
+        if (channel == CHANNELS) {
+            channel = 0;
+            col++;
+            if (col == WIDTH_IN) {
+                col = 0;
+                row++;
+            }
+        }
+
+        image_in[row][col][channel] = pixel_1;
+        channel++;
+        if (channel == CHANNELS) {
+            channel = 0;
+            col++;
+            if (col == WIDTH_IN) {
+                col = 0;
+                row++;
+            }
+        }
+
+        image_in[row][col][channel] = pixel_2;
+        channel++;
+        if (channel == CHANNELS) {
+            channel = 0;
+            col++;
+            if (col == WIDTH_IN) {
+                col = 0;
+                row++;
+            }
+        }
+
+        image_in[row][col][channel] = pixel_3;
+        channel++;
+        if (channel == CHANNELS) {
+            channel = 0;
+            col++;
+            if (col == WIDTH_IN) {
+                col = 0;
+                row++;
+            }
+        }
+
+        // Exit the loop if the matrix is full
+        if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
+            break;
+        }
     }
+
+    // Add a final check to ensure the correct number of transfers were processed
+    if (row != HEIGHT_IN || col != 0 || channel != 0) {
+        std::cerr << "Warning: Matrix was not completely filled or the stream had extra data!" << std::endl;
+    }
+
 
 
     // Step 2: Perform bilinear interpolation for upscaling the image
