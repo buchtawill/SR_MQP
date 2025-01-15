@@ -181,8 +181,9 @@ void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev)
     p_res->v4l2_fd         = -1;
     p_res->fb_dev_fd       = -1;
     p_res->dev_mem_fd      = -1;
-    p_res->vid_mem_block   = nullptr;
-    p_res->vid_mem_ptr     = nullptr;
+    // p_res->vid_mem_block   = nullptr;
+    p_res->vid_mem_ptr[0]  = nullptr;
+    p_res->vid_mem_ptr[1]  = nullptr;
     p_res->fb_mem_block    = nullptr;
     p_res->input888_block  = nullptr;
     p_res->interp888_block = nullptr;
@@ -190,7 +191,8 @@ void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev)
     memset(&p_res->v4l2_fmt,             0, sizeof(p_res->v4l2_fmt));
     memset(&p_res->v4l2_req,             0, sizeof(p_res->v4l2_req));
     memset(&p_res->fixed_fb_info,        0, sizeof(p_res->fixed_fb_info));
-    memset(&p_res->v4l2_frame_buf,       0, sizeof(p_res->v4l2_frame_buf));
+    memset(&p_res->v4l2_frame_bufs[0],   0, sizeof(p_res->v4l2_frame_bufs[0]));
+    memset(&p_res->v4l2_frame_bufs[1],   0, sizeof(p_res->v4l2_frame_bufs[1]));
     memset(&p_res->configurable_fb_info, 0, sizeof(p_res->configurable_fb_info));
 
     p_res->fb_phys_base           = 0;
@@ -256,11 +258,17 @@ void cleanup_resources(Resources *p_res){
         close(p_res->dev_mem_fd);
     }
 
-    if (p_res->vid_mem_ptr != MAP_FAILED) {
+    if (p_res->vid_mem_ptr[0] != MAP_FAILED) {
         munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
     }
 
-    PMM.free(p_res->vid_mem_block);
+    if (p_res->vid_mem_ptr[1] != MAP_FAILED) {
+        munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
+    }
+
+    // ioctl(p_res->v4l2_fd, VIDIOC_STREAMOFF, &p_res->v4l2_frame_buf.type);
+
+    // PMM.free(p_res->vid_mem_block);
     PMM.free(p_res->fb_mem_block);
     PMM.free(p_res->input888_block);
     PMM.free(p_res->interp888_block);
@@ -270,7 +278,7 @@ void cleanup_resources(Resources *p_res){
  * Setup all things v4l2.
  * Open the video device
  * Set the video format
- * Request a buffer from the video device
+ * Request buffers from the video device
  * Map the video buffer
  * @param p_res Pointer to the resources struct
  * @return None
@@ -291,7 +299,7 @@ void setup_video(Resources *p_res){
 
     // Request buffers from the video device
     printf("INFO [sg-interpolate2x::setup_video()] Requesting buffer from video device\n");
-    p_res->v4l2_req.count = 1; // Use 1 buffer
+    p_res->v4l2_req.count = 2; // Use 1 buffer
     p_res->v4l2_req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     p_res->v4l2_req.memory = V4L2_MEMORY_MMAP;
 
@@ -299,35 +307,46 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [sg-interpolate2x::setup_video()] Error requesting v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    // Map the video buffer
+    // Map the video buffer s
     printf("INFO [sg-interpolate2x::setup_video()] Mapping video buffer\n");
-    p_res->v4l2_frame_buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    p_res->v4l2_frame_buf.memory = V4L2_MEMORY_MMAP;
-    p_res->v4l2_frame_buf.index  = 0;
+    p_res->v4l2_frame_bufs[0].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_bufs[0].memory = V4L2_MEMORY_MMAP;
+    p_res->v4l2_frame_bufs[0].index = 0;
 
-    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_buf) == -1) {
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
+    p_res->v4l2_frame_bufs[1].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_bufs[1].memory = V4L2_MEMORY_MMAP;
+    p_res->v4l2_frame_bufs[1].index = 1;
+
+    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[0]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer 0: ", strerror(errno), p_res);
     }
 
-    p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
-    // p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
-
-    // Map the video buffer to a PhysMem object
-    // p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
-    p_res->vid_mem_block = PMM.alloc(p_res->vid_mem_size_bytes);
-    if(p_res->vid_mem_block == nullptr){
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
+    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[1]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer 1: ", strerror(errno), p_res);
     }
 
-    // Tempoarary mmap workaround for V4L2 DMA buffer
-    p_res->vid_mem_ptr = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
-    if(p_res->vid_mem_ptr == MAP_FAILED){
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to mmap video buffer\n", nullptr, p_res);
+    p_res->vid_mem_size_bytes = p_res->v4l2_frame_bufs[0].length;
+
+    // Create two buffers
+    // p_res->vid_mem_blocks[0] = PMM.alloc(p_res->vid_mem_size_bytes);
+    // p_res->vid_mem_blocks[1] = PMM.alloc(p_res->vid_mem_size_bytes);
+    // if(p_res->vid_mem_blocks[0] == nullptr || p_res->vid_mem_blocks[1] == nullptr){
+    //     die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
+    // }
+
+    // Map the video buffers
+    p_res->vid_mem_ptr[0] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[0].m.offset);
+    p_res->vid_mem_ptr[1] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[1].m.offset);
+    printf("INFO [sg-interpolate2x::setup_video()] Buffer 0 offset: 0x%lx\n", p_res->v4l2_frame_bufs[0].m.offset);
+    printf("INFO [sg-interpolate2x::setup_video()] Buffer 1 offset: 0x%lx\n", p_res->v4l2_frame_bufs[1].m.offset);
+    
+    if (p_res->vid_mem_ptr[0] == MAP_FAILED || p_res->vid_mem_ptr[1] == MAP_FAILED) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] mmap failed: ", strerror(errno), p_res);
     }
 
     // Start video streaming
     printf("INFO [sg-interpolate2x::setup_video()] Starting video streaming from v4l2\n");
-    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_frame_buf.type) == -1) {
+    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_fmt.type) == -1) {
         die_with_error("ERROR [sg-interpolate2x::setup_video()] Error starting video streaming: ", strerror(errno), p_res);
     }
 }
@@ -623,7 +642,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    // Initialize the output buffer to cyan
+    // Initialize the output buffer to cyan for debugging purposes
     for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
@@ -642,6 +661,7 @@ int main(int argc, char *argv[]){
     if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
 
     // Initialize scatter gather buffer descriptors for tiles
+    dma1.reset_dma();
     PhysMem* mm2s_bds[TILE_HEIGHT_PIX];
     PhysMem* s2mm_bds[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
     if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 3, 3) < 0){
@@ -656,14 +676,33 @@ int main(int argc, char *argv[]){
     dma1.start_s2mm();
 
     printf("INFO [sg-interpolate2x] Starting video output\n");
+
+    // Queue the first buffer, then alternate
+    if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[0]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x] Error queueing buffer\n", nullptr, &resources);
+    }
+    int queued_buffer = 0;
+    int next_buffer   = 1;
     while(!die_flag){
         
         // Capture a frame
-        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_buf) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[next_buffer]) == -1) {
             die_with_error("ERROR [sg-interpolate2x] Error queueing buffer\n", nullptr, &resources);
         }
-        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_buf) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_bufs[queued_buffer]) == -1) {
             die_with_error("ERROR [sg-interpolate2x] Error dequeueing buffer: ", strerror(errno), &resources);
+        }
+        
+        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr[queued_buffer]), 
+                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
+                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        if(queued_buffer == 0){
+            queued_buffer = 1;
+            next_buffer = 0;
+        } else{
+            queued_buffer = 0;
+            next_buffer = 1;
         }
 
         // Convert v4l2 frame to RGB888
@@ -673,38 +712,32 @@ int main(int argc, char *argv[]){
         // Move to framebuffer, converting to RGB565 on the way
 
         // Temporary workaround for V4L2 DMA buffer. vid mem is NOT a PhysMem object
-        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr), 
-                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
-                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
         
+        unsigned long before_tile_jiffies = get_jiffies();
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
-
+                
                 // Calculate physical addresses for each row of the tile
                 // Set the BD rings appropriately
                 // Send the tile down to the PL for interpolation
                 // Calculate destination addresses for each row of the tile
                 // Receive the tile in the interp_888 buffer / PMM block
-
                 tile.tile_x = tx;
                 tile.tile_y = ty;
                 compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds);
-
+                
+                // Start the MM2S transfer
                 dma1.set_mm2s_taildesc(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_phys_address());
-                // dma1.print_status(MM2S_DMASR);
-                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0){
-                    die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
-                }
 
                 // Calculate destination addresses for each row of the tile
-                // In the future, this will happen concurrently with the PL interpolation
                 compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
+                // Wait for MM2S transfer to complete
+                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
+                
+                // Start the S2MM transfer
                 dma1.set_s2mm_taildesc(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_phys_address());
-                // dma1.print_status(S2MM_DMASR);
-                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0){
-                    die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
-                }
+                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
 
                 // Set a pixel at the top left corner of the tile to red
                 if(parser["--dots"] == true){
@@ -713,9 +746,15 @@ int main(int argc, char *argv[]){
                 else if(parser["--lines"] == true){
                     draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
                 }
-
-                // die_with_error("INFO [sg-interpolate2x] Exiting early\n", nullptr, &resources);
             }
+        }
+        unsigned long after_tile_jiffies = get_jiffies();
+        static bool first = true;
+        if(first){
+            float elapsed_time = (float)(after_tile_jiffies - before_tile_jiffies) / (float)sysconf(_SC_CLK_TCK);
+            printf("INFO [sg-interpolate2x] Time to process tiles: %0.5f seconds\n", elapsed_time);
+            printf("INFO [sg-interpolate2x] Number of jiffies: %lu\n", after_tile_jiffies - before_tile_jiffies);
+            first = false;
         }
 
         // Move the interpolated frame to the framebuffer, converting to RGB565 on the way
@@ -745,7 +784,7 @@ int main(int argc, char *argv[]){
     } // End of while loop
 
     // Stop video streaming
-    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_frame_buf.type) == -1) {
+    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_fmt.type) == -1) {
         die_with_error("ERROR [sg-interpolate2x] Error stopping video streaming: ", strerror(errno), &resources);
     }
 

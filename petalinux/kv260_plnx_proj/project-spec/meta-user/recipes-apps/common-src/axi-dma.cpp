@@ -269,6 +269,21 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
 
 #ifndef DMA_SG_MODE
 int AXIDMA::self_test_dr(){
+
+    // Check that neither channel is scatter-gather
+
+    uint32_t mm2s_status = this->read_dma(MM2S_DMASR);
+    uint32_t s2mm_status = this->read_dma(S2MM_DMASR);
+
+    if(mm2s_status & STATUS_SG_INCLDED){
+        printf("ERROR [AXIDMA::self_test()] MM2S is in scatter-gather mode, but axi-dma compiled for direct reg\n");
+        return -1;
+    }
+    if(s2mm_status & STATUS_SG_INCLDED){
+        printf("ERROR [AXIDMA::self_test()] S2MM is in scatter-gather mode, but axi-dma compiled for direct reg\n");
+        return -1;
+    }
+
     // Get buffers from PhysMman
     // Write some random data to the source address, copy it to the dst address, and check if it's the same
     PhysMem* src_block = PMM.alloc(DMA_SELF_TEST_LEN);
@@ -527,7 +542,7 @@ int AXIDMA::self_test_sg(){
     last_bd_s2mm->buffer_address = dst_block->get_phys_address() + (end_idx * DMA_SELF_TEST_BYTES_PER_BD);
 
     // Start the MM2S transfer
-    printf("INFO [AXIDMA::self_test_sg()] Starting MM2S transfer\n");
+    // printf("INFO [AXIDMA::self_test_sg()] Starting MM2S transfer\n");
     this->enable_mm2s_intr();
     this->halt_mm2s();
     this->write_dma(MM2S_CURDESC, mm2s_bds[0]->get_phys_address());
@@ -546,7 +561,7 @@ int AXIDMA::self_test_sg(){
     }
 
     // Start the s2mm transfer
-    printf("INFO [AXIDMA::self_test_sg()] Starting S2MM transfer\n");
+    // printf("INFO [AXIDMA::self_test_sg()] Starting S2MM transfer\n");
     this->enable_s2mm_intr();
     this->halt_s2mm();
     this->write_dma(S2MM_CURDESC, s2mm_bds[0]->get_phys_address());
@@ -581,7 +596,7 @@ int AXIDMA::self_test_sg(){
         }
     }
 
-    printf("INFO [AXIDMA::self_test_sg()] Scatter gather self test passed!!!\n");
+    printf("INFO [AXIDMA::self_test_sg()] Scatter gather self test passed\n");
 
     PMM.free(src_block);
     PMM.free(dst_block);
@@ -589,6 +604,8 @@ int AXIDMA::self_test_sg(){
         PMM.free(mm2s_bds[i]);
         PMM.free(s2mm_bds[i]);
     }
+
+    this->reset_dma();
 
     return 0;
 }
