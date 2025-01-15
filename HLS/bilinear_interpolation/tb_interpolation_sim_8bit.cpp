@@ -10,9 +10,9 @@
 typedef struct {
     ap_uint<32> data;
     bool last;
-} axis_t;
+} axis32_t;
 
-// CPU-based bilinear interpolation for reference
+// CPU-based bilinear interpolation
 std::vector<uint8_t> bilinearInterpolation(
     const std::vector<uint8_t>& image,
     int width,
@@ -72,7 +72,7 @@ std::vector<uint8_t> bilinearInterpolation(
     return outputImage;
 }
 
-// Compare software reference vs. hardware output
+// Compare function
 void compare_outputs(const std::vector<uint8_t>& expected_output,
                      const std::vector<uint8_t>& received_output,
                      int& pass_count,
@@ -88,21 +88,21 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         std::cout << "Test FAILED!" << std::endl;
 
         std::cout << "Input Data (R,G,B):" << std::endl;
-        for (size_t i = 0; i < input_data.size(); i+=3) {
+        for (size_t i = 0; i < input_data.size(); i += 3) {
             std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
                       << "," << (int)input_data[i+2] << ") ";
         }
         std::cout << std::endl;
 
         std::cout << "Expected Output (R,G,B):" << std::endl;
-        for (size_t i = 0; i < expected_output.size(); i+=3) {
+        for (size_t i = 0; i < expected_output.size(); i += 3) {
             std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
                       << "," << (int)expected_output[i+2] << ") ";
         }
         std::cout << std::endl;
 
         std::cout << "Received Output (R,G,B):" << std::endl;
-        for (size_t i = 0; i < received_output.size(); i+=3) {
+        for (size_t i = 0; i < received_output.size(); i += 3) {
             std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
                       << "," << (int)received_output[i+2] << ") ";
         }
@@ -118,12 +118,12 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
     }
 }
 
-// Hardware top-level function (HLS)
-extern void bilinear_interpolation(hls::stream<axis_t> &in_stream,
-                                   hls::stream<axis_t> &out_stream);
+// Rename the hardware function signature to use axis32_t
+extern void bilinear_interpolation(hls::stream<axis32_t> &in_stream,
+                                   hls::stream<axis32_t> &out_stream);
 
-// Pack input into 32-bit AXI stream (24 bits + next pixel’s 8 bits)
-void send_axi_stream_input(hls::stream<axis_t> &in_stream,
+// Send data
+void send_axi_stream_input(hls::stream<axis32_t> &in_stream,
                            const std::vector<uint8_t> &input_data,
                            int width, int height, int channels)
 {
@@ -143,15 +143,15 @@ void send_axi_stream_input(hls::stream<axis_t> &in_stream,
         tdata |= ((ap_uint<32>)R0 << 16);
         tdata |= ((ap_uint<32>)nextR << 24);
 
-        axis_t val;
+        axis32_t val;
         val.data = tdata;
         val.last = (px == (total_pixels - 1));
         in_stream.write(val);
     }
 }
 
-// Unpack output from 32-bit AXI
-void receive_axi_stream_output(hls::stream<axis_t> &out_stream,
+// Receive data
+void receive_axi_stream_output(hls::stream<axis32_t> &out_stream,
                                std::vector<uint8_t> &out_data,
                                int out_width, int out_height, int out_channels)
 {
@@ -161,7 +161,7 @@ void receive_axi_stream_output(hls::stream<axis_t> &out_stream,
 
     int px_count = 0;
     while (px_count < out_pixels) {
-        axis_t val = out_stream.read();
+        axis32_t val = out_stream.read();
         ap_uint<32> w = val.data;
 
         uint8_t B0    = (uint8_t)((w >>  0) & 0xFF);
@@ -175,7 +175,7 @@ void receive_axi_stream_output(hls::stream<axis_t> &out_stream,
         px_count++;
 
         if (px_count < out_pixels) {
-            axis_t val2 = out_stream.read();
+            axis32_t val2 = out_stream.read();
             ap_uint<32> w2 = val2.data;
 
             uint8_t B1     = (uint8_t)((w2 >>  0) & 0xFF);
@@ -191,8 +191,6 @@ void receive_axi_stream_output(hls::stream<axis_t> &out_stream,
             if (px_count < out_pixels) {
                 out_data.push_back(R1);
                 out_data.push_back(nextR2);
-                // In a real aggregator, you’d also need the next channels,
-                // but here we push zeros or leave partial logic as needed.
                 out_data.push_back(0);
                 px_count++;
             }
@@ -233,7 +231,7 @@ int main()
         std::vector<uint8_t> expected_output =
             bilinearInterpolation(input_data, width, height, channels, scale);
 
-        hls::stream<axis_t> in_stream("in_stream"), out_stream("out_stream");
+        hls::stream<axis32_t> in_stream("in_stream"), out_stream("out_stream");
         send_axi_stream_input(in_stream, input_data, width, height, channels);
         bilinear_interpolation(in_stream, out_stream);
 
