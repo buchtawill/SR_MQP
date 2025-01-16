@@ -36,43 +36,10 @@ int AXIDMA::initialize(){
 		return -1;
 	}
 
-    // If using scatter gather mode, allocate memory for the buffer descriptors at the physical address reserved from the kernel
-    #ifdef DMA_SG_MODE
-
-    // Map and clear the buffer descriptor memory
-    this->mm2s_bd_arr = (DMA_SG_BD *)mmap(
-        NULL,                    // Let the kernel decide the virtual address
-        DMA_BDR_MM2S_SIZE_BYTES, // Size of memory to map 
-        PROT_READ | PROT_WRITE,  // Permissions: read and write
-        MAP_SHARED,              // Changes are shared with other mappings
-        this->mem_fd,            // File descriptor for /dev/mem
-        DMA_BDR_MM2S_BASE        // Physical address of the reserved memory
-    );
-    if(this->mm2s_bd_arr == MAP_FAILED){
-        printf("ERROR [AXIDMA::initialize()] Failed to map MM2S buffer descriptor memory: %s\n", strerror(errno));
-        return -1;
-    }
-
-    this->s2mm_bd_arr = (DMA_SG_BD *)mmap(
-        NULL,                    // Let the kernel decide the virtual address
-        DMA_BDR_S2MM_SIZE_BYTES, // Size of memory to map 
-        PROT_READ | PROT_WRITE,  // Permissions: read and write
-        MAP_SHARED,              // Changes are shared with other mappings
-        this->mem_fd,            // File descriptor for /dev/mem
-        DMA_BDR_S2MM_BASE        // Physical address of the reserved memory
-    );
-    if(this->s2mm_bd_arr == MAP_FAILED){
-        printf("ERROR [AXIDMA::initialize()] Failed to map S2MM buffer descriptor memory: %s\n", strerror(errno));
-        return -1;
-    }
-
-    // Clear the buffer descriptor memory
-    memset((void *)this->mm2s_bd_arr, 0, DMA_BDR_MM2S_SIZE_BYTES);
-    memset((void *)this->s2mm_bd_arr, 0, DMA_BDR_S2MM_SIZE_BYTES);
-
-    #endif
-
     this->reset_dma();
+    this->halt_mm2s();
+    this->halt_s2mm();
+    this->enable_all_intr();
 
     return 0;
 }
@@ -164,98 +131,6 @@ void AXIDMA::print_status(uint32_t reg){
     printf("\n");
 }
 
-#ifdef DMA_SG_MODE
-
-void AXIDMA::create_s2mm_bd_ring(int num_bds){
-    // Clear the existing BD memory, and start programming each BD with next pointer and such
-    // For s2mm, it does not matter to set the RXSOF or RXEOF bits
-
-    memset((void*)this->s2mm_bd_arr, 0, sizeof(DMA_SG_BD)*num_bds);
-
-    //Set the first RXSOF bit (Not used if not in Micro DMA mode)
-    //Same position as tx bit so use that function
-    set_txsof_bit(&(this->mm2s_bd_arr[0]), 1);
-
-    for(int i = 0; i < num_bds - 1; i++){
-        volatile DMA_SG_BD *current_bd = &(this->s2mm_bd_arr[i]);
-
-        uint32_t next_index = i + 1;
-        uint32_t next_address = s2mm_bd_idx_to_addr(next_index);
-        current_bd->next_desc_index = next_index;
-        current_bd->next_desc_ptr = next_address;
-    }
-
-    // Set the last RXEOF bit (Not used if not in Micro DMA mode)
-    set_txeof_bit(&(this->mm2s_bd_arr[num_bds - 1]), 1);
-
-    // Set the last next_desc_ptr to loop around
-    // Set the last index as well
-    this->s2mm_bd_arr[num_bds - 1].next_desc_ptr = DMA_BDR_S2MM_BASE;
-    this->s2mm_bd_arr[num_bds - 1].next_desc_index = 0;
-
-    this->s2mm_tail = &(this->s2mm_bd_arr[num_bds - 1]);
-    this->s2mm_tail_address = s2mm_bd_idx_to_addr(num_bds-1);
-}
-
-void AXIDMA::create_mm2s_bd_ring(int num_bds){
-    // Clear the existing BD memory, and start programming each BD with next pointer and such
-    // Set the TXSOF and TXEOF bits
-
-    memset((void*)this->mm2s_bd_arr, 0, sizeof(DMA_SG_BD)*num_bds);
-
-    //Set the first TXSOF bit
-    set_txsof_bit(&(this->mm2s_bd_arr[0]), 1);
-
-    for(int i = 0; i < num_bds - 1; i++){
-        volatile DMA_SG_BD *current_bd = &(this->mm2s_bd_arr[i]);
-
-        uint32_t next_index = i + 1;
-        uint32_t next_address = mm2s_bd_idx_to_addr(next_index);
-        current_bd->next_desc_index = next_index;
-        current_bd->next_desc_ptr = next_address;
-    }
-
-    // Set the last TXEOF bit
-    set_txeof_bit(&(this->mm2s_bd_arr[num_bds - 1]), 1);
-
-    // Set the last next_desc_ptr to loop around
-    // Set the last index as well
-    this->mm2s_bd_arr[num_bds - 1].next_desc_ptr = DMA_BDR_MM2S_BASE;
-    this->mm2s_bd_arr[num_bds - 1].next_desc_index = 0;
-
-    this->mm2s_tail = &(this->mm2s_bd_arr[num_bds - 1]);
-    this->mm2s_tail_address = mm2s_bd_idx_to_addr(num_bds-1);
-}
-
-int AXIDMA::transfer_sg(){
-    // Start the MM2S transfer, then start the S2MM transfer
-    this->clear_irq_bits();
-
-    this->reset_mm2s();
-    this->reset_s2mm();
-
-    // Start MM2S transfer
-    // Write the first MM2S descriptor to the CURDESC register
-    write_dma(MM2S_CURDESC, DMA_BDR_MM2S_BASE);
-
-    this->halt_mm2s();
-    this->start_mm2s();
-    this->enable_mm2s_intr();
-
-    // Write the tail address to the tail descriptor register
-    write_dma(MM2S_TAILDESC, this->mm2s_tail_address);
-
-    // Start S2MM transfer
-    // Write the first S2MM descriptor to the CURDESC register
-    write_dma(S2MM_CURDESC, DMA_BDR_S2MM_BASE);
-    this->halt_s2mm();
-    this->start_s2mm();
-    this->enable_s2mm_intr();
-
-    // Write the tail address to the tail descriptor register
-    write_dma(S2MM_TAILDESC, this->s2mm_tail_address);
-}
-#endif
 
 #ifndef DMA_SG_MODE
 int AXIDMA::sync_channel(uint32_t channel_status_reg, uint32_t max_tries){
@@ -394,6 +269,21 @@ int AXIDMA::transfer(uint32_t src_addr, uint32_t dst_addr, uint32_t len, bool bl
 
 #ifndef DMA_SG_MODE
 int AXIDMA::self_test_dr(){
+
+    // Check that neither channel is scatter-gather
+
+    uint32_t mm2s_status = this->read_dma(MM2S_DMASR);
+    uint32_t s2mm_status = this->read_dma(S2MM_DMASR);
+
+    if(mm2s_status & STATUS_SG_INCLDED){
+        printf("ERROR [AXIDMA::self_test()] MM2S is in scatter-gather mode, but axi-dma compiled for direct reg\n");
+        return -1;
+    }
+    if(s2mm_status & STATUS_SG_INCLDED){
+        printf("ERROR [AXIDMA::self_test()] S2MM is in scatter-gather mode, but axi-dma compiled for direct reg\n");
+        return -1;
+    }
+
     // Get buffers from PhysMman
     // Write some random data to the source address, copy it to the dst address, and check if it's the same
     PhysMem* src_block = PMM.alloc(DMA_SELF_TEST_LEN);
@@ -504,7 +394,7 @@ int AXIDMA::self_test_dr(){
     for(int i = 0; i < 28; i++){
         int result = this->transfer_mm2s(src_block->get_phys_address() + (bytes_per_row * i), bytes_per_row, true);
         if(result < 0){
-            printf("ERROR [AXIDMA::self_test()] MM2S transfer failed\n");
+            printf("ERROR [AXIDMA::self_test_dr()] MM2S transfer failed\n");
             return -1;
         }
     }
@@ -512,7 +402,7 @@ int AXIDMA::self_test_dr(){
     for(int i = 0; i < 28; i++){
         int result = this->transfer_s2mm(dst_block->get_phys_address()+(bytes_per_row * i), bytes_per_row, true);
         if(result < 0){
-            printf("ERROR [AXIDMA::self_test()] S2MM transfer failed\n");
+            printf("ERROR [AXIDMA::self_test_dr()] S2MM transfer failed\n");
             return -1;
         }
     }
@@ -567,6 +457,155 @@ int AXIDMA::self_test_dr(){
 
 // TODO: Implement self test for scatter gather mode
 int AXIDMA::self_test_sg(){
+
+    this->reset_dma();
+    uint32_t mm2s_status_reg = this->read_dma(MM2S_DMASR);
+    uint32_t s2mm_status_reg = this->read_dma(S2MM_DMASR);
+    if(!(mm2s_status_reg & STATUS_SG_INCLDED)){
+        printf("ERROR [AXIDMA::self_test_sg()] MM2S SG not included\n");
+        return -1;
+    }
+    if(!(s2mm_status_reg & STATUS_SG_INCLDED)){
+        printf("ERROR [AXIDMA::self_test_sg()] S2MM SG not included\n");
+        return -1;
+    }
+    // printf("INFO [AXIDMA::self_test_sg()] Confirmed that scatter gather mode is enabled\n");
+
+    // Create source and destination blocks to test
+    PhysMem* src_block = PMM.alloc(DMA_SELF_TEST_SG_LEN);
+    PhysMem* dst_block = PMM.alloc(DMA_SELF_TEST_SG_LEN);
+
+    if(src_block == nullptr || dst_block == nullptr){
+        printf("ERROR [AXIDMA::self_test_sg()] PMM failed to allocate memory blocks\n");
+        return -1;
+    }
+
+    // Fill the source block with random data
+    // Clear the dst block
+    for(uint32_t i = 0; i < DMA_SELF_TEST_SG_LEN / 4; i++){
+        src_block->write_word(i*4, (uint32_t)rand());
+        dst_block->write_word(i*4, 0);
+    }
+
+    // Create a BD ring for MM2S and S2MM
+    PhysMem* mm2s_bds[DMA_SELF_TEST_SG_NUM_BDS];
+    PhysMem* s2mm_bds[DMA_SELF_TEST_SG_NUM_BDS];
+    for(uint32_t i = 0; i < DMA_SELF_TEST_SG_NUM_BDS; i++){
+        mm2s_bds[i] = PMM.alloc(64); // size of a buffer descriptor
+        s2mm_bds[i] = PMM.alloc(64);
+
+        if(mm2s_bds[i] == nullptr || s2mm_bds[i] == nullptr){
+            printf("ERROR [AXIDMA::self_test_sg()] PMM failed to allocate memory for buffer descriptors\n");
+            return -1;
+        }
+
+        memset((void*)mm2s_bds[i]->get_mem_ptr(), 0, 64);
+        memset((void*)s2mm_bds[i]->get_mem_ptr(), 0, 64);
+    }
+
+    // Each bd in mm2s should have DMA_SELF_TEST_BYTES_PER_BD bytes
+    // First BD needs txsof
+    // Last BD needs txeof AND to point to first BD
+    uint32_t end_idx = DMA_SELF_TEST_SG_NUM_BDS - 1;
+    set_sof_bit(((BD_PTR)mm2s_bds[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < end_idx; i++){
+        BD_PTR current_bd = (BD_PTR)(mm2s_bds[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, DMA_SELF_TEST_BYTES_PER_BD);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = mm2s_bds[i+1]->get_phys_address();
+        current_bd->buffer_address = src_block->get_phys_address() + (i * DMA_SELF_TEST_BYTES_PER_BD);
+    }
+
+    BD_PTR last_bd_mm2s = (BD_PTR)(mm2s_bds[end_idx]->get_mem_ptr());
+    set_eof_bit(last_bd_mm2s, 1);
+    set_buffer_length(last_bd_mm2s, DMA_SELF_TEST_BYTES_PER_BD);
+    last_bd_mm2s->next_desc_ptr = mm2s_bds[0]->get_phys_address();
+    last_bd_mm2s->next_desc_index = 0;
+    last_bd_mm2s->buffer_address = src_block->get_phys_address() + (end_idx * DMA_SELF_TEST_BYTES_PER_BD);
+
+    // Do the same for S2MM
+    // set_sof_bit(((BD_PTR)s2mm_bds[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < end_idx; i++){
+        BD_PTR current_bd = (BD_PTR)(s2mm_bds[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, DMA_SELF_TEST_BYTES_PER_BD);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = s2mm_bds[i+1]->get_phys_address();
+        current_bd->buffer_address = dst_block->get_phys_address() + (i * DMA_SELF_TEST_BYTES_PER_BD);
+    }
+    BD_PTR last_bd_s2mm = (BD_PTR)(s2mm_bds[end_idx]->get_mem_ptr());
+    set_eof_bit(last_bd_s2mm, 1);
+    set_buffer_length(last_bd_s2mm, DMA_SELF_TEST_BYTES_PER_BD);
+    last_bd_s2mm->next_desc_ptr = s2mm_bds[0]->get_phys_address();
+    last_bd_s2mm->next_desc_index = 0;
+    last_bd_s2mm->buffer_address = dst_block->get_phys_address() + (end_idx * DMA_SELF_TEST_BYTES_PER_BD);
+
+    // Start the MM2S transfer
+    // printf("INFO [AXIDMA::self_test_sg()] Starting MM2S transfer\n");
+    this->enable_mm2s_intr();
+    this->halt_mm2s();
+    this->write_dma(MM2S_CURDESC, mm2s_bds[0]->get_phys_address());
+    this->start_mm2s();
+    this->write_dma(MM2S_TAILDESC, mm2s_bds[end_idx]->get_phys_address());
+
+    
+    // Poll for completion by polling the cmplt bit in the mm2s_status
+    uint32_t mm2s_tries = 0;
+    while(!(get_bd_cmplt_bit(last_bd_mm2s))){
+        mm2s_tries++;
+        if(mm2s_tries > 100000){
+            printf("ERROR [AXIDMA::self_test_sg()] MM2S transfer timed out\n");
+            return -1;
+        }
+    }
+
+    // Start the s2mm transfer
+    // printf("INFO [AXIDMA::self_test_sg()] Starting S2MM transfer\n");
+    this->enable_s2mm_intr();
+    this->halt_s2mm();
+    this->write_dma(S2MM_CURDESC, s2mm_bds[0]->get_phys_address());
+    this->start_s2mm();
+    this->write_dma(S2MM_TAILDESC, s2mm_bds[end_idx]->get_phys_address());
+
+    // Poll for completion
+    uint32_t s2mm_tries = 0;
+    while(!(get_bd_cmplt_bit(last_bd_s2mm))){
+        s2mm_tries++;
+        if(s2mm_tries > 100000){
+            printf("ERROR [AXIDMA::self_test_sg()] S2MM transfer timed out\n");
+            return -1;
+        }
+    }
+
+    // clear the complete bits in all BD's
+
+    // Check the src and dest block match data
+    for(uint32_t i = 0; i < DMA_SELF_TEST_SG_LEN / 4; i++){
+        uint32_t src_word = 0xbeefbeef, dst_word = 0xbeefbeef;
+        src_block->read_word(i*4, &src_word);
+        dst_block->read_word(i*4, &dst_word);
+        if(src_word != dst_word){
+            printf("ERROR [AXIDMA::self_test_sg()] Self test failed. Data mismatch at index %d: Expected 0x%08X, got 0x%08X\n", 
+                i,
+                src_word, 
+                dst_word);
+            PMM.free(src_block);
+            PMM.free(dst_block);
+            return -1;
+        }
+    }
+
+    printf("INFO [AXIDMA::self_test_sg()] Scatter gather self test passed\n");
+
+    PMM.free(src_block);
+    PMM.free(dst_block);
+    for(uint32_t i = 0; i < DMA_SELF_TEST_SG_NUM_BDS; i++){
+        PMM.free(mm2s_bds[i]);
+        PMM.free(s2mm_bds[i]);
+    }
+
+    this->reset_dma();
 
     return 0;
 }
