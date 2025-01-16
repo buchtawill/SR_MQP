@@ -6,6 +6,9 @@ PLNX_PROJ_DIR=$MAIN_DIR/petalinux/kv260_plnx_proj
 VIVADO_PROJ_DIR=$MAIN_DIR/vivado/kv260_vivado_proj
 XSA_FILE_PATH=$VIVADO_PROJ_DIR/kv260_upscaler.xsa
 
+mv build.log build.log.old
+touch build.log
+
 now=$(date)
 echo "INFO [build_project.sh] Starting execution on $now" >> $MAIN_DIR/build.log
 UNIX_TIME_START=$(date +%s)
@@ -22,10 +25,6 @@ function email_failure_and_exit {
     echo -e $BODY | mail -s "$SUBJECT" $EMAIL
     exit 1
 }
-
-mv build.log build.log.old
-touch build.log
-
 
 echo "INFO [build_project.sh] Changing to vivado dir and running build script" >> $MAIN_DIR/build.log
 cd ./vivado

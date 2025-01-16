@@ -711,8 +711,6 @@ int main(int argc, char *argv[]){
         //  - Receive the tile in the interp_888 buffer / PMM block
         // Move to framebuffer, converting to RGB565 on the way
 
-        // Temporary workaround for V4L2 DMA buffer. vid mem is NOT a PhysMem object
-        
         unsigned long before_tile_jiffies = get_jiffies();
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){

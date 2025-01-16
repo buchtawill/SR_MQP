@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KV260BOARD="kv260a"
+KV260BOARD="kv260b"
 
 UNIX_TIME_START=$(date +%s)
 echo "INFO [cross_compile_apps.sh] Sourcing petalinux settings"
