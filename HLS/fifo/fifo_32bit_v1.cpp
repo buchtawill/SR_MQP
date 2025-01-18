@@ -12,7 +12,6 @@ void fifo_32bit_v1(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stre
 	bool input_last_stored[NUM_TRANSFERS];
 	#pragma HLS BIND_STORAGE variable=input_last_stored type=RAM_1P impl=URAM
 
-	//4 = bytes per transfer
 	ap_uint<BITS_PER_TRANSFER / 8> input_keep_stored[NUM_TRANSFERS];
 	#pragma HLS BIND_STORAGE variable=input_keep_stored type=RAM_1P impl=URAM
 
@@ -20,6 +19,16 @@ void fifo_32bit_v1(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stre
 
 
 	int i = 0;
+
+	//update later with reset signal, but make sure FIFO is cleared on start up
+	if(i == NUM_TRANSFERS || i == 0){
+		for(int k = 0; k < NUM_TRANSFERS; k++){
+			input_data_stored[k] = 0;
+			input_last_stored[k] = 0;
+			input_keep_stored[k] = 0;
+		}
+	}
+
 
 	//make sure the correct number of transfers are passed in
 	while(i < NUM_TRANSFERS){
@@ -43,7 +52,8 @@ void fifo_32bit_v1(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stre
 
 	int j = 0;
     //once all the data has been read in
-    if(i >= (NUM_TRANSFERS - 1)){
+	//this might need to be NUM_TRANSFERS - 1
+    if(i >= NUM_TRANSFERS){
 
         //transfer values from array
         while(j < NUM_TRANSFERS){
@@ -51,11 +61,34 @@ void fifo_32bit_v1(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stre
             //axis_t output_data = input_stored[j];
         	axis_t temp_output;
 
+
+            //ap_uint<BITS_PER_TRANSFER / 8> keep;
+            bool last;
+
+            /*
+            if(j % 28 == 0){
+            	keep = 1;
+            }
+            else{
+            	keep = 0;
+            } */
+
+            if(j == (NUM_TRANSFERS - 1)){
+            	last = true;
+            }
+            else {
+            	last = false;
+            }
+
         	//don't change any of the signals that were passed in
             temp_output.data = input_data_stored[j];
-            temp_output.last = input_last_stored[j];
-            temp_output.keep = input_keep_stored[j];
-            temp_output.strb = input_keep_stored[j];
+            temp_output.last = last;
+            temp_output.keep = 0xF;
+            temp_output.strb = 0xF;
+
+            //temp_output.last = input_last_stored[j];
+            //temp_output.keep = input_keep_stored[j];
+            //temp_output.strb = input_keep_stored[j];
 
             /*
             if(j == (NUM_TRANSFERS - 1)){
