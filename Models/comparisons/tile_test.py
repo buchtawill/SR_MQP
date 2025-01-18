@@ -1,3 +1,6 @@
+
+# Helper script to visualize the tiles on an image
+
 import numpy as np
 
 import matplotlib.pyplot as plt

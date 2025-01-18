@@ -1,3 +1,5 @@
+# Convert an image to a raw binary file that has the same resolution as the wii (720x576)
+
 import cv2
 import numpy as np
 
