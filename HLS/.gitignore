@@ -1,4 +1,7 @@
 *
+!.gitignore
+
+# Add source directories as needed
 !convolution
 !fifo
 !passthrough
