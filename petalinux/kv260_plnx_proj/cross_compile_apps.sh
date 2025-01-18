@@ -12,7 +12,7 @@ else
     exit 1
 fi
 
-APPS_LIST=("sg-interpolate2x")
+APPS_LIST=("sg-interpolate2x v4l-to-fb0-dma")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>

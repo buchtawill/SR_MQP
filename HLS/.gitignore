@@ -1,1 +1,8 @@
-ThreeChannelBilinInterpRTL
+*
+!convolution
+!fifo
+!passthrough
+!archived_work
+!add_mult_hls
+!variance
+!bilinear_interpolation
