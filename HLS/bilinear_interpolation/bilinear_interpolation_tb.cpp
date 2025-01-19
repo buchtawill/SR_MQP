@@ -69,7 +69,7 @@ void testbench() {
     }
 
     // Call the BilinearInterpolation function
-    bilinear_interpolation(in_stream, out_stream);
+    bilinear_interpolation_v2(in_stream, out_stream);
     bilinear_interpolation_tb_calcs(in_temp, out_temp);
 
 
@@ -82,9 +82,9 @@ void testbench() {
                 axis_t output_data = out_stream.read();
 
                 // Compare with expected value and flag if any mismatch
-                if (output_data.data != out_temp[row][col][ch]) {
+                if (output_data.data != out_temp[row_out][col_out][ch]) {
                     std::cout << "Mismatch at (" << row_out << ", " << col_out << ", " << ch << "): "
-                              << "Expected " << out_temp[row][col][ch] << ", but got " << (int)output_data.data << std::endl;
+                              << "Expected " << out_temp[row_out][col_out][ch] << ", but got " << (int)output_data.data << std::endl;
                     test_passed = false;
                 }
 

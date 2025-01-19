@@ -50,7 +50,7 @@ void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][C
 }
 
 
-void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+void bilinear_interpolation_v2(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -67,68 +67,82 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     // Local variables for indexing the 3D matrix
     int row = 0, col = 0, channel = 0;
 
-    // Read data while the stream is not empty
-    while (!in_stream.empty()) {
+    //variable tracking input values
+    int i = 0;
 
-        // Read a 32-bit transfer
-        axis_t transfer = in_stream.read();
-        data_streamed data = transfer.data; // Extract the data field
+    //make sure correct number of transfers are passed in
+    while(i < NUM_TRANSFERS){
 
-        // Extract 4 8-bit values from the 32-bit data
-        pixel_t pixel_0 = (data >> 0) & 0xFF;
-        pixel_t pixel_1 = (data >> 8) & 0xFF;
-        pixel_t pixel_2 = (data >> 16) & 0xFF;
-        pixel_t pixel_3 = (data >> 24) & 0xFF;
+		// Read data while the stream is not empty
+		while (!in_stream.empty()) {
 
-        // Store the 4 values into the matrix
-        image_in[row][col][channel] = pixel_0;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			//if correct number of transfers received stop receiving
+			if(i == NUM_TRANSFERS){
+				break;
+			}
 
-        image_in[row][col][channel] = pixel_1;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Read a 32-bit transfer
+			axis_t transfer = in_stream.read();
+			data_streamed data = transfer.data; // Extract the data field
 
-        image_in[row][col][channel] = pixel_2;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Extract 4 8-bit values from the 32-bit data
+			pixel_t pixel_0 = (data >> 0) & 0xFF;
+			pixel_t pixel_1 = (data >> 8) & 0xFF;
+			pixel_t pixel_2 = (data >> 16) & 0xFF;
+			pixel_t pixel_3 = (data >> 24) & 0xFF;
 
-        image_in[row][col][channel] = pixel_3;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Store the 4 values
+			image_in[row][col][channel] = pixel_0;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
 
-        // Exit the loop if the matrix is full
-        if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
-            break;
-        }
+			image_in[row][col][channel] = pixel_1;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			image_in[row][col][channel] = pixel_2;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			image_in[row][col][channel] = pixel_3;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			// Exit the loop if the matrix is full
+			if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
+				break;
+			}
+
+			i++;
+		}
     }
 
     // Add a final check to ensure the correct number of transfers were processed
@@ -147,6 +161,8 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
             for (int ch = 0; ch < CHANNELS; ch++) {
                 axis_t output_data;
                 output_data.data = image_out[row_out][col_out][ch];
+                output_data.keep = 0xF;
+                output_data.keep = 0xF;
                 output_data.last = (row_out == HEIGHT_OUT - 1 && col_out == WIDTH_OUT - 1 && ch == CHANNELS - 1);
                 out_stream.write(output_data);
             }
