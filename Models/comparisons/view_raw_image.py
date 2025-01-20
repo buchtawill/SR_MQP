@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image
 
 
 WIDTH           = 720
@@ -30,3 +31,7 @@ if __name__ == '__main__':
 
     plt.imshow(image)
     plt.show()
+    
+    # Save the image
+    img = Image.fromarray(image)
+    img.save('output_image.png')
