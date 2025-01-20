@@ -16,6 +16,7 @@
 #define BITS_PER_TRANSFER 32
 #define BITS_PER_PIXEL 8
 #define NUM_TRANSFERS (WIDTH_IN*HEIGHT_IN*CHANNELS*BITS_PER_PIXEL/BITS_PER_TRANSFER) //for 28x28x3 this is 588
+#define NUM_TRANSFERS_OUT (NUM_TRANSFERS*SCALE_FACTOR*SCALE_FACTOR)
 
 // Define pixel_t as an 8-bit unsigned integer
 typedef ap_uint<BITS_PER_PIXEL> pixel_t; // 8-bit per channel for each pixel
