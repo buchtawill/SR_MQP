@@ -131,21 +131,18 @@ void sigint_handler(int sig){
  * @return None
  */
 void init_resources(Resources *p_res, const char* video_device, const char* fb_device){
-    p_res->v4l2_fd           = -1;
-    p_res->fb_dev_fd         = -1;
-    p_res->dev_mem_fd        = -1;
-    p_res->vid_mem_blocks[0] = nullptr;
-    p_res->vid_mem_blocks[1] = nullptr;
-    p_res->vid_mem_ptr[0]    = nullptr;
-    p_res->vid_mem_ptr[1]    = nullptr;
-    p_res->fb_mem_block      = nullptr;
-    p_res->rgb_565_block     = nullptr;
+    p_res->v4l2_fd       = -1;
+    p_res->fb_dev_fd     = -1;
+    p_res->dev_mem_fd    = -1;
+    p_res->vid_mem_block = nullptr;
+    p_res->vid_mem_ptr   = nullptr;
+    p_res->fb_mem_block  = nullptr;
+    p_res->rgb_565_block = nullptr;
 
     memset(&p_res->v4l2_fmt,             0, sizeof(p_res->v4l2_fmt));
     memset(&p_res->v4l2_req,             0, sizeof(p_res->v4l2_req));
     memset(&p_res->fixed_fb_info,        0, sizeof(p_res->fixed_fb_info));
-    memset(&p_res->v4l2_frame_bufs[0],   0, sizeof(p_res->v4l2_frame_bufs[0]));
-    memset(&p_res->v4l2_frame_bufs[1],   0, sizeof(p_res->v4l2_frame_bufs[1]));
+    memset(&p_res->v4l2_frame_buf,       0, sizeof(p_res->v4l2_frame_buf));
     memset(&p_res->configurable_fb_info, 0, sizeof(p_res->configurable_fb_info));
 
     p_res->fb_phys_base           = 0;
@@ -205,17 +202,8 @@ void cleanup_resources(Resources *p_res){
         close(p_res->dev_mem_fd);
     }
 
-    if (p_res->vid_mem_ptr[0] != MAP_FAILED) {
-        munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
-    }
-
-    if (p_res->vid_mem_ptr[1] != MAP_FAILED) {
-        munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
-    }
-
     PMM.free(p_res->rgb_565_block);
-    // PMM.free(p_res->vid_mem_blocks[0]);
-    // PMM.free(p_res->vid_mem_blocks[1]);
+    PMM.free(p_res->vid_mem_block);
     PMM.free(p_res->fb_mem_block);
 }
 
@@ -223,7 +211,7 @@ void cleanup_resources(Resources *p_res){
  * Setup all things v4l2.
  * Open the video device
  * Set the video format
- * Request buffers from the video device
+ * Request a buffer from the video device
  * Map the video buffer
  * @param p_res Pointer to the resources struct
  * @return None
@@ -244,7 +232,7 @@ void setup_video(Resources *p_res){
 
     // Request buffers from the video device
     printf("INFO [v4l-to-fb0-dma::setup_video()] Requesting buffer from video device\n");
-    p_res->v4l2_req.count = 2; // Use 1 buffer
+    p_res->v4l2_req.count = 1; // Use 1 buffer
     p_res->v4l2_req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     p_res->v4l2_req.memory = V4L2_MEMORY_MMAP;
 
@@ -252,48 +240,32 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error requesting v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    // Map the video buffer s
+    // Map the video buffer
     printf("INFO [v4l-to-fb0-dma::setup_video()] Mapping video buffer\n");
-    p_res->v4l2_frame_bufs[0].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    p_res->v4l2_frame_bufs[0].memory = V4L2_MEMORY_MMAP;
-    p_res->v4l2_frame_bufs[0].index = 0;
+    p_res->v4l2_frame_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_buf.memory = V4L2_MEMORY_MMAP;
+    p_res->v4l2_frame_buf.index = 0;
 
-    p_res->v4l2_frame_bufs[1].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    p_res->v4l2_frame_bufs[1].memory = V4L2_MEMORY_MMAP;
-    p_res->v4l2_frame_bufs[1].index = 1;
-
-    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[0]) == -1) {
-        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer 0: ", strerror(errno), p_res);
-    }
-
-    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[1]) == -1) {
-        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer 1: ", strerror(errno), p_res);
+    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_buf) == -1) {
+        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
     }
 
     // p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
-    // p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
-    p_res->vid_mem_size_bytes = p_res->v4l2_frame_bufs[0].length;
+    p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
 
-    // Create two buffers
-    // p_res->vid_mem_blocks[0] = PMM.alloc(p_res->vid_mem_size_bytes);
-    // p_res->vid_mem_blocks[1] = PMM.alloc(p_res->vid_mem_size_bytes);
-    // if(p_res->vid_mem_blocks[0] == nullptr || p_res->vid_mem_blocks[1] == nullptr){
-    //     die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
-    // }
+    // Create a video buffer 
+    p_res->vid_mem_block = PMM.alloc(p_res->vid_mem_size_bytes);
 
-    // Map the video buffers
-    p_res->vid_mem_ptr[0] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[0].m.offset);
-    p_res->vid_mem_ptr[1] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[1].m.offset);
-    printf("INFO [v4l-to-fb0-dma::setup_video()] Buffer 0 offset: 0x%lx\n", p_res->v4l2_frame_bufs[0].m.offset);
-    printf("INFO [v4l-to-fb0-dma::setup_video()] Buffer 1 offset: 0x%lx\n", p_res->v4l2_frame_bufs[1].m.offset);
-    
-    if (p_res->vid_mem_ptr[0] == MAP_FAILED || p_res->vid_mem_ptr[1] == MAP_FAILED) {
-        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] mmap failed: ", strerror(errno), p_res);
+    // Map the video buffer
+    p_res->vid_mem_ptr = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
+
+    if(p_res->vid_mem_block == nullptr){
+        die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
     }
 
     // Start video streaming
     printf("INFO [v4l-to-fb0-dma::setup_video()] Starting video streaming from v4l2\n");
-    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_fmt.type) == -1) {
+    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_frame_buf.type) == -1) {
         die_with_error("ERROR [v4l-to-fb0-dma::setup_video()] Error starting video streaming: ", strerror(errno), p_res);
     }
 }
@@ -392,46 +364,36 @@ int main(int argc, char *argv[]){
         die_with_error("ERROR [v4l-to-fb0-dma] DMA self test failed\n", nullptr, &resources);
     }
 
-    printf("INFO [v4l-to-fb0-dma] Starting video output...\n");
-
-    // Initially queue the first frame
-    if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[0]) == -1) {
-        die_with_error("ERROR [v4l-to-fb0-dma] Error queueing buffer\n", nullptr, &resources);
-    }
+    printf("INFO [v4l-to-fb0-dma] Starting continuous loop of reading frames...\n");
     
     uint32_t frame_loop_count = 0;
     unsigned long start_jiffies = get_jiffies();
     unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
-    int queued_buffer = 0;
-    int next_buffer   = 1;
     while(die_flag == false){
         
         // Capture a frame
-        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[next_buffer]) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_buf) == -1) {
             die_with_error("ERROR [v4l-to-fb0-dma] Error queueing buffer\n", nullptr, &resources);
         }
-        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_bufs[queued_buffer]) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_buf) == -1) {
             die_with_error("ERROR [v4l-to-fb0-dma] Error dequeueing buffer: ", strerror(errno), &resources);
         }
 
-        yuyv_to_rgb565((uint8_t *)resources.vid_mem_ptr[queued_buffer], \
+
+        // Convert the v4l2 input format to the framebuffer format
+        // yuyv_to_rgb565((uint8_t *)resources.vid_mem_block->get_mem_ptr(), \
+        //                (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
+        //                INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        // Temporary workaround for V4L2 DMA buffer
+        // memcpy((void*)resources.vid_mem_block->get_mem_ptr(), resources.vid_mem_ptr, resources.vid_mem_size_bytes);
+        yuyv_to_rgb565((uint8_t *)resources.vid_mem_ptr, \
                        (uint16_t*)resources.rgb_565_block->get_mem_ptr(), \
                        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-                       
-        if(queued_buffer == 0){
-            queued_buffer = 1;
-            next_buffer = 0;
-        } else{
-            queued_buffer = 0;
-            next_buffer = 1;
-        }
-
-
 
         // Copy the RGB565 buffer to the framebuffer using DMA one row at a time
         uint32_t rgb565_tmp_ptr = resources.rgb_565_block->get_phys_address();
         uint8_t  bytes_per_pixel = 2;
-        unsigned long before_frame_jiffies = get_jiffies();
         for (int row = 0; row < INPUT_VIDEO_HEIGHT; row++) {
     			
             // 32 byte boundary: lower 5 bits are all 0
@@ -442,14 +404,6 @@ int main(int argc, char *argv[]){
             if(result < 0){
                 die_with_error("ERROR [v4l-to-fb0-dma] DMA transfer failed\n", nullptr, &resources);
             }
-        }
-        unsigned long after_frame_jiffies = get_jiffies();
-        static bool first = true;
-        if(first){
-            float elapsed_time = (float)(after_frame_jiffies - before_frame_jiffies) / (float)jiffies_per_sec;
-            printf("INFO [v4l-to-fb0-dma] Jiffies elapsed: %lu\n", after_frame_jiffies - before_frame_jiffies);
-            printf("INFO [v4l-to-fb0-dma] Time to process frame: %0.5f seconds\n", elapsed_time);
-            first = false;
         }
 
         frame_loop_count++;
@@ -464,7 +418,7 @@ int main(int argc, char *argv[]){
     }
 
     // Stop video streaming
-    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_fmt.type) == -1) {
+    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_frame_buf.type) == -1) {
         die_with_error("ERROR [v4l-to-fb0-dma] Error stopping video streaming: ", strerror(errno), &resources);
     }
 

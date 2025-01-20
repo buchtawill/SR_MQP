@@ -6,7 +6,8 @@ void process_tile(hls::stream<ap_uint<32>> &pixel_stream_in,
 						hls::stream<ap_uint<32>> &interp_out,
 						float threshold,
 						ap_uint<2> override_mode) {
-#pragma HLS INTERFACE axis port=pixel_stream
+
+#pragma HLS INTERFACE axis port=pixel_stream_in
 #pragma HLS INTERFACE axis port=conv_out
 #pragma HLS INTERFACE axis port=interp_out
 #pragma HLS INTERFACE s_axilite port=threshold
@@ -42,12 +43,13 @@ void process_tile(hls::stream<ap_uint<32>> &pixel_stream_in,
         float diff = luminance[i] - mean;
         variance_sum += diff * diff;
     }
-    variance = variance_sum / PIXEL_COUNT;
+
+    float variance = variance_sum / PIXEL_COUNT;
 
     // logic for sending tiles
     for (int i = 0; i < PIXEL_COUNT / 2; i++) {
     	#pragma HLS PIPELINE II=1
-            ap_uint<32> pixel_data = pixel_stream.read();
+            ap_uint<32> pixel_data = pixel_stream_in.read();
 
             if (override_mode == OVERRIDE_MODE_CONV) {
                 // send all tiles to convolution

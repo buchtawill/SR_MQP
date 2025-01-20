@@ -50,7 +50,7 @@ void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][C
 }
 
 
-void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+void bilinear_interpolation_v2(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -67,69 +67,84 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     // Local variables for indexing the 3D matrix
     int row = 0, col = 0, channel = 0;
 
-    // Read data while the stream is not empty
-    while (!in_stream.empty()) {
+    //variable tracking input values
+    int i = 0;
 
-        // Read a 32-bit transfer
-        axis_t transfer = in_stream.read();
-        data_streamed data = transfer.data; // Extract the data field
+    //make sure correct number of transfers are passed in
+    while(i < NUM_TRANSFERS){
 
-        // Extract 4 8-bit values from the 32-bit data
-        pixel_t pixel_0 = (data >> 0) & 0xFF;
-        pixel_t pixel_1 = (data >> 8) & 0xFF;
-        pixel_t pixel_2 = (data >> 16) & 0xFF;
-        pixel_t pixel_3 = (data >> 24) & 0xFF;
+		// Read data while the stream is not empty
+		while (!in_stream.empty()) {
 
-        // Store the 4 values into the matrix
-        image_in[row][col][channel] = pixel_0;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			//if correct number of transfers received stop receiving
+			if(i == NUM_TRANSFERS){
+				break;
+			}
 
-        image_in[row][col][channel] = pixel_1;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Read a 32-bit transfer
+			axis_t transfer = in_stream.read();
+			data_streamed data = transfer.data; // Extract the data field
 
-        image_in[row][col][channel] = pixel_2;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Extract 4 8-bit values from the 32-bit data
+			pixel_t pixel_0 = (data >> 0) & 0xFF;
+			pixel_t pixel_1 = (data >> 8) & 0xFF;
+			pixel_t pixel_2 = (data >> 16) & 0xFF;
+			pixel_t pixel_3 = (data >> 24) & 0xFF;
 
-        image_in[row][col][channel] = pixel_3;
-        channel++;
-        if (channel == CHANNELS) {
-            channel = 0;
-            col++;
-            if (col == WIDTH_IN) {
-                col = 0;
-                row++;
-            }
-        }
+			// Store the 4 values
+			image_in[row][col][channel] = pixel_0;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
 
-        // Exit the loop if the matrix is full
-        if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
-            break;
-        }
+			image_in[row][col][channel] = pixel_1;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			image_in[row][col][channel] = pixel_2;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			image_in[row][col][channel] = pixel_3;
+			channel++;
+			if (channel == CHANNELS) {
+				channel = 0;
+				col++;
+				if (col == WIDTH_IN) {
+					col = 0;
+					row++;
+				}
+			}
+
+			// Exit the loop if the matrix is full
+			if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
+				break;
+			}
+
+			i++;
+		}
     }
+
 
     // Add a final check to ensure the correct number of transfers were processed
     if (row != HEIGHT_IN || col != 0 || channel != 0) {
@@ -141,15 +156,85 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     // Step 2: Perform bilinear interpolation for upscaling the image
     bilinear_interpolation_calculations(image_in, image_out); // Pass image_out by reference
 
-    // Step 3: Write the output image to AXI-Stream
-    for (int row_out = 0; row_out < HEIGHT_OUT; row_out++) {
-        for (int col_out = 0; col_out < WIDTH_OUT; col_out++) {
-            for (int ch = 0; ch < CHANNELS; ch++) {
-                axis_t output_data;
-                output_data.data = image_out[row_out][col_out][ch];
-                output_data.last = (row_out == HEIGHT_OUT - 1 && col_out == WIDTH_OUT - 1 && ch == CHANNELS - 1);
-                out_stream.write(output_data);
-            }
-        }
+    int j = 0;
+    int row_out = 0, col_out = 0, ch_out = 0;
+
+    //once all data has been read, write tile to out stream
+    //note: might need to add check to make sure calculations have been completed
+    if(i >= NUM_TRANSFERS){
+
+    	while(j < NUM_TRANSFERS_OUT){
+
+    		//get the 4 values to combine
+
+			pixel_t pixel_0, pixel_1, pixel_2, pixel_3;
+
+			pixel_0 = image_out[row_out][col_out][ch_out];
+			ch_out++;
+
+			if (ch_out == CHANNELS) {
+				ch_out = 0;
+				col_out++;
+				if (col_out == WIDTH_OUT) {
+					col_out = 0;
+					row_out++;
+				}
+			}
+
+			pixel_1 = image_out[row_out][col_out][ch_out];
+			ch_out++;
+
+			if (ch_out == CHANNELS) {
+				ch_out = 0;
+				col_out++;
+				if (col_out == WIDTH_OUT) {
+					col_out = 0;
+					row_out++;
+				}
+			}
+
+			pixel_2 = image_out[row_out][col_out][ch_out];
+			ch_out++;
+
+			if (ch_out == CHANNELS) {
+				ch_out = 0;
+				col_out++;
+				if (col_out == WIDTH_OUT) {
+					col_out = 0;
+					row_out++;
+				}
+			}
+
+			pixel_3 = image_out[row_out][col_out][ch_out];
+			ch_out++;
+
+			if (ch_out == CHANNELS) {
+				ch_out = 0;
+				col_out++;
+				if (col_out == WIDTH_OUT) {
+					col_out = 0;
+					row_out++;
+				}
+			}
+
+			data_streamed stream_out =	(ap_uint<32>(pixel_0) << 24) |
+                    					(ap_uint<32>(pixel_1) << 16) |
+										(ap_uint<32>(pixel_2) << 8) |
+										(ap_uint<32>(pixel_3));
+
+			axis_t output_data;
+			output_data.data = stream_out;
+			output_data.keep = 0xF;
+			output_data.strb = 0xF;
+			if(j >= (NUM_TRANSFERS_OUT - 1)){
+				output_data.last = true;
+			}
+			else{
+				output_data.last = false;
+			}
+
+    		j++;
+
+    	}
     }
 }

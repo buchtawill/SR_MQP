@@ -13,7 +13,7 @@ APP_OBJS = $(APP_SRC_DIR)/$(notdir $(APP_SRCS:.cpp=.o)) \
            $(APP_SRC_DIR)/$(notdir $(COMMON_SRCS:.cpp=.o))
 
 # Compiler flags
-FLAGS = -Wall -O2 -Wextra -I$(COMMON_SRC_DIR) -std=c++17 -DDMA_DIRECT_REG_MODE=1
+FLAGS = -Wall -O2 -Wextra -I$(COMMON_SRC_DIR) -std=c++17
 
 all: build
 

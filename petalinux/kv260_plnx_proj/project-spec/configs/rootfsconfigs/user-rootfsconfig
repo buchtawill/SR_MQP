@@ -7,5 +7,3 @@ CONFIG_v4l-to-fb0-aligned
 CONFIG_v4l-to-fb0-dma
 CONFIG_jiffies-test
 CONFIG_interpolate2x
-CONFIG_sg-interpolate2x
-CONFIG_sg-interpolate2x

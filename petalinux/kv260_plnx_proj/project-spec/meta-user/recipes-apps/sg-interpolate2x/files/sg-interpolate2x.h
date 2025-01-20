@@ -61,12 +61,12 @@ typedef struct {
     int  fb_dev_fd;
 
     // Video resources
-    // PhysMem *vid_mem_blocks[2];
-    void *vid_mem_ptr[2];
+    PhysMem *vid_mem_block;
     uint32_t vid_mem_size_bytes;
+    void* vid_mem_ptr;
     struct v4l2_format v4l2_fmt;
     struct v4l2_requestbuffers v4l2_req;
-    struct v4l2_buffer v4l2_frame_bufs[2];
+    struct v4l2_buffer v4l2_frame_buf;
 
     // Framebuffer resources
     PhysMem *fb_mem_block;
