@@ -334,10 +334,14 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
     }
 
-    // Tempoarary mmap workaround for V4L2 DMA buffer
-    p_res->vid_mem_ptr = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_buf.m.offset);
-    if(p_res->vid_mem_ptr == MAP_FAILED){
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to mmap video buffer\n", nullptr, p_res);
+    // Map the video buffers
+    p_res->vid_mem_ptr[0] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[0].m.offset);
+    p_res->vid_mem_ptr[1] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[1].m.offset);
+    printf("INFO [sg-interpolate2x::setup_video()] Buffer 0 offset: 0x%x\n", p_res->v4l2_frame_bufs[0].m.offset);
+    printf("INFO [sg-interpolate2x::setup_video()] Buffer 1 offset: 0x%x\n", p_res->v4l2_frame_bufs[1].m.offset);
+    
+    if (p_res->vid_mem_ptr[0] == MAP_FAILED || p_res->vid_mem_ptr[1] == MAP_FAILED) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] mmap failed: ", strerror(errno), p_res);
     }
 
     // Start video streaming
@@ -485,6 +489,43 @@ void draw_outline(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uin
     }
 }
 
+/**
+ * Save the contents of before frame and after frame to a file. Assumes input and output are RGB888
+ * @param before_frame Pointer to the before frame
+ * @param after_frame Pointer to the after frame
+ * @return 0 on success, -1 on failure
+ */
+int save_screenshot(void *before_frame, void* after_frame){
+    // Save the input888 block and interp 888 block to a file
+    FILE *input_fp = fopen("input888.raw", "wb");
+    if(input_fp == nullptr){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open input888.raw for writing\n");
+        return -1;
+    }
+    size_t num_bytes = fwrite(before_frame, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3, input_fp);
+    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write input888.raw\n");
+        return -1;
+    }
+    fflush(input_fp);
+    fclose(input_fp);
+
+    FILE *interp_fp = fopen("interp888.raw", "wb");
+    if(interp_fp == nullptr){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open interp888.raw for writing\n");
+        return -1;
+    }
+    num_bytes = fwrite(after_frame, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR, interp_fp);
+    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write interp888.raw\n");
+        return -1;
+    }
+    fflush(interp_fp);
+    fclose(interp_fp);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]){
     printf("INFO [sg-interpolate2x] Entering main\n");
     
@@ -497,6 +538,7 @@ int main(int argc, char *argv[]){
     parser.add_argument("--lines").help("Flag to draw an outline around all tiles").flag(); // .flag = .default_value(false).implicit_value(true);
     parser.add_argument("--no_self_test").help("Flag to skip the DMA self test").flag();
     parser.add_argument("--double_test").help("Flag to run the self test twice").flag();
+    parser.add_argument("--screenshot").help("Set this flag to take a single screenshot of the before frame and after frame").flag();
 
     try{
         parser.parse_args(argc, argv);
@@ -651,6 +693,23 @@ int main(int argc, char *argv[]){
                 else if(parser["--lines"] == true){
                     draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
                 }
+
+                static bool first_tile = true;
+                if(first_tile){
+                    first_tile = false;
+                    printf("INFO [sg-interpolate2x] First tile successfully processed\n");
+                }
+
+            }
+        }
+
+        static bool screenshot_taken = false;
+        if(!screenshot_taken && (parser["--screenshot"] == true)){
+            screenshot_taken = true;
+            printf("INFO [sg-interpolate2x] Taking screenshot\n");
+            int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), (void*)resources.interp888_block->get_mem_ptr());
+            if(ss < 0){
+                die_with_error("ERROR [sg-interpolate2x] Failed to save screenshot\n", nullptr, &resources);
             }
         }
 

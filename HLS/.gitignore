@@ -1,1 +1,11 @@
-ThreeChannelBilinInterpRTL
+*
+!.gitignore
+
+# Add source directories as needed
+!convolution
+!fifo
+!passthrough
+!archived_work
+!add_mult_hls
+!variance
+!bilinear_interpolation
