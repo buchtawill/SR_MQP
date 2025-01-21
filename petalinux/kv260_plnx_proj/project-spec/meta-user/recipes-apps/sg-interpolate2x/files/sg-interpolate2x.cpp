@@ -15,7 +15,7 @@ This thing is going to be so ungodly slow, but it is just a prototype. The main 
 Steps 2, 4, 5, and 6 will all be deleted eventually
 
 Author: Will Buchta
-Date Modified: 12/26/2024
+Date Modified: 1/11/2025
 
 */
 
@@ -40,9 +40,8 @@ Date Modified: 12/26/2024
 #include "phys-mman.h"
 #include "PhysMem.h"
 
-// Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h
-#define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
+#include "dma-sg-bd.h"
 
 #include "argparse.hpp"
 
@@ -160,20 +159,6 @@ void die_with_error(const char* error_msg, const char* err_str, Resources* res){
     exit(-1);
 }
 
-void print_mem(void *virtual_address, int byte_count){
-	char *data_ptr = (char*)virtual_address;
-
-	for(int i=0;i<byte_count;i++){
-		printf("%02X", data_ptr[i]);
-
-		// print a space every 4 bytes (0 indexed)
-		if(i%4==3){
-			printf(" ");
-		}
-	}
-	printf("\n");
-}
-
 void sigint_handler(int sig){
 
     if(sig == SIGINT){
@@ -196,8 +181,9 @@ void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev)
     p_res->v4l2_fd         = -1;
     p_res->fb_dev_fd       = -1;
     p_res->dev_mem_fd      = -1;
-    p_res->vid_mem_block   = nullptr;
-    p_res->vid_mem_ptr     = nullptr;
+    // p_res->vid_mem_block   = nullptr;
+    p_res->vid_mem_ptr[0]  = nullptr;
+    p_res->vid_mem_ptr[1]  = nullptr;
     p_res->fb_mem_block    = nullptr;
     p_res->input888_block  = nullptr;
     p_res->interp888_block = nullptr;
@@ -205,7 +191,8 @@ void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev)
     memset(&p_res->v4l2_fmt,             0, sizeof(p_res->v4l2_fmt));
     memset(&p_res->v4l2_req,             0, sizeof(p_res->v4l2_req));
     memset(&p_res->fixed_fb_info,        0, sizeof(p_res->fixed_fb_info));
-    memset(&p_res->v4l2_frame_buf,       0, sizeof(p_res->v4l2_frame_buf));
+    memset(&p_res->v4l2_frame_bufs[0],   0, sizeof(p_res->v4l2_frame_bufs[0]));
+    memset(&p_res->v4l2_frame_bufs[1],   0, sizeof(p_res->v4l2_frame_bufs[1]));
     memset(&p_res->configurable_fb_info, 0, sizeof(p_res->configurable_fb_info));
 
     p_res->fb_phys_base           = 0;
@@ -271,11 +258,17 @@ void cleanup_resources(Resources *p_res){
         close(p_res->dev_mem_fd);
     }
 
-    if (p_res->vid_mem_ptr != MAP_FAILED) {
+    if (p_res->vid_mem_ptr[0] != MAP_FAILED) {
         munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
     }
 
-    PMM.free(p_res->vid_mem_block);
+    if (p_res->vid_mem_ptr[1] != MAP_FAILED) {
+        munmap(p_res->vid_mem_ptr, p_res->vid_mem_size_bytes);
+    }
+
+    // ioctl(p_res->v4l2_fd, VIDIOC_STREAMOFF, &p_res->v4l2_frame_buf.type);
+
+    // PMM.free(p_res->vid_mem_block);
     PMM.free(p_res->fb_mem_block);
     PMM.free(p_res->input888_block);
     PMM.free(p_res->interp888_block);
@@ -285,7 +278,7 @@ void cleanup_resources(Resources *p_res){
  * Setup all things v4l2.
  * Open the video device
  * Set the video format
- * Request a buffer from the video device
+ * Request buffers from the video device
  * Map the video buffer
  * @param p_res Pointer to the resources struct
  * @return None
@@ -306,7 +299,7 @@ void setup_video(Resources *p_res){
 
     // Request buffers from the video device
     printf("INFO [sg-interpolate2x::setup_video()] Requesting buffer from video device\n");
-    p_res->v4l2_req.count = 1; // Use 1 buffer
+    p_res->v4l2_req.count = 2; // Use 1 buffer
     p_res->v4l2_req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     p_res->v4l2_req.memory = V4L2_MEMORY_MMAP;
 
@@ -314,25 +307,32 @@ void setup_video(Resources *p_res){
         die_with_error("ERROR [sg-interpolate2x::setup_video()] Error requesting v4l2 buffer: ", strerror(errno), p_res);
     }
 
-    // Map the video buffer
+    // Map the video buffer s
     printf("INFO [sg-interpolate2x::setup_video()] Mapping video buffer\n");
-    p_res->v4l2_frame_buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    p_res->v4l2_frame_buf.memory = V4L2_MEMORY_MMAP;
-    p_res->v4l2_frame_buf.index  = 0;
+    p_res->v4l2_frame_bufs[0].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_bufs[0].memory = V4L2_MEMORY_MMAP;
+    p_res->v4l2_frame_bufs[0].index = 0;
 
-    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_buf) == -1) {
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer: ", strerror(errno), p_res);
+    p_res->v4l2_frame_bufs[1].type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    p_res->v4l2_frame_bufs[1].memory = V4L2_MEMORY_MMAP;
+    p_res->v4l2_frame_bufs[1].index = 1;
+
+    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[0]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer 0: ", strerror(errno), p_res);
     }
 
-    p_res->vid_mem_size_bytes = p_res->v4l2_frame_buf.length;
-    // p_res->vid_mem_size_bytes = INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2; // 2 bytes per pixel
-
-    // Map the video buffer to a PhysMem object
-    // p_res->vid_mem_block = PMM.alloc((uint32_t)p_res->vid_mem_phys_base, p_res->vid_mem_size_bytes);
-    p_res->vid_mem_block = PMM.alloc(p_res->vid_mem_size_bytes);
-    if(p_res->vid_mem_block == nullptr){
-        die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
+    if (ioctl(p_res->v4l2_fd, VIDIOC_QUERYBUF, &p_res->v4l2_frame_bufs[1]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x::setup_video()] Error querying v4l2 buffer 1: ", strerror(errno), p_res);
     }
+
+    p_res->vid_mem_size_bytes = p_res->v4l2_frame_bufs[0].length;
+
+    // Create two buffers
+    // p_res->vid_mem_blocks[0] = PMM.alloc(p_res->vid_mem_size_bytes);
+    // p_res->vid_mem_blocks[1] = PMM.alloc(p_res->vid_mem_size_bytes);
+    // if(p_res->vid_mem_blocks[0] == nullptr || p_res->vid_mem_blocks[1] == nullptr){
+    //     die_with_error("ERROR [sg-interpolate2x::setup_video()] Failed to map video buffer to PhysMem object\n", nullptr, p_res);
+    // }
 
     // Map the video buffers
     p_res->vid_mem_ptr[0] = mmap(NULL, p_res->vid_mem_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, p_res->v4l2_fd, p_res->v4l2_frame_bufs[0].m.offset);
@@ -346,7 +346,7 @@ void setup_video(Resources *p_res){
 
     // Start video streaming
     printf("INFO [sg-interpolate2x::setup_video()] Starting video streaming from v4l2\n");
-    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_frame_buf.type) == -1) {
+    if (ioctl(p_res->v4l2_fd, VIDIOC_STREAMON, &p_res->v4l2_fmt.type) == -1) {
         die_with_error("ERROR [sg-interpolate2x::setup_video()] Error starting video streaming: ", strerror(errno), p_res);
     }
 }
@@ -390,16 +390,18 @@ void setup_framebuffer(Resources *p_res){
 
 /**
  * Compute the source address of every row in a TileInfo struct given the coordinates of the tile and PhysMem buffer.
+ * Additionally, program the buffer descriptors for the MM2S channel and reset their complete bit.
  * If the given coordinates end up with the tile being out of bounds, the tile will be shifted to the left or up,
  * overlapping some with the previous tile.
  * @param src_block Pointer to the PhysMem object containing the source image
- * @param tile Pointer to the TileInfo struct
- * @param xres The width of the source image
- * @param yres The height of the source image
+ * @param tile Pointer to the TileInfo struct containing tile x and y coordinates
+ * @param xres The width of the source image in pixels
+ * @param yres The height of the source image in pixels
  * @param bytes_pp The number of bytes per pixel in the source image
+ * @param mm2s_bds Pointer to the MM2S buffer descriptor array to be programmed
  * @return None
  */
-void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp){
+void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp, PhysMem** mm2s_bds){
 
     // Compute pixel coordinates of top left corner of tile
     uint32_t pixel_x = tile->tile_x * TILE_WIDTH_PIX;
@@ -424,19 +426,24 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
         tile->src_row_offset[row] = tile_start_offset + row_offset;
 
         tile->src_row_phys_addr[row] = tile->src_row_offset[row] + src_block->get_phys_address();
+
+        ((BD_PTR)(mm2s_bds[row]->get_mem_ptr()))->buffer_address = tile->src_row_phys_addr[row];
+        clear_cmplt_bit((BD_PTR)(mm2s_bds[row]->get_mem_ptr()));
     }
 }
 
 /**
- * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer.
+ * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer. Additionally,
+ * program DMA buffer descriptors for the S2MM channel and reset their complete bit.
  * The user MUST call compute_tile_src_addr before calling this function.
  * @param tile Pointer to the TileInfo struct - Must have source offsets populated by first calling compute_tile_src_offsets
  * @param xres_in The width of the source image
  * @param upscale_factor The factor by which the image is being upscaled
  * @param bytes_pp The number of bytes per pixel in the source image
+ * @param s2mm_bds Pointer to the S2MM buffer descriptor array to be programmed
  * @return None
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp){
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
@@ -449,7 +456,80 @@ void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in,
         tile->dst_row_offset[row] = tile_start_offset + row_offset;
 
         tile->dst_row_phys_addr[row] = tile->dst_row_offset[row] + dst_block->get_phys_address();
+    
+        ((BD_PTR)(s2mm_bds[row]->get_mem_ptr()))->buffer_address = tile->dst_row_phys_addr[row];
+        clear_cmplt_bit((BD_PTR)(s2mm_bds[row]->get_mem_ptr()));
     }
+}
+
+/**
+ * Initialize buffer descriptor chains for the MM2S and S2MM channels
+ * @param mm2s Pointer to the MM2S buffer descriptor array
+ * @param s2mm Pointer to the S2MM buffer descriptor array
+ * @param mm2s_size The number of MM2S buffer descriptors
+ * @param upscale_factor The factor by which the image is being upscaled
+ * @param bytes_pp_in The number of bytes per pixel in the source image
+ * @param bytes_pp_out The number of bytes per pixel in the destination image after passing thru HW
+ * @return 0 on success, -1 on failure
+ */
+int init_buffer_descriptors(PhysMem **mm2s, PhysMem **s2mm, uint32_t mm2s_size, uint32_t upscale_factor, uint8_t bytes_pp_in, uint8_t bytes_pp_out){
+
+    // Allocate physical memory for the buffer descriptors
+    for(uint32_t i = 0; i < mm2s_size; i++){
+        mm2s[i] = PMM.alloc(SG_BD_SIZE_BYTES);
+
+        if(mm2s[i] == nullptr){
+            printf("ERROR [sg-interpolate2x::init_buffer_descriptors()] Failed to allocate mm2s buffer descriptor\n");
+            return -1;
+        }
+        memset((void*)mm2s[i]->get_mem_ptr(), 0, SG_BD_SIZE_BYTES);
+    }
+
+    for(uint32_t i = 0; i < (mm2s_size * upscale_factor); i++){
+        s2mm[i] = PMM.alloc(SG_BD_SIZE_BYTES);
+
+        if(s2mm[i] == nullptr){
+            printf("ERROR [sg-interpolate2x::init_buffer_descriptors()] Failed to allocate s2mm buffer descriptor\n");
+            return -1;
+        }
+        memset((void*)s2mm[i]->get_mem_ptr(), 0, SG_BD_SIZE_BYTES);
+    }
+
+    // Program mm2s to be linked lists
+    // Set the SOF bit for the first BD
+    // Set the buffer lengths
+    // Set the next desc ptr and index
+    // Set the EOF bit for the last BD
+    set_sof_bit(((BD_PTR)mm2s[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < mm2s_size - 1; i++){
+        BD_PTR current_bd = (BD_PTR)(mm2s[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, TILE_WIDTH_PIX * bytes_pp_in);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = mm2s[i+1]->get_phys_address();
+    }
+    BD_PTR last_mm2s = (BD_PTR)(mm2s[mm2s_size - 1]->get_mem_ptr());
+    set_eof_bit(last_mm2s, 1);
+    set_buffer_length(last_mm2s, TILE_WIDTH_PIX * bytes_pp_in);
+    last_mm2s->next_desc_ptr = mm2s[0]->get_phys_address();
+    last_mm2s->next_desc_index = 0;
+
+    // Same for s2mm
+    set_sof_bit(((BD_PTR)s2mm[0]->get_mem_ptr()), 1);
+    for(uint32_t i = 0; i < (mm2s_size * upscale_factor) - 1; i++){
+        BD_PTR current_bd = (BD_PTR)(s2mm[i]->get_mem_ptr());
+
+        set_buffer_length(current_bd, TILE_WIDTH_PIX * upscale_factor * bytes_pp_out);
+        current_bd->next_desc_index = i + 1;
+        current_bd->next_desc_ptr = s2mm[i+1]->get_phys_address();
+    }
+    BD_PTR last_s2mm = (BD_PTR)(s2mm[(mm2s_size * upscale_factor) - 1]->get_mem_ptr());
+    set_eof_bit(last_s2mm, 1);
+    set_buffer_length(last_s2mm, TILE_WIDTH_PIX * upscale_factor * bytes_pp_out);
+    last_s2mm->next_desc_ptr = s2mm[0]->get_phys_address();
+    last_s2mm->next_desc_index = 0;
+
+    return 0;
 }
 
 void draw_dots(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uint8_t g, uint8_t b){
@@ -600,13 +680,12 @@ int main(int argc, char *argv[]){
         }
     }
 
-    // Initialize the output buffer
+    // Initialize the output buffer to cyan for debugging purposes
     for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
     }
-    printf("INFO [sg-interpolate2x] Starting video output\n");
     
     uint32_t frame_loop_count = 0;
     unsigned long start_jiffies = get_jiffies();
@@ -619,14 +698,49 @@ int main(int argc, char *argv[]){
     if((INPUT_VIDEO_HEIGHT % TILE_HEIGHT_PIX) != 0) num_vert_tiles++;
     if((INPUT_VIDEO_WIDTH  % TILE_WIDTH_PIX)  != 0) num_horz_tiles++;
 
+    // Initialize scatter gather buffer descriptors for tiles
+    dma1.reset_dma();
+    PhysMem* mm2s_bds[TILE_HEIGHT_PIX];
+    PhysMem* s2mm_bds[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
+    if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 3, 3) < 0){
+        die_with_error("ERROR [sg-interpolate2x] Failed to initialize buffer descriptors\n", nullptr, &resources);
+    }
+    BD_PTR last_mm2s_bd = (BD_PTR)(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_mem_ptr());
+    BD_PTR last_s2mm_bd = (BD_PTR)(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_mem_ptr());
+
+    dma1.set_mm2s_curdesc(mm2s_bds[0]->get_phys_address());
+    dma1.set_s2mm_curdesc(s2mm_bds[0]->get_phys_address());
+    dma1.start_mm2s();
+    dma1.start_s2mm();
+
+    printf("INFO [sg-interpolate2x] Starting video output\n");
+
+    // Queue the first buffer, then alternate
+    if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[0]) == -1) {
+        die_with_error("ERROR [sg-interpolate2x] Error queueing buffer\n", nullptr, &resources);
+    }
+    int queued_buffer = 0;
+    int next_buffer   = 1;
     while(!die_flag){
         
         // Capture a frame
-        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_buf) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_QBUF, &resources.v4l2_frame_bufs[next_buffer]) == -1) {
             die_with_error("ERROR [sg-interpolate2x] Error queueing buffer\n", nullptr, &resources);
         }
-        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_buf) == -1) {
+        if (ioctl(resources.v4l2_fd, VIDIOC_DQBUF, &resources.v4l2_frame_bufs[queued_buffer]) == -1) {
             die_with_error("ERROR [sg-interpolate2x] Error dequeueing buffer: ", strerror(errno), &resources);
+        }
+        
+        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr[queued_buffer]), 
+                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
+                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+
+        if(queued_buffer == 0){
+            queued_buffer = 1;
+            next_buffer = 0;
+        } else{
+            queued_buffer = 0;
+            next_buffer = 1;
         }
 
         // Convert v4l2 frame to RGB888
@@ -635,56 +749,31 @@ int main(int argc, char *argv[]){
         //  - Receive the tile in the interp_888 buffer / PMM block
         // Move to framebuffer, converting to RGB565 on the way
 
-        // yuyv_to_rgb888((uint8_t*)(resources.vid_mem_block->get_mem_ptr()), 
-        //                (uint8_t*)(resources.input888_block->get_mem_ptr()), 
-        //                INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-
-        // Temporary workaround for V4L2 DMA buffer
-        yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr), 
-                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
-                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-        
+        unsigned long before_tile_jiffies = get_jiffies();
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
             for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
-
+                
                 // Calculate physical addresses for each row of the tile
+                // Set the BD rings appropriately
                 // Send the tile down to the PL for interpolation
                 // Calculate destination addresses for each row of the tile
                 // Receive the tile in the interp_888 buffer / PMM block
-
                 tile.tile_x = tx;
                 tile.tile_y = ty;
-                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3);
+                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds);
+                
+                // Start the MM2S transfer
+                dma1.set_mm2s_taildesc(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_phys_address());
 
                 // Calculate destination addresses for each row of the tile
-                // In the future, this will happen concurrently with the PL interpolation
-                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3);
+                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
-                // Send pixels from input RGB888 buffer to the PL for interpolation
-                for(uint16_t row = 0; row < TILE_HEIGHT_PIX; row++){
-                    int result = dma1.transfer_mm2s(tile.src_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
-                    if(result < 0) {
-                        dma1.print_debug_info();
-                        die_with_error("ERROR [sg-interpolate2x] Error transferring data to PL ", nullptr, &resources);
-                    }
-                }
-
-                // Receive pixels from the PL and store them in the interp888 buffer
-                for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
-                    int result = dma1.transfer_s2mm(tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * UPSCALE_FACTOR * 3, true);
-                    if(result < 0) {
-                        dma1.print_debug_info();
-                        die_with_error("ERROR [sg-interpolate2x] Error transferring data from PL ", nullptr, &resources);
-                    }
-                }
-
-                // for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * UPSCALE_FACTOR); row++){
-                //     int result = dma1.transfer(tile.src_row_phys_addr[row], tile.dst_row_phys_addr[row], TILE_WIDTH_PIX * 3, true);
-                //     if(result < 0) {
-                //         dma1.print_debug_info();
-                //         die_with_error("ERROR [sg-interpolate2x] Error transferring DMA", nullptr, &resources);
-                //     }
-                // }
+                // Wait for MM2S transfer to complete
+                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
+                
+                // Start the S2MM transfer
+                dma1.set_s2mm_taildesc(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_phys_address());
+                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
 
                 // Set a pixel at the top left corner of the tile to red
                 if(parser["--dots"] == true){
@@ -702,15 +791,13 @@ int main(int argc, char *argv[]){
 
             }
         }
-
-        static bool screenshot_taken = false;
-        if(!screenshot_taken && (parser["--screenshot"] == true)){
-            screenshot_taken = true;
-            printf("INFO [sg-interpolate2x] Taking screenshot\n");
-            int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), (void*)resources.interp888_block->get_mem_ptr());
-            if(ss < 0){
-                die_with_error("ERROR [sg-interpolate2x] Failed to save screenshot\n", nullptr, &resources);
-            }
+        unsigned long after_tile_jiffies = get_jiffies();
+        static bool first = true;
+        if(first){
+            float elapsed_time = (float)(after_tile_jiffies - before_tile_jiffies) / (float)sysconf(_SC_CLK_TCK);
+            printf("INFO [sg-interpolate2x] Time to process tiles: %0.5f seconds\n", elapsed_time);
+            printf("INFO [sg-interpolate2x] Number of jiffies: %lu\n", after_tile_jiffies - before_tile_jiffies);
+            first = false;
         }
 
         static bool screenshot_taken = false;
@@ -750,7 +837,7 @@ int main(int argc, char *argv[]){
     } // End of while loop
 
     // Stop video streaming
-    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_frame_buf.type) == -1) {
+    if (ioctl(resources.v4l2_fd, VIDIOC_STREAMOFF, &resources.v4l2_fmt.type) == -1) {
         die_with_error("ERROR [sg-interpolate2x] Error stopping video streaming: ", strerror(errno), &resources);
     }
 
