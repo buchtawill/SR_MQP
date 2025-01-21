@@ -713,6 +713,16 @@ int main(int argc, char *argv[]){
             }
         }
 
+        static bool screenshot_taken = false;
+        if(!screenshot_taken && (parser["--screenshot"] == true)){
+            screenshot_taken = true;
+            printf("INFO [sg-interpolate2x] Taking screenshot\n");
+            int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), (void*)resources.interp888_block->get_mem_ptr());
+            if(ss < 0){
+                die_with_error("ERROR [sg-interpolate2x] Failed to save screenshot\n", nullptr, &resources);
+            }
+        }
+
         // Move the interpolated frame to the framebuffer, converting to RGB565 on the way
         // Transfer 1 row at a time to account for resolution differences
         // printf("INFO [sg-interpolate2x] Moving interpolated frame to framebuffer\n");
