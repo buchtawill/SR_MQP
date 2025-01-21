@@ -18,6 +18,10 @@ if {[catch {validate_bd_design -force} result]} {
     puts "Error validating block design: $result"
     exit 1
 }
+if {[catch {save_bd_design} result]} {
+    puts "Error saving block design: $result"
+    exit 1
+}
 
 make_wrapper -files [get_files "$project_dir/$project_name.srcs/sources_1/bd/design_1/design_1.bd"] -top
 update_compile_order -fileset sources_1

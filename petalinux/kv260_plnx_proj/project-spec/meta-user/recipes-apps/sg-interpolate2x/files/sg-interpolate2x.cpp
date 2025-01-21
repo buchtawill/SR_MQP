@@ -782,6 +782,13 @@ int main(int argc, char *argv[]){
                 else if(parser["--lines"] == true){
                     draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
                 }
+
+                static bool first_tile = true;
+                if(first_tile){
+                    first_tile = false;
+                    printf("INFO [sg-interpolate2x] First tile successfully processed\n");
+                }
+
             }
         }
         unsigned long after_tile_jiffies = get_jiffies();
