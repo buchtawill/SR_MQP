@@ -11,7 +11,7 @@ FORMAT = '888'
 
 if __name__ == '__main__':
     
-    input_file = './input888.raw'
+    input_file = './images/input888.raw'
     
     import matplotlib.pyplot as plt
 
@@ -34,4 +34,4 @@ if __name__ == '__main__':
     
     # Save the image
     img = Image.fromarray(image)
-    img.save('output_image.png')
+    img.save('images/raw_wiiframe.png')
