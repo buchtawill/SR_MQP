@@ -1,16 +1,18 @@
 #!/bin/bash
+
+KV260BOARD="kv260b"
+
 UNIX_TIME_START=$(date +%s)
 echo "INFO [cross_compile_apps.sh] Sourcing petalinux settings"
 
 if source /tools/Xilinx/PetaLinux/2023.1/settings.sh ; then
-	echo "INFO [cross_compile_apps.sh] Successfully sourced petalinux settings"
+    echo "INFO [cross_compile_apps.sh] Successfully sourced petalinux settings"
 else
-	echo "ERROR [cross_compile_apps.sh] Error sourcing build tools"
-	exit 1
+    echo "ERROR [cross_compile_apps.sh] Error sourcing build tools"
+    exit 1
 fi
 
-# APPS_LIST=("v4l-to-fb0-dma v4l-to-fb0-aligned add-mult-test print-fb-info")
-APPS_LIST=("interpolate2x")
+APPS_LIST=("sg-interpolate2x v4l-to-fb0-dma")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>
@@ -30,10 +32,7 @@ for APP in ${APPS_LIST[@]}; do
     fi
 done
 
-
-# Old method: rebuild rootfs and extract the usr/bin folder
-# ROOTFS_ARCHIVE_PATH=./images/linux/rootfs.tar.gz
-# New method: Copy app binaries directly
+# Copy app binaries directly to target device
 
 rm -rf ./remade_app_binaries
 mkdir -p ./remade_app_binaries
@@ -43,13 +42,13 @@ for APP in ${APPS_LIST[@]}; do
     cp $BUILD_PATH ./remade_app_binaries
 done
 
-# echo "INFO [cross_compile_apps.sh] SCPing new binaries to machine"
-# scp -r ./remade_app_binaries root@kv260-mqp-b.dyn.wpi.edu:/home/root
+echo "INFO [cross_compile_apps.sh] SCPing new binaries to machine"
+scp -r ./remade_app_binaries petalinux@$KV260BOARD.dyn.wpi.edu:/home/petalinux
 
-# if [ $? -ne 0 ]; then
-#     echo "ERROR [cross_compile_apps.sh] Error SCPing new binaries to machine"
-#     exit 1
-# fi
+if [ $? -ne 0 ]; then
+    echo "ERROR [cross_compile_apps.sh] Error SCPing new binaries to machine"
+    exit 1
+fi
 
 echo "INFO [cross_compile_apps.sh] Success"
 
