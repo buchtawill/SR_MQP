@@ -15,7 +15,7 @@ This thing is going to be so ungodly slow, but it is just a prototype. The main 
 Steps 2, 4, 5, and 6 will all be deleted eventually
 
 Author: Will Buchta
-Date Modified: 12/26/2024
+Date Modified: 1/11/2025
 
 */
 
@@ -41,7 +41,6 @@ Date Modified: 12/26/2024
 #include "PhysMem.h"
 
 // Must define either DMA_DIRECT_REG_MODE or DMA_SG_MODE before including axi-dma.h
-#define DMA_DIRECT_REG_MODE 1
 #include "axi-dma.h"
 
 #include "argparse.hpp"
