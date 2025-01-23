@@ -1,0 +1,11 @@
+#Note: Mention Each package in individual line
+#These packages will get added into rootfs menu entry
+
+CONFIG_add-mult-test
+CONFIG_print-fb-info
+CONFIG_v4l-to-fb0-aligned
+CONFIG_v4l-to-fb0-dma
+CONFIG_jiffies-test
+CONFIG_interpolate2x
+CONFIG_sg-interpolate2x
+CONFIG_sg-interpolate2x
