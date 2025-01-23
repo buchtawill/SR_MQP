@@ -12,55 +12,58 @@ std::vector<uint8_t> bilinearInterpolation(
     int channels,
     float scale)
 {
-    int newWidth = (int)(width * scale);
-    int newHeight = (int)(height * scale);
+    int newWidth  = static_cast<int>(width  * scale);
+    int newHeight = static_cast<int>(height * scale);
+
     std::vector<uint8_t> outputImage(newWidth * newHeight * channels);
+
+    float widthRatio  = (newWidth  > 1) ? float(width  - 1) / float(newWidth  - 1) : 0.f;
+    float heightRatio = (newHeight > 1) ? float(height - 1) / float(newHeight - 1) : 0.f;
 
     for (int y_out = 0; y_out < newHeight; ++y_out) {
         for (int x_out = 0; x_out < newWidth; ++x_out) {
-            float x_in = x_out / scale;
-            float y_in = y_out / scale;
-            int x0 = (int)std::floor(x_in);
-            int y0 = (int)std::floor(y_in);
-            int x1 = std::min(x0 + 1, width - 1);
+            float x_in = x_out * widthRatio;
+            float y_in = y_out * heightRatio;
+
+            int x0 = static_cast<int>(std::floor(x_in));
+            int y0 = static_cast<int>(std::floor(y_in));
+            int x1 = std::min(x0 + 1, width  - 1);
             int y1 = std::min(y0 + 1, height - 1);
+
             float dx = x_in - x0;
             float dy = y_in - y0;
-            float w00 = (1 - dx)*(1 - dy);
-            float w10 = dx*(1 - dy);
-            float w01 = (1 - dx)*dy;
-            float w11 = dx*dy;
+
+            float w00 = (1 - dx) * (1 - dy);
+            float w10 = dx        * (1 - dy);
+            float w01 = (1 - dx) * dy;
+            float w11 = dx       * dy;
 
             auto get_pixel = [&](int x, int y, int c) {
-                return (float)image[(y*width + x)*channels + c];
+                return static_cast<float>( image[(y * width + x) * channels + c] );
             };
 
-            float R00 = get_pixel(x0, y0, 0);
-            float G00 = get_pixel(x0, y0, 1);
-            float B00 = get_pixel(x0, y0, 2);
+            float R_val = w00 * get_pixel(x0, y0, 0)
+                        + w10 * get_pixel(x1, y0, 0)
+                        + w01 * get_pixel(x0, y1, 0)
+                        + w11 * get_pixel(x1, y1, 0);
 
-            float R10 = get_pixel(x1, y0, 0);
-            float G10 = get_pixel(x1, y0, 1);
-            float B10 = get_pixel(x1, y0, 2);
+            float G_val = w00 * get_pixel(x0, y0, 1)
+                        + w10 * get_pixel(x1, y0, 1)
+                        + w01 * get_pixel(x0, y1, 1)
+                        + w11 * get_pixel(x1, y1, 1);
 
-            float R01 = get_pixel(x0, y1, 0);
-            float G01 = get_pixel(x0, y1, 1);
-            float B01 = get_pixel(x0, y1, 2);
+            float B_val = w00 * get_pixel(x0, y0, 2)
+                        + w10 * get_pixel(x1, y0, 2)
+                        + w01 * get_pixel(x0, y1, 2)
+                        + w11 * get_pixel(x1, y1, 2);
 
-            float R11 = get_pixel(x1, y1, 0);
-            float G11 = get_pixel(x1, y1, 1);
-            float B11 = get_pixel(x1, y1, 2);
-
-            float R_val = w00*R00 + w10*R10 + w01*R01 + w11*R11;
-            float G_val = w00*G00 + w10*G10 + w01*G01 + w11*G11;
-            float B_val = w00*B00 + w10*B10 + w01*B01 + w11*B11;
-
-            int idx = (y_out * newWidth + x_out)*channels;
-            outputImage[idx+0] = (uint8_t)std::round(R_val);
-            outputImage[idx+1] = (uint8_t)std::round(G_val);
-            outputImage[idx+2] = (uint8_t)std::round(B_val);
+            int idx = (y_out * newWidth + x_out) * channels;
+            outputImage[idx + 0] = static_cast<uint8_t>(std::round(R_val));
+            outputImage[idx + 1] = static_cast<uint8_t>(std::round(G_val));
+            outputImage[idx + 2] = static_cast<uint8_t>(std::round(B_val));
         }
     }
+
     return outputImage;
 }
 
@@ -186,8 +189,8 @@ int main()
     int num_tests  = 5;
     int pass_count = 0;
     int fail_count = 0;
-    int width      = 4;
-    int height     = 4;
+    int width      = 28;
+    int height     = 28;
     int channels   = 3;
     float scale    = 2.0f;
 
