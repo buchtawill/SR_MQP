@@ -1003,9 +1003,6 @@ config SUBSYSTEM_USB_PSU_USB_0_SELECT
 	default y
 
 
-config SUBSYSTEM_DP_PSU_DP_SELECT
-	bool
-	default y
 
 
 endif

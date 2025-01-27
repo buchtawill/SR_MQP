@@ -3,7 +3,7 @@
 EMAIL="buchtawill@gmail.com"
 MAIN_DIR=$(pwd)
 PLNX_PROJ_DIR=$MAIN_DIR/petalinux/kv260_plnx_proj
-VIVADO_PROJ_DIR=$MAIN_DIR/vivado/kv260_vivado_proj
+VIVADO_PROJ_DIR=$MAIN_DIR/vivado/kv260_vivado_project
 XSA_FILE_PATH=$VIVADO_PROJ_DIR/kv260_upscaler.xsa
 
 now=$(date)

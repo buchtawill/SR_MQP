@@ -4,7 +4,7 @@
 # Run with the following command: vivado -mode batch -source example_script.tcl
 # Author: Will Buchta Dec 2024
 
-set project_name "kv260_vivado_proj"
+set project_name "kv260_vivado_project"
 set project_dir "./$project_name"
 
 open_project "$project_dir/$project_name.xpr"
