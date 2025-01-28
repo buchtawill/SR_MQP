@@ -13,13 +13,13 @@ def make_low_res_filename(high_res_filename:str):
 
     # Get the split. Example: os.path.splitext('path/to/br.uh.txt') -> ('path/to/br.uh', '.txt')
     split = os.path.splitext(high_res_filename)
-    low_res_filename = split[0] + "_aug0" + split[1]
+    low_res_filename = split[0] + "_downscaled" + split[1]
     
     return low_res_filename
 
 if __name__ == '__main__':
-    high_res_dir = './data/1280_16x9_tiles_hi_res4x'
-    low_res_dir = './data/1280_16x9_tiles_downscaled4x_augmented'
+    high_res_dir = './challenge/challenge_64x64'
+    low_res_dir = './challenge/challenge_32x32'
 
     high_res_list = []
     low_res_list  = []
@@ -60,5 +60,5 @@ if __name__ == '__main__':
     print(f"INFO [create_pt.py] High res tensor shape: {high_res_tensors.shape}")
     print(f"INFO [create_pt.py] Low res tensor shape:  {low_res_tensors.shape}")
 
-    torch.save(low_res_tensors, "./data/4xlotensors.pt")
-    torch.save(high_res_tensors, "./data/4xhitensors.pt")
+    torch.save(low_res_tensors, "./challenge/challenge_low_res.pt")
+    torch.save(high_res_tensors, "./challenge/challenge_high_res.pt")

@@ -27,10 +27,10 @@ namespace fs = std::filesystem;
 int main(int argc, char** argv) {
     try {
         // Default parameters
-        std::string image_path = "raw_wiiframe.png";
+        std::string image_path = "img.png";
         QuantizationType quant_type = QuantizationType::NONE;
         std::string output_weights = "quantized_weights";
-        std::string model_output = "100E_5em4_b64_CPU.pth";
+        std::string model_output = "fsrcnn_quantized.pth";
         bool save_model = false;
         UpscaleMethod upscale_method = UpscaleMethod::FSRCNN;
         

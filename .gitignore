@@ -14,9 +14,5 @@ Models/FSRCNN/Emulation/fsrcnn_cpp/debug_crops/
 
 # Ignore XSA files as they are build products
 *.xsa
-*.idea
-*.png
-*.o
-*.bin
-*.out
-*.sh
+
+petalinux/kv260_plnx_proj/project-spec/hw-description/kv260_upscaler.bit
