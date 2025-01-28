@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from PIL import Image
 
@@ -10,9 +11,12 @@ BYTES_PER_PIXEL = 3
 FORMAT = '888'
 
 if __name__ == '__main__':
-    
-    input_file = './images/input888.raw'
-    
+
+    if(len(sys.argv) < 2):
+        print("Usage: view_raw_image.py <path>")
+        exit()
+    input_file = sys.argv[1]
+
     import matplotlib.pyplot as plt
 
     if FORMAT == '888':
@@ -34,4 +38,4 @@ if __name__ == '__main__':
     
     # Save the image
     img = Image.fromarray(image)
-    img.save('images/raw_wiiframe.png')
+    img.save('raw_wiiframe.png')
