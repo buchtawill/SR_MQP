@@ -15,9 +15,9 @@ from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
-NUM_EPOCHS = 100
-BATCH_SIZE = 64
-LEARN_RATE = 0.0002
+NUM_EPOCHS = 1
+BATCH_SIZE = 128
+LEARN_RATE = 0.0004
 COLOR_SPACE = 'rgb'
 
 # Define the RGB to YUV conversion matrix and its inverse (YUV to RGB)
@@ -169,7 +169,7 @@ def train_normal(model:FSRCNN,
             inference = model(low_res)
             # loss = criterion(inference, hi_res_truth)
             
-            plot_images(low_res, inference, hi_res_truth, f"epoch_results/epoch{epoch+1}.png")
+            plot_images(low_res, inference, hi_res_truth, f"epoch_results4x/epoch{epoch+1}.png")
 
 def sec_to_human(seconds):
     """Return a number of seconds to hours, minutes, and seconds"""
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     print(f'INFO [train.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [train.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
+   # model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
     
     # print_model_summary(model, 1, 3, 28, 28)
     # exit()
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     seed = 50  # Set the seed for reproducibility
     torch.manual_seed(seed)
     print("INFO [train.py] Loading Tensor pair dataset")
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors.pt', low_res_tensors_path='../data/data/low_res_tensors.pt')
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors_10k.pt', low_res_tensors_path='../data/data/low_res_tensors_10k.pt')
     # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/challenge/challenge_high_res.pt', low_res_tensors_path='../data/data/challenge/challenge_low_res.pt')
     # print("INFO [train.py] Loading image pair dataset")
     # transform = transforms.Compose([transforms.ToTensor()])
@@ -238,7 +238,7 @@ if __name__ == '__main__':
                  device=device)
                 
     tb_writer.flush()
-    torch.save(model.state_dict(), './saved_weights/weights.pth')
+    torch.save(model.state_dict(), './saved_weights/weights4x_aug.pth')
     
     tEnd = time.time()
     print(f"INFO [train.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
