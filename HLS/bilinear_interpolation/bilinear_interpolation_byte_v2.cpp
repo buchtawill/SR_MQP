@@ -2,43 +2,14 @@
 // HLS function to read from input stream and write to output stream
 
 //math for bilinear interpolation
-int bilinear_interpolation_calculations(pixel_t image_in[NUM_TRANSFERS],
-                           	   	   	   	pixel_t image_out[NUM_TRANSFERS_OUT]){
+int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * CHANNELS],
+                                        pixel_t image_out[HEIGHT_OUT * WIDTH_OUT * CHANNELS]) {
 
-    // Declare image buffers in URAM
-    static pixel_t image_in_split[HEIGHT_IN][WIDTH_IN][CHANNELS];  // Input image stored in URAM
-	#pragma HLS BIND_STORAGE variable=image_in_split type=RAM_1P impl=URAM
-
-    // Declare image buffers in URAM
-    static pixel_t image_out_split[HEIGHT_IN][WIDTH_IN][CHANNELS];  // Input image stored in URAM
-	#pragma HLS BIND_STORAGE variable=image_in_split type=RAM_1P impl=URAM
-
-    // Local variables for indexing the 3D matrix
-    int row = 0, col = 0, channel = 0;
-
-    //split values into matrix for calculating
-    for(int j = 0; j < NUM_TRANSFERS; j++){
-		// Store in value
-		image_in_split[row][col][channel] = image_in[j];
-		channel++;
-		if (channel == CHANNELS) {
-			channel = 0;
-			col++;
-			if (col == WIDTH_IN) {
-				col = 0;
-				row++;
-			}
-		}
-    }
-
-    float widthRatio  = float(WIDTH_IN - 1) / float(WIDTH_OUT - 1);
-    float heightRatio = float(HEIGHT_IN - 1) / float(HEIGHT_OUT - 1);
+    float widthRatio  = static_cast<float>(WIDTH_IN - 1) / static_cast<float>(WIDTH_OUT - 1);
+    float heightRatio = static_cast<float>(HEIGHT_IN - 1) / static_cast<float>(HEIGHT_OUT - 1);
 
     for (int y_out = 0; y_out < HEIGHT_OUT; ++y_out) {
-	//#pragma HLS PIPELINE II=4
-
         for (int x_out = 0; x_out < WIDTH_OUT; ++x_out) {
-
 
             // Compute the corresponding input coordinates
             float x_in = x_out * widthRatio;
@@ -61,42 +32,33 @@ int bilinear_interpolation_calculations(pixel_t image_in[NUM_TRANSFERS],
 
             // Perform bilinear interpolation for each channel
             for (int ch = 0; ch < CHANNELS; ++ch) {
+                int index00 = (y0 * WIDTH_IN + x0) * CHANNELS + ch;
+                int index10 = (y0 * WIDTH_IN + x1) * CHANNELS + ch;
+                int index01 = (y1 * WIDTH_IN + x0) * CHANNELS + ch;
+                int index11 = (y1 * WIDTH_IN + x1) * CHANNELS + ch;
+
                 float interpolated_value =
-                    w00 * image_in_split[y0][x0][ch] +
-                    w10 * image_in_split[y0][x1][ch] +
-                    w01 * image_in_split[y1][x0][ch] +
-                    w11 * image_in_split[y1][x1][ch];
+                    w00 * image_in[index00] +
+                    w10 * image_in[index10] +
+                    w01 * image_in[index01] +
+                    w11 * image_in[index11];
 
                 // Assign the interpolated value to the output image
-                image_out_split[y_out][x_out][ch] = static_cast<uint8_t>(std::round(interpolated_value));
+                int out_index = (y_out * WIDTH_OUT + x_out) * CHANNELS + ch;
+                image_out[out_index] = static_cast<pixel_t>(std::round(interpolated_value));
             }
         }
-    }
-
-    int row_out = 0, col_out = 0, channel_out = 0;
-
-    //combine values into 1D matrix for transfer out
-    for(int j = 0; j < NUM_TRANSFERS_OUT; j++){
-		// Store in value
-    	image_out[j] = image_out_split[row_out][col_out][channel_out];
-		channel_out++;
-		if (channel_out == CHANNELS) {
-			channel_out = 0;
-			col_out++;
-			if (col_out == WIDTH_OUT) {
-				col_out = 0;
-				row_out++;
-			}
-		}
     }
 
     return 1;
 }
 
-void bilinear_interpolation_byte_v2(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+
+void bilinear_interpolation_byte(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
-    #pragma HLS INTERFACE ap_ctrl_none port=return
+    //#pragma HLS INTERFACE ap_ctrl_none port=return
+	#pragma HLS INTERFACE ap_ctrl_hs port=return
 
 	pixel_t input_data_stored[NUM_TRANSFERS];
 	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
@@ -171,8 +133,6 @@ void bilinear_interpolation_byte_v2(hls::stream<axis_t> &in_stream, hls::stream<
             k++;
         }
     }
-
-
 
 
     //reset array and allow new transfers

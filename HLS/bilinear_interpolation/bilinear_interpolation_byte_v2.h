@@ -30,6 +30,6 @@ typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
 int bilinear_interpolation_calculations(pixel_t image_in[NUM_TRANSFERS],
                            	   	   	   	pixel_t image_out[NUM_TRANSFERS_OUT]);
 
-void bilinear_interpolation_byte_v2(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
+void bilinear_interpolation_byte(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
 #endif

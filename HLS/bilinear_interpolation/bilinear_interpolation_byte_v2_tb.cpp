@@ -1,5 +1,5 @@
 #include "bilinear_interpolation_byte_v2.h"
-#include "image_tile_coin.h"
+#include "image_coin_tile.h"
 #include <cstdlib>
 
 
@@ -14,24 +14,25 @@ int main() {
 
     pixel_t test_data[NUM_TRANSFERS];
 
+
     for(int i = 0; i < NUM_TRANSFERS; i++){
     	pixel_t temp = coin_tile_low_res[i];
     	test_data[i] = temp;
     }
 
-    // Fill the input stream with test data
-    for (int i = 0; i < NUM_TRANSFERS; i++) {
-        axis_t input_stream;
-        input_stream.data = test_data[i];
-        input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-        input_stream.keep = 0b1;
-        input_stream.strb = 0b1;
-        in_stream.write(input_stream);
-    }
+	// Fill the input stream with test data
+	for (int i = 0; i < NUM_TRANSFERS; i++) {
+		axis_t input_stream;
+		input_stream.data = test_data[i];
+		input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
+		input_stream.keep = 0b1;
+		input_stream.strb = 0b1;
+		in_stream.write(input_stream);
+	}
 
 
     // Call the HLS function
-    bilinear_interpolation_byte_v2(in_stream, out_stream);
+    bilinear_interpolation_byte(in_stream, out_stream);
 
     // Check the output stream
     bool success = false;
@@ -47,7 +48,6 @@ int main() {
 			axis_t output_element = out_stream.read();
 			pixel_t data = output_element.data;
 
-
 			// Verify the data matches
 			if ((uint8_t)data != coin_tile_interpolated[j]) {
 				std::cout << "ERROR: Mismatch at index " << j
@@ -56,9 +56,9 @@ int main() {
 				success = false;
 			}
 			else {
-				/*std::cout << "SUCCESS: Match at index " << j
+				std::cout << "SUCCESS: Match at index " << j
 						  << " (expected " << coin_tile_interpolated[j]
-						  << ", got " << data << ")\n"; */
+						  << ", got " << data << ")\n";
 				success = true;
 			}
 
@@ -82,6 +82,7 @@ int main() {
 			}
 
 			j++;
+
 		}
 
     }
