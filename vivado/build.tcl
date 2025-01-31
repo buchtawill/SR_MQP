@@ -35,7 +35,7 @@
 proc checkRequiredFiles { origin_dir} {
   set status true
   set files [list \
- "[file normalize "$origin_dir/kv260_vivado_project/kv260_vivado_project.srcs/sources_1/bd/design_1/design_1.bd"]"\
+ "[file normalize "$origin_dir/src/bd/design_1.tcl"]"\
   ]
   foreach ifile $files {
     if { ![file isfile $ifile] } {
@@ -157,21 +157,24 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
   create_fileset -srcset sources_1
 }
 
+# Set IP repository paths
+# set obj [get_filesets sources_1]
+# set_property "ip_repo_paths" "[file normalize "$origin_dir/ip_repo/esc_controller_1.0"]" $obj
+
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
-# Add local files from the original project (-no_copy_sources specified)
-set files [list \
- [file normalize "${origin_dir}/kv260_vivado_project/kv260_vivado_project.srcs/sources_1/bd/design_1/design_1.bd" ]\
-]
-set added_files [add_files -fileset sources_1 $files]
+# Add local files 
+# set files [list \
+#  [file normalize "${origin_dir}/src/bd/design_1.bd" ]\
+# ]
+# set added_files [add_files -fileset sources_1 $files]
 
-#call make_wrapper to create wrapper files
-if { [get_property IS_LOCKED [ get_files -norecurse design_1.bd] ] == 1  } {
-  import_files -fileset sources_1 [file normalize "${origin_dir}/kv260_vivado_project/kv260_vivado_project.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v" ]
-} else {
-  set wrapper_path [make_wrapper -fileset sources_1 -files [ get_files -norecurse design_1.bd] -top]
-  add_files -norecurse -fileset sources_1 $wrapper_path
-}
+# Create 'design_1' design
+source ${origin_dir}/src/bd/design_1.tcl
+
+# Generate the wrapper
+set design_name [get_bd_designs]
+make_wrapper -files [get_files $design_name.bd] -top -import
 
 
 # Set 'sources_1' fileset file properties for remote files
@@ -535,3 +538,5 @@ move_dashboard_gadget -name {drc_1} -row 2 -col 0
 move_dashboard_gadget -name {timing_1} -row 0 -col 1
 move_dashboard_gadget -name {utilization_2} -row 1 -col 1
 move_dashboard_gadget -name {methodology_1} -row 2 -col 1
+
+puts "INFO: Project successfully created: ${_xil_proj_name_}"

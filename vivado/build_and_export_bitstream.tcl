@@ -47,4 +47,9 @@ if {[catch {write_hw_platform -fixed -include_bit -force -file "$project_dir/kv2
     exit 1
 }
 
+open_run impl_1
+
+# Write the bitstream and export it to ./bitstreams
+write_bitstream -force "$bitstream_dir/fpga_image.bit"
+
 close_project
