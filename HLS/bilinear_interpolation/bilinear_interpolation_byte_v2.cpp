@@ -9,6 +9,9 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
     float heightRatio = static_cast<float>(HEIGHT_IN - 1) / static_cast<float>(HEIGHT_OUT - 1);
 
     for (int y_out = 0; y_out < HEIGHT_OUT; ++y_out) {
+
+		#pragma HLS PIPELINE II=11
+
         for (int x_out = 0; x_out < WIDTH_OUT; ++x_out) {
 
             // Compute the corresponding input coordinates
