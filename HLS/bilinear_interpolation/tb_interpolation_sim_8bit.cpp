@@ -3,8 +3,12 @@
 #include <vector>
 #include <algorithm>
 #include <random>
-#include "bilinear_interpolation.h"
+#include "bilinear_interpolation_byte_v2.h"
+#include "image_tile_coin.hpp"
 
+// -----------------------------------------------------------------------------
+// Expected interpolation output  
+// -----------------------------------------------------------------------------
 std::vector<uint8_t> bilinearInterpolation(
     const std::vector<uint8_t>& image,
     int width,
@@ -67,6 +71,9 @@ std::vector<uint8_t> bilinearInterpolation(
     return outputImage;
 }
 
+// -----------------------------------------------------------------------------
+// Monitor: Compare Expected vs. DUT output
+// -----------------------------------------------------------------------------
 void compare_outputs(const std::vector<uint8_t>& expected_output,
                      const std::vector<uint8_t>& received_output,
                      int& pass_count,
@@ -75,12 +82,16 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
 {
     bool passed = (expected_output == received_output);
     if (passed) {
+        std::cout << "Input Data (R,G,B):\n";
+        for (size_t i = 0; i < 66; i += 3) {
+            std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
+                      << "," << (int)input_data[i+2] << ") ";
+        }
         pass_count++;
-        std::cout << "Test PASSED!\n";
+        std::cout << "\nTest PASSED!" << std::endl;
     } else {
         fail_count++;
-        std::cout << "Test FAILED!\n";
-
+        std::cout << "Test FAILED!" << std::endl;
         std::cout << "Input Data (R,G,B):\n";
         for (size_t i = 0; i < input_data.size(); i += 3) {
             std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
@@ -98,109 +109,115 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         }
         std::cout << std::endl;
 
+        // Print detailed mismatch info for debugging
         for (size_t i = 0; i < received_output.size(); ++i) {
             if (received_output[i] != expected_output[i]) {
-                std::cout << "Mismatch at " << i << ": expected "
-                          << (int)expected_output[i] << ", got "
-                          << (int)received_output[i] << std::endl;
+                std::cout << "Mismatch at index " << i << ": expected "
+                          << (int)expected_output[i]
+                          << ", got " << (int)received_output[i] << std::endl;
             }
         }
     }
 }
 
-void send_axi_stream_input(hls::stream<axis_t> &in_stream,
-                           const std::vector<uint8_t> &input_data,
-                           int width, int height, int channels)
+// -----------------------------------------------------------------------------
+// Send AXI stream input (8 bits)
+// -----------------------------------------------------------------------------
+void send_axi_stream_input_8bit(hls::stream<axis_t> &in_stream,
+                                const std::vector<uint8_t> &input_data,
+                                int width, int height, int channels)
 {
-    int total_pixels = width * height;
+    int total_bytes = width * height * channels;
 
-    for (int px = 0; px < total_pixels; px++) {
-        uint8_t R0 = input_data[px*3 + 0];
-        uint8_t G0 = input_data[px*3 + 1];
-        uint8_t B0 = input_data[px*3 + 2];
+    for (int i = 0; i < total_bytes; i++) {
 
-        ap_uint<32> tdata = 0;
-        tdata |= (ap_uint<32>)B0;
-        tdata |= ((ap_uint<32>)G0 << 8);
-        tdata |= ((ap_uint<32>)R0 << 16);
+        // Wait for TREADY => in_stream not full
+        while (in_stream.full()) {
+            // Wait
+        }
 
         axis_t val;
-        val.data = tdata;
-        val.last = (px == (total_pixels - 1));
+        val.data = input_data[i];
+        val.last = (i == (total_bytes - 1)); // last byte in the image?
 
-        std::cout << "DEBUG (send): px=" << px
-                  << " (R,G,B)=(" << (int)R0 << "," << (int)G0 << "," << (int)B0
-                  << "), tdata=0x" << std::hex << tdata
-                  << ", last=" << val.last << std::dec << std::endl;
+        // // Optional debug
+        // std::cout << "Sending byte " << i 
+        //           << " = 0x" << std::hex << (int)input_data[i]
+        //           << " (last=" << val.last << ")" 
+        //           << std::dec << std::endl;
 
-        in_stream.write(val);
+        in_stream.write(val);  // TVALID=1, TREADY=1 => transfer
     }
 }
 
-// Print the contents of hls::stream for in_stream debugging 
-void debug_print_in_stream(hls::stream<axis_t> &in_stream)
+// -----------------------------------------------------------------------------
+// Receive AXI stream output (8 bits)
+// -----------------------------------------------------------------------------
+void receive_axi_stream_output_8bit(hls::stream<axis_t> &out_stream,
+                                    std::vector<uint8_t> &out_data,
+                                    int out_width, int out_height, int out_channels)
 {
-    std::cout << "\nDEBUG: Printing in_stream contents before the DUT:\n";
-    std::vector<axis_t> tempStorage;
+    int total_out_bytes = out_width * out_height * out_channels;
 
-    while (!in_stream.empty()) {
-        axis_t val = in_stream.read();
-        std::cout << "  data=0x" << std::hex << val.data
-                  << ", last=" << val.last << std::dec << "\n";
-        tempStorage.push_back(val);
-    }
-
-    for (auto &v : tempStorage) {
-        in_stream.write(v);
-    }
-}
-
-void receive_axi_stream_output(hls::stream<axis_t> &out_stream,
-                               std::vector<uint8_t> &out_data,
-                               int out_width, int out_height, int out_channels)
-{
     out_data.clear();
-    out_data.reserve(out_width * out_height * out_channels);
+    out_data.reserve(total_out_bytes);
 
-    int out_pixels = out_width * out_height;
-    int px_count   = 0;
+    int byte_count = 0;
 
-    while (px_count < out_pixels) {
+    while (byte_count < total_out_bytes) {
+        // Wait for TVALID => out_stream not empty
+        while (out_stream.empty()) {
+            // Wait
+        }
+
         axis_t val = out_stream.read();
-        ap_uint<32> w = val.data;
+        uint8_t b  = val.data;
 
-        uint8_t B0 = (uint8_t)((w >>  0) & 0xFF);
-        uint8_t G0 = (uint8_t)((w >>  8) & 0xFF);
-        uint8_t R0 = (uint8_t)((w >> 16) & 0xFF);
+        out_data.push_back(b);
+        byte_count++;
 
-        out_data.push_back(R0);
-        out_data.push_back(G0);
-        out_data.push_back(B0);
-
-        px_count++;
         if (val.last) {
             break;
         }
     }
 }
 
+// -----------------------------------------------------------------------------
+// Main testbench
+// -----------------------------------------------------------------------------
 int main()
 {
     int num_tests  = 5;
     int pass_count = 0;
     int fail_count = 0;
-    int width      = 28;
-    int height     = 28;
-    int channels   = 3;
-    float scale    = 2.0f;
+
+    int width    = 28;
+    int height   = 28;
+    int channels = 3;
+    float scale  = 2.0f;
+
+    // Tile coin self test
+    std::cout << "\nRunning tile coin self test case ...\n";
+
+    std::vector<uint8_t> my_coin_tile_low_res;
+    std::vector<uint8_t> my_coin_tile_interpolated;
+    
+    my_coin_tile_low_res.assign(coin_tile_low_res, coin_tile_low_res + sizeof(coin_tile_low_res) / sizeof(coin_tile_low_res[0]));
+    my_coin_tile_interpolated.assign(coin_tile_interpolated, coin_tile_interpolated + sizeof(coin_tile_interpolated) / sizeof(coin_tile_interpolated[0]));
+
+    std::vector<uint8_t> rec_output = bilinearInterpolation(my_coin_tile_low_res, width, height, 3, scale);
+    compare_outputs(my_coin_tile_interpolated, rec_output, pass_count, fail_count, my_coin_tile_low_res);
+
+    pass_count = 0;
+    fail_count = 0;
 
     for (int t = 0; t < num_tests; ++t) {
         std::cout << "\nRunning test case " << (t+1) << "...\n";
 
+        // Generate random stimulus data for one 28x28x3 image
         int total_pixels = width * height;
         std::vector<uint8_t> input_data(total_pixels * channels);
 
-        // Randomize input image
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, 255);
@@ -212,32 +229,28 @@ int main()
         std::vector<uint8_t> expected_output =
             bilinearInterpolation(input_data, width, height, channels, scale);
 
+        // HLS axi streams
         hls::stream<axis_t> in_stream("in_stream");
         hls::stream<axis_t> out_stream("out_stream");
 
-        // Send data (prints each pixel for debugging)
-        send_axi_stream_input(in_stream, input_data, width, height, channels);
+        send_axi_stream_input_8bit(in_stream, input_data, width, height, channels);
 
-        // Print in_stream contents for debugging
-        debug_print_in_stream(in_stream);
+        // DUT
+        bilinear_interpolation_byte(in_stream, out_stream);
 
-        // Call hardware function
-        bilinear_interpolation(in_stream, out_stream);
-
-        // Receive
         int out_w = (int)(width * scale);
         int out_h = (int)(height * scale);
         std::vector<uint8_t> received_output;
-        receive_axi_stream_output(out_stream, received_output, out_w, out_h, channels);
+        receive_axi_stream_output_8bit(out_stream, received_output, out_w, out_h, channels);
 
-        // Compare
         compare_outputs(expected_output, received_output,
                         pass_count, fail_count, input_data);
     }
 
-    std::cout << "\nTest Summary:\n"
-              << "Total tests run: " << num_tests << "\n"
-              << "Passed: " << pass_count << "\n"
-              << "Failed: " << fail_count << "\n";
+    std::cout << "\nTest Summary:\n";
+    std::cout << "Total tests run: " << num_tests << "\n";
+    std::cout << "Passed: " << pass_count << "\n";
+    std::cout << "Failed: " << fail_count << "\n";
+
     return 0;
 }
