@@ -14,6 +14,8 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
 
         for (int x_out = 0; x_out < WIDTH_OUT; ++x_out) {
 
+			#pragma HLS UNROLL factor=2
+
             // Compute the corresponding input coordinates
             float x_in = x_out * widthRatio;
             float y_in = y_out * heightRatio;
@@ -35,6 +37,9 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
 
             // Perform bilinear interpolation for each channel
             for (int ch = 0; ch < CHANNELS; ++ch) {
+
+			#pragma HLS UNROLL factor=2
+
                 int index00 = (y0 * WIDTH_IN + x0) * CHANNELS + ch;
                 int index10 = (y0 * WIDTH_IN + x1) * CHANNELS + ch;
                 int index01 = (y1 * WIDTH_IN + x0) * CHANNELS + ch;
