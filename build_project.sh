@@ -26,14 +26,23 @@ function email_failure_and_exit {
 mv build.log build.log.old
 touch build.log
 
-
 echo "INFO [build_project.sh] Changing to vivado dir and running build script" >> $MAIN_DIR/build.log
 cd ./vivado
 
 source /tools/Xilinx/Vivado/2023.1/settings64.sh
 
 # Run Vivado in batch mode
-vivado -mode batch -source build_proj.tcl >> $MAIN_DIR/build.log
+vivado -mode batch -source create_project.tcl >> $MAIN_DIR/build.log
+
+# Check the exit status of the Vivado command
+if [ $? -ne 0 ]; then
+    # Send an email notification
+    email_failure_and_exit "Vivado build failed"
+else
+    echo "INFO [build_project.sh] Vivado build completed successfully." >> $MAIN_DIR/build.log
+fi
+
+vivado -mode batch -source build_and_export_bitstream.tcl >> $MAIN_DIR/build.log
 
 # Check the exit status of the Vivado command
 if [ $? -ne 0 ]; then

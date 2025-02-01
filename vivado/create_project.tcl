@@ -125,7 +125,7 @@ if { $validate_required } {
 }
 
 # Create project
-create_project ${_xil_proj_name_} $origin_dir/${_xil_proj_name_} -part xck26-sfvc784-2LV-c
+create_project ${_xil_proj_name_} $origin_dir/${_xil_proj_name_} -part xck26-sfvc784-2LV-c -force
 
 # Set the directory path for the new project
 set proj_dir [get_property directory [current_project]]

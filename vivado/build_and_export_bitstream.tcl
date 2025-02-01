@@ -6,6 +6,7 @@
 
 set project_name "kv260_vivado_project"
 set project_dir "./$project_name"
+set bitstream_dir "./bitstreams"
 
 open_project "$project_dir/$project_name.xpr"
 
