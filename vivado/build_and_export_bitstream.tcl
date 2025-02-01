@@ -6,6 +6,7 @@
 
 set project_name "kv260_vivado_project"
 set project_dir "./$project_name"
+set bitstream_dir "./bitstreams"
 
 open_project "$project_dir/$project_name.xpr"
 
@@ -46,5 +47,10 @@ if {[catch {write_hw_platform -fixed -include_bit -force -file "$project_dir/kv2
     puts "Error writing hardware platform: $result"
     exit 1
 }
+
+open_run impl_1
+
+# Write the bitstream and export it to ./bitstreams
+write_bitstream -force "$bitstream_dir/fpga_image.bit"
 
 close_project
