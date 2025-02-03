@@ -89,10 +89,16 @@ void bilinear_interpolation_byte(hls::stream<axis_t> &in_stream, hls::stream<axi
 
 	//make sure the correct number of transfers are passed in
 	while(i < NUM_TRANSFERS){
+
 		while(!in_stream.empty()){
 
+			//if the correct number of transfers have been received stop taking in new data
+			if(i == NUM_TRANSFERS){
+				break;
+			}
+
 			axis_t temp_input = in_stream.read();
-			input_data_stored[i] = temp_input.data;
+	        input_data_stored[i] = temp_input.data;
 			i++;
 		}
 	}
@@ -106,20 +112,34 @@ void bilinear_interpolation_byte(hls::stream<axis_t> &in_stream, hls::stream<axi
     if(i >= NUM_TRANSFERS){
 
         //transfer values from array
-    	while (k < NUM_TRANSFERS_OUT) {
+        while(k < NUM_TRANSFERS_OUT){
 
-    		while(!out_stream.full()){
-				axis_t temp_output;
-				temp_output.data = output_data_stored[k];
-				temp_output.last = (k == NUM_TRANSFERS_OUT - 1);
-				temp_output.keep = 0b1;
-				temp_output.strb = 0b1;
+			//axis_t output_data = input_stored[j];
+			axis_t temp_output;
 
-				out_stream.write(temp_output);
-				k++;
-    		}
-    	}
 
+			//ap_uint<BITS_PER_TRANSFER / 8> keep;
+			bool last;
+
+			if(k == (NUM_TRANSFERS_OUT - 1)){
+				last = true;
+			}
+			else {
+				last = false;
+			}
+
+			//don't change any of the signals that were passed in
+			temp_output.data = output_data_stored[k];
+			temp_output.last = last;
+			temp_output.keep = 0b1;
+			temp_output.strb = 0b1;
+
+
+			// Write data to output stream
+			out_stream.write(temp_output);
+
+            k++;
+        }
     }
 
 
