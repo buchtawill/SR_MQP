@@ -9,3 +9,4 @@
 !add_mult_hls
 !variance
 !bilinear_interpolation
+!bilinear_interpolation/*
