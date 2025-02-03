@@ -1,4 +1,4 @@
-#include "bilinear_interpolation_byte_v2.h"
+#include "bilinear_interpolation.h"
 // HLS function to read from input stream and write to output stream
 
 //math for bilinear interpolation
@@ -62,11 +62,11 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
 }
 
 
-void bilinear_interpolation_byte(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
-    //#pragma HLS INTERFACE ap_ctrl_none port=return
-	#pragma HLS INTERFACE ap_ctrl_hs port=return
+    #pragma HLS INTERFACE ap_ctrl_none port=return
+	//#pragma HLS INTERFACE ap_ctrl_hs port=return
 
 	pixel_t input_data_stored[NUM_TRANSFERS];
 	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
