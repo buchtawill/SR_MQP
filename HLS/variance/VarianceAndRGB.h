@@ -17,9 +17,9 @@
 #define OVERRIDE_MODE_INTERP 2
 
 typedef ap_uint<8> pixel_component; // 8-bit per channel for each pixel
-typedef ap_uint<32> data_stream;
+typedef ap_uint<32> data_stream; // 32-bit YUYV pixel stream (2 pixels)
 
-// Define axis_t with data width of 8 bits and no additional signals
+// Define axis_t with data width of 32 bits and no additional signals
 typedef hls::axis<data_stream, 0, 0, 0> axis_t;
 
 // Function prototype

@@ -14,101 +14,96 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 #pragma HLS INTERFACE s_axilite port=return
 
     unsigned int sum = 0;
+    unsigned int variance;
+    bool variance_calculated = false;
 
-    axis_t pixel_data[PIXEL_COUNT];
+    data_stream pixel_data[PIXEL_COUNT];
 	// #pragma HLS BIND_STORAGE variable=pixel_data type=RAM_1P impl=URAM
 
     unsigned int i = 0;
     while(i < PIXEL_COUNT / 2) {
-        #pragma HLS PIPELINE II=6
-    	axis_t temp_input;
-        if (!pixel_stream_in.empty()) {
-            temp_input = pixel_stream_in.read();
-            pixel_data[i] = temp_input;
-            pixel_component Y0 = pixel_data[i].data(7, 0);
-            pixel_component Y1 = pixel_data[i].data(23, 16);
-
-            sum += static_cast<float>(Y0) + static_cast<float>(Y1);
+//        #pragma HLS PIPELINE II=1
+        while (!pixel_stream_in.empty()) {
+        	if (i == PIXEL_COUNT / 2){
+        		break;
+        	}
+            axis_t temp_input = pixel_stream_in.read();
+            pixel_data[i] = temp_input.data;
             i++;
         }
     }
 
-    /*
-    // read input
-    while (i < PIXEL_COUNT / 2) { // each 32 bits of YUYV is 2 pixels
-		#pragma HLS PIPELINE II=3
-    	if (!pixel_stream_in.empty()) {
-			pixel_data[i] = pixel_stream_in.read();
-			i++;
-    	}
-    }
-    */
-
-    /*
-    for (int i = 0; i < PIXEL_COUNT / 2; i++) {
-		#pragma HLS PIPELINE II=3
-    	// extract Y0 and Y1 from the 32-bit YUYV422 pixel
-		pixel_component Y0 = pixel_data[i](7, 0);  // Lower 8 bits
-		pixel_component U  = pixel_data[i](15, 8); // Next 8 bits (shared chroma)
-		pixel_component Y1 = pixel_data[i](23, 16); // Next 8 bits
-		pixel_component V  = pixel_data[i](31, 24); // Last 8 bits (shared chroma)
-
-		// store y values and accumulate for mean calculation
-		luminance[i*2] = static_cast<float>(Y0);
-		luminance[(i*2) + 1] = static_cast<float>(Y1);
-		sum += static_cast<float>(Y0) + static_cast<float>(Y1);
-    }
-
-        float variance_sum = 0.0f;
-    for (int i = 0; i < PIXEL_COUNT / 2; i++) {
-		#pragma HLS PIPELINE II=3
-        float diff = luminance[i] - mean;
-        variance_sum += diff * diff;
-    }
-    */
-
-//    for (int i = 0; i < PIXEL_COUNT / 2; i++) {
-//            #pragma HLS PIPELINE II=3
-//            pixel_component Y0 = pixel_data[i](7, 0);
-//            pixel_component Y1 = pixel_data[i](23, 16);
-//
-//            sum += static_cast<float>(Y0) + static_cast<float>(Y1);
-//        }
-
-    unsigned int mean = sum / (PIXEL_COUNT);
-
-    // calculate variance
-	unsigned int variance_sum = 0;
-	for (int i = 0; i < PIXEL_COUNT / 2; i++) {
-		#pragma HLS PIPELINE II=6
-		pixel_component Y0 = pixel_data[i].data(7, 0);   // Lower 8 bits
-		pixel_component Y1 = pixel_data[i].data(23, 16); // Next 8 bits
-
-		float diff0 = static_cast<float>(Y0) - mean;
-		float diff1 = static_cast<float>(Y1) - mean;
-
-		variance_sum += (diff0 * diff0) + (diff1 * diff1);
-	}
-
-    unsigned int variance = variance_sum / PIXEL_COUNT;
-
-     printf("Variance = %d \n", variance);
-
-    // logic for sending tiles
-    for (int i = 0; i < PIXEL_COUNT / 2; i++) {
-		if (override_mode == OVERRIDE_MODE_CONV) { // send all tiles to convolution
-			conv_out.write(pixel_data[i]);
-		} else if (override_mode == OVERRIDE_MODE_INTERP) {	// send all tiles to interpolation
-			interp_out.write(pixel_data[i]);
+    if (override_mode == OVERRIDE_MODE_DEFAULT){
+		for (i = 0; i < PIXEL_COUNT / 2; i++) {
+			#pragma HLS PIPELINE II=15
+			pixel_component Y0 = pixel_data[i](7, 0);
+			pixel_component Y1 = pixel_data[i](23, 16);
+			sum += static_cast<float>(Y0) + static_cast<float>(Y1);
 		}
-		else { // send based on variance
+
+		unsigned int mean = sum / (PIXEL_COUNT);
+
+		// calculate variance
+		unsigned int variance_sum = 0;
+		for (i = 0; i < PIXEL_COUNT / 2; i++) {
+			#pragma HLS PIPELINE II=15
+			pixel_component Y0 = pixel_data[i](7, 0);   // Lower 8 bits
+			pixel_component Y1 = pixel_data[i](23, 16); // Next 8 bits
+
+			float diff0 = static_cast<float>(Y0) - mean;
+			float diff1 = static_cast<float>(Y1) - mean;
+
+			variance_sum += (diff0 * diff0) + (diff1 * diff1);
+		}
+
+		variance = variance_sum / PIXEL_COUNT;
+		variance_calculated = true;
+
+		printf("Variance = %d \n", variance);
+    }
+
+    // YUYV422 --> RGB888 conversion here
+
+	// logic for sending tiles
+	for (i = 0; i < PIXEL_COUNT / 2; i++) {
+		axis_t temp_output;
+		temp_output.data = 0;
+		temp_output.last = false;
+		temp_output.keep = 0b1;
+		temp_output.strb = 0b1;
+
+		bool last;
+
+		if(i == (PIXEL_COUNT / 2 - 1)){
+			last = true;
+		}
+		else {
+			last = false;
+		}
+
+		temp_output.data = pixel_data[i];
+		temp_output.last = last;
+		temp_output.keep = 0b1;
+		temp_output.strb = 0b1;
+
+		if (override_mode == OVERRIDE_MODE_CONV) { // send all tiles to convolution
+			conv_out.write(temp_output);
+		    interp_out.write({0, false, 0b0, 0b0});  // Ensure interp_out is empty
+
+		} else if (override_mode == OVERRIDE_MODE_INTERP) {	// send all tiles to interpolation
+			interp_out.write(temp_output);
+		    conv_out.write({0, false, 0b0, 0b0});  // Ensure conv_out is empty
+
+		}
+		else if (variance_calculated){ // send based on variance
 			if (variance > threshold) {
-				conv_out.write(pixel_data[i]);
+				conv_out.write(temp_output);
+			    interp_out.write({0, false, 0b0, 0b0});  // Ensure interp_out is empty
 			} else {
-				interp_out.write(pixel_data[i]);
+				interp_out.write(temp_output);
+			    conv_out.write({0, false, 0b0, 0b0});  // Ensure conv_out is empty
+
 			}
 		}
 	}
-
-    // YUYV422 --> RGB888 conversion here
 }
