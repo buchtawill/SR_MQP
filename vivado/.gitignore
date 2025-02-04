@@ -5,3 +5,4 @@
 *.runs
 *.str
 kv260_vivado_project
+!edit_project.sh

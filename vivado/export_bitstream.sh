@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KV260_BOARD="kv260b"
+KV260_BOARD="kv260-b"
 
 UNIX_TIME_START=$(date +%s)
 
@@ -14,8 +14,10 @@ function exit_with_fail {
 
 source /tools/Xilinx/Vivado/2023.1/settings64.sh
 
+read -p "Do you want to SCP the new image to the board once complete? (y/n): " SCP_ANSWER
+
 # Build the vivado project and export the bitstream
-vivado -mode batch -source build_and_make_bitstream.tcl
+vivado -mode batch -source build_and_export_bitstream.tcl
 
 # Check the exit status of the Vivado command
 if [ $? -ne 0 ]; then
@@ -35,15 +37,18 @@ else
     echo "INFO [build_project.sh] Bootgen completed successfully."
 fi
 
-# SCP to the target KV260
-scp ./bitstreams/fpga_image.bit.bin petalinux@$KV260_BOARD.dyn.wpi.edu:/home/petalinux
 
-if [ $? -ne 0 ]; then
-    # Send an email notification
-    exit_with_fail "SCP failed"
-else
-    echo "INFO [build_project.sh] SCP completed successfully."
-fi
+if [[ "$SCP_ANSWER" == "y" ]]; then
+    # SCP to the target KV260
+    scp ./bitstreams/fpga_image.bit.bin petalinux@$KV260_BOARD.dyn.wpi.edu:/home/petalinux
+    
+    if [ $? -ne 0 ]; then
+        # Send an email notification
+        exit_with_fail "SCP failed"
+    else
+        echo "INFO [build_project.sh] SCP completed successfully."
+    fi
+fi  
 
 TIME_AFTER_VIVADO=$(date +%s)
 echo "INFO [export_bitstream.sh] Total execution time: $(($TIME_AFTER_VIVADO - UNIX_TIME_START)) seconds"

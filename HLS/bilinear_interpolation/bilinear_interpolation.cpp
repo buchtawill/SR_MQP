@@ -1,240 +1,158 @@
 #include "bilinear_interpolation.h"
+// HLS function to read from input stream and write to output stream
 
 //math for bilinear interpolation
-void bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN][CHANNELS],
-                           pixel_t image_out[HEIGHT_OUT][WIDTH_OUT][CHANNELS]) {
+int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * CHANNELS],
+                                        pixel_t image_out[HEIGHT_OUT * WIDTH_OUT * CHANNELS]) {
 
-    // Perform Bilinear Interpolation
-    for (int row_out = 0; row_out < HEIGHT_OUT; row_out++) {
+    float widthRatio  = static_cast<float>(WIDTH_IN - 1) / static_cast<float>(WIDTH_OUT - 1);
+    float heightRatio = static_cast<float>(HEIGHT_IN - 1) / static_cast<float>(HEIGHT_OUT - 1);
 
-        for (int col_out = 0; col_out < WIDTH_OUT; col_out++) {
+    for (int y_out = 0; y_out < HEIGHT_OUT; ++y_out) {
 
-            // Calculate corresponding position in the input image (floating point to allow interpolation)
-            float row_in = row_out / (float)SCALE_FACTOR;
-            float col_in = col_out / (float)SCALE_FACTOR;
+		#pragma HLS PIPELINE II=11
 
-            // Integer coordinates of the top-left pixel (floor values)
-            int x1 = (int)row_in;
-            int y1 = (int)col_in;
+        for (int x_out = 0; x_out < WIDTH_OUT; ++x_out) {
 
-            // Fractional part of the coordinates (to calculate interpolation weights)
-            float x_frac = row_in - x1;
-            float y_frac = col_in - y1;
+			#pragma HLS UNROLL factor=2
 
-            // Clamping for boundary conditions (handling edges)
-            int x2 = (x1 + 1) < HEIGHT_IN ? x1 + 1 : x1;
-            int y2 = (y1 + 1) < WIDTH_IN ? y1 + 1 : y1;
+            // Compute the corresponding input coordinates
+            float x_in = x_out * widthRatio;
+            float y_in = y_out * heightRatio;
 
-            // Interpolation for each channel (e.g., BGR)
-            for (int ch = 0; ch < CHANNELS; ch++) {
+            // Determine the four nearest neighbors
+            int x0 = static_cast<int>(x_in);
+            int y0 = static_cast<int>(y_in);
+            int x1 = std::min(x0 + 1, WIDTH_IN - 1);
+            int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
 
-                // Interpolate horizontally first: between (x1, y1) and (x1, y2) for the top row,
-                // and between (x2, y1) and (x2, y2) for the bottom row.
-                float top_left = image_in[x1][y1][ch];
-                float top_right = image_in[x1][y2][ch];
-                float bottom_left = image_in[x2][y1][ch];
-                float bottom_right = image_in[x2][y2][ch];
+            // Calculate the interpolation weights
+            float dx = x_in - x0;
+            float dy = y_in - y0;
 
-                // Perform bilinear interpolation in both horizontal and vertical directions
-                float top_interp = (1 - y_frac) * top_left + y_frac * top_right; // Horizontal interpolation for top row
-                float bottom_interp = (1 - y_frac) * bottom_left + y_frac * bottom_right; // Horizontal for bottom row
+            float w00 = (1 - dx) * (1 - dy);
+            float w10 = dx * (1 - dy);
+            float w01 = (1 - dx) * dy;
+            float w11 = dx * dy;
 
-                // Now perform vertical interpolation between top_interp and bottom_interp
-                float interpolated_value = (1 - x_frac) * top_interp + x_frac * bottom_interp;
+            // Perform bilinear interpolation for each channel
+            for (int ch = 0; ch < CHANNELS; ++ch) {
 
-                // Assign the interpolated value to the output image (clamping to pixel range)
-                image_out[row_out][col_out][ch] = (pixel_t)(interpolated_value);
+			#pragma HLS UNROLL factor=2
+
+                int index00 = (y0 * WIDTH_IN + x0) * CHANNELS + ch;
+                int index10 = (y0 * WIDTH_IN + x1) * CHANNELS + ch;
+                int index01 = (y1 * WIDTH_IN + x0) * CHANNELS + ch;
+                int index11 = (y1 * WIDTH_IN + x1) * CHANNELS + ch;
+
+                float interpolated_value =
+                    w00 * image_in[index00] +
+                    w10 * image_in[index10] +
+                    w01 * image_in[index01] +
+                    w11 * image_in[index11];
+
+                // Assign the interpolated value to the output image
+                int out_index = (y_out * WIDTH_OUT + x_out) * CHANNELS + ch;
+                image_out[out_index] = static_cast<pixel_t>(std::round(interpolated_value));
             }
         }
     }
+
+    return 1;
 }
 
 
-void bilinear_interpolation_v2(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
+void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
+	//#pragma HLS INTERFACE ap_ctrl_hs port=return
 
-    // Declare image buffers in URAM
-    static pixel_t image_in[HEIGHT_IN][WIDTH_IN][CHANNELS];  // Input image stored in URAM
-	#pragma HLS BIND_STORAGE variable=image_in type=RAM_1P impl=URAM
+	pixel_t input_data_stored[NUM_TRANSFERS];
+	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
 
-    // Temporary image buffer to store the output
-    static pixel_t image_out[HEIGHT_OUT][WIDTH_OUT][CHANNELS]; // Output image buffer
-	#pragma HLS BIND_STORAGE variable=image_out type=RAM_1P impl=URAM
+	pixel_t output_data_stored[NUM_TRANSFERS_OUT];
+	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
 
 
-    // Local variables for indexing the 3D matrix
-    int row = 0, col = 0, channel = 0;
+	int i = 0;
 
-    //variable tracking input values
-    int i = 0;
+	//update later with reset signal, but make sure FIFO is cleared on start up
+	if(i == NUM_TRANSFERS || i == 0){
+		for(int k = 0; k < NUM_TRANSFERS; k++){
+			input_data_stored[k] = 0;
+			//input_last_stored[k] = 0;
+			//input_keep_stored[k] = 0;
+		}
+	}
 
-    //make sure correct number of transfers are passed in
-    while(i < NUM_TRANSFERS){
 
-		// Read data while the stream is not empty
-		while (!in_stream.empty()) {
+	//make sure the correct number of transfers are passed in
+	while(i < NUM_TRANSFERS){
 
-			//if correct number of transfers received stop receiving
+		while(!in_stream.empty()){
+
+			//if the correct number of transfers have been received stop taking in new data
 			if(i == NUM_TRANSFERS){
 				break;
 			}
 
-			// Read a 32-bit transfer
-			axis_t transfer = in_stream.read();
-			data_streamed data = transfer.data; // Extract the data field
-
-			// Extract 4 8-bit values from the 32-bit data
-			pixel_t pixel_0 = (data >> 0) & 0xFF;
-			pixel_t pixel_1 = (data >> 8) & 0xFF;
-			pixel_t pixel_2 = (data >> 16) & 0xFF;
-			pixel_t pixel_3 = (data >> 24) & 0xFF;
-
-			// Store the 4 values
-			image_in[row][col][channel] = pixel_0;
-			channel++;
-			if (channel == CHANNELS) {
-				channel = 0;
-				col++;
-				if (col == WIDTH_IN) {
-					col = 0;
-					row++;
-				}
-			}
-
-			image_in[row][col][channel] = pixel_1;
-			channel++;
-			if (channel == CHANNELS) {
-				channel = 0;
-				col++;
-				if (col == WIDTH_IN) {
-					col = 0;
-					row++;
-				}
-			}
-
-			image_in[row][col][channel] = pixel_2;
-			channel++;
-			if (channel == CHANNELS) {
-				channel = 0;
-				col++;
-				if (col == WIDTH_IN) {
-					col = 0;
-					row++;
-				}
-			}
-
-			image_in[row][col][channel] = pixel_3;
-			channel++;
-			if (channel == CHANNELS) {
-				channel = 0;
-				col++;
-				if (col == WIDTH_IN) {
-					col = 0;
-					row++;
-				}
-			}
-
-			// Exit the loop if the matrix is full
-			if (row >= HEIGHT_IN && col >= WIDTH_IN && channel >= CHANNELS) {
-				break;
-			}
-
+			axis_t temp_input = in_stream.read();
+	        input_data_stored[i] = temp_input.data;
 			i++;
 		}
-    }
+	}
 
 
-    // Add a final check to ensure the correct number of transfers were processed
-    if (row != HEIGHT_IN || col != 0 || channel != 0) {
-        std::cerr << "Warning: Matrix was not completely filled or the stream had extra data!" << std::endl;
-    }
+	bilinear_interpolation_calculations(input_data_stored, output_data_stored);
 
-
-
-    // Step 2: Perform bilinear interpolation for upscaling the image
-    bilinear_interpolation_calculations(image_in, image_out); // Pass image_out by reference
-
-    int j = 0;
-    int row_out = 0, col_out = 0, ch_out = 0;
-
-    //once all data has been read, write tile to out stream
-    //note: might need to add check to make sure calculations have been completed
+	int k = 0;
+    //once all the data has been read in
+	//this might need to be NUM_TRANSFERS - 1
     if(i >= NUM_TRANSFERS){
 
-    	while(j < NUM_TRANSFERS_OUT){
+        //transfer values from array
+        while(k < NUM_TRANSFERS_OUT){
 
-    		//get the 4 values to combine
+			//axis_t output_data = input_stored[j];
+			axis_t temp_output;
 
-			pixel_t pixel_0, pixel_1, pixel_2, pixel_3;
 
-			pixel_0 = image_out[row_out][col_out][ch_out];
-			ch_out++;
+			//ap_uint<BITS_PER_TRANSFER / 8> keep;
+			bool last;
 
-			if (ch_out == CHANNELS) {
-				ch_out = 0;
-				col_out++;
-				if (col_out == WIDTH_OUT) {
-					col_out = 0;
-					row_out++;
-				}
+			if(k == (NUM_TRANSFERS_OUT - 1)){
+				last = true;
+			}
+			else {
+				last = false;
 			}
 
-			pixel_1 = image_out[row_out][col_out][ch_out];
-			ch_out++;
+			//don't change any of the signals that were passed in
+			temp_output.data = output_data_stored[k];
+			temp_output.last = last;
+			temp_output.keep = 0b1;
+			temp_output.strb = 0b1;
 
-			if (ch_out == CHANNELS) {
-				ch_out = 0;
-				col_out++;
-				if (col_out == WIDTH_OUT) {
-					col_out = 0;
-					row_out++;
-				}
-			}
 
-			pixel_2 = image_out[row_out][col_out][ch_out];
-			ch_out++;
+			// Write data to output stream
+			out_stream.write(temp_output);
 
-			if (ch_out == CHANNELS) {
-				ch_out = 0;
-				col_out++;
-				if (col_out == WIDTH_OUT) {
-					col_out = 0;
-					row_out++;
-				}
-			}
+            k++;
+        }
+    }
 
-			pixel_3 = image_out[row_out][col_out][ch_out];
-			ch_out++;
 
-			if (ch_out == CHANNELS) {
-				ch_out = 0;
-				col_out++;
-				if (col_out == WIDTH_OUT) {
-					col_out = 0;
-					row_out++;
-				}
-			}
+    //reset array and allow new transfers
+    if(i >= NUM_TRANSFERS && k >= NUM_TRANSFERS_OUT){
 
-			data_streamed stream_out =	(ap_uint<32>(pixel_0) << 24) |
-                    					(ap_uint<32>(pixel_1) << 16) |
-										(ap_uint<32>(pixel_2) << 8) |
-										(ap_uint<32>(pixel_3));
+		for(int k = 0; k < NUM_TRANSFERS; k++){
+			input_data_stored[k] = 0;
+			//input_last_stored[k] = 0;
+			//input_keep_stored[k] = 0;
+		}
 
-			axis_t output_data;
-			output_data.data = stream_out;
-			output_data.keep = 0xF;
-			output_data.strb = 0xF;
-			if(j >= (NUM_TRANSFERS_OUT - 1)){
-				output_data.last = true;
-			}
-			else{
-				output_data.last = false;
-			}
-
-    		j++;
-
-    	}
+		i = 0;
+		k = 0;
     }
 }
