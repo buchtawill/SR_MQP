@@ -14,7 +14,7 @@ function exit_with_fail {
 
 source /tools/Xilinx/Vivado/2023.1/settings64.sh
 
-read -p "Do you want to SCP the new image to the board once complete? (y/n): " SCP_ANSWER
+read -p "QUESTION [export_bitsream.sh] Do you want to SCP the new image to the board once complete? (y/n): " SCP_ANSWER
 
 # Build the vivado project and export the bitstream
 vivado -mode batch -source build_and_export_bitstream.tcl
