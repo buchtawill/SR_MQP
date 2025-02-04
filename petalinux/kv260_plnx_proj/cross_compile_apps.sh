@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KV260BOARD="kv260b"
+KV260BOARD="kv260-b"
 
 UNIX_TIME_START=$(date +%s)
 echo "INFO [cross_compile_apps.sh] Sourcing petalinux settings"
@@ -12,7 +12,7 @@ else
     exit 1
 fi
 
-APPS_LIST=("sg-interpolate2x v4l-to-fb0-dma")
+APPS_LIST=("sg-interpolate2x")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>

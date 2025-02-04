@@ -11,7 +11,8 @@ if [ -d "kv260_vivado_project" ]; then
         echo "Overwriting existing project"
         vivado -mode batch -source create_project.tcl
     fi
-else
+# the project directory does not exist
+else 
     vivado -mode batch -source create_project.tcl
 fi
 
