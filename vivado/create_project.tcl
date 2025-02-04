@@ -23,7 +23,7 @@
 # 2. The following source(s) files that were local or imported into the original project.
 #    (Please see the '$orig_proj_dir' and '$origin_dir' variable setting below at the start of the script)
 #
-#    "SR_MQP/vivado/kv260_vivado_project/kv260_vivado_project.srcs/sources_1/bd/design_1/design_1.bd"
+#    design_1.tcl (block design)
 #
 # 3. The following remote source files that were added to the original project:-
 #
