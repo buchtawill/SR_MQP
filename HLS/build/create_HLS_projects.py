@@ -9,7 +9,7 @@ import os
 import json
 import time
 import argparse
-
+import threading
 
 '''
 Example build_info['bilinear_interpolation']:
@@ -57,7 +57,7 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
     # Create the tcl script to make the project and import sources
     with open(tmp_tcl_build, 'w') as file:
         file.write(f'open_project {project_name}\n')
-        file.write(f'set_top {hls_build_info[project_name]['top_func']}\n')
+        file.write(f"set_top {hls_build_info[project_name]['top_func']}\n")
         
         for src_name in hls_build_info[project_name]['src']:
             file.write(f'add_files ../src/{project_name}/{src_name}\n')
@@ -98,6 +98,11 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
     
     return 0
 
+def create_project_thread(project_name, hls_build_info, export_ip):
+    result = create_hls_project(project_name, hls_build_info, auto_overwrite=True, export_ip=export_ip)
+    if result != 0:
+        print(f"ERROR [create_projects.py] Failed to create project {project_name}")
+
 if __name__ == '__main__':
     
     with open('./hls_build_info.json', 'r') as file:
@@ -116,12 +121,16 @@ if __name__ == '__main__':
         else:
             print(f"ERROR [create_projects.py] Project '{args.project}' not found.")
     else:
+        threads = []
+
         for project_name in hls_build_info:
             print(f"INFO [create_projects.py] Creating project '{project_name}'")
-            result = create_hls_project(project_name, hls_build_info, auto_overwrite=True, export_ip=args.export_ip)
-            if result != 0:
-                print(f"ERROR [create_projects.py] Failed to create project {project_name}")
-                exit(1)
+            thread = threading.Thread(target=create_project_thread, args=(project_name,hls_build_info,args.export_ip))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
         
     print("INFO [create_projects.py] All projects created successfully.")
     
