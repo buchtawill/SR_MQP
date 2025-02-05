@@ -26,7 +26,7 @@ Example build_info['bilinear_interpolation']:
 }
 '''
 
-def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bool=False) -> int:
+def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bool=False, export_ip:bool=False) -> int:
     """
     Create a Vitis HLS project for the given project name. 
     Under the hood, it creates two temporary tcl files for building and creating the project.
@@ -60,20 +60,23 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
         file.write(f'set_top {hls_build_info[project_name]['top_func']}\n')
         
         for src_name in hls_build_info[project_name]['src']:
-            file.write(f'add_files src/{project_name}/{src_name}\n')
+            file.write(f'add_files ../src/{project_name}/{src_name}\n')
             
         for tb_name in hls_build_info[project_name]['tb']:
-            file.write(f'add_files -tb src/{project_name}/{tb_name}\n')
+            file.write(f'add_files -tb ../src/{project_name}/{tb_name}\n')
             
         file.write('open_solution "solution1" -flow_target vivado\n')
         file.write('set_part {xck26-sfvc784-2LV-c}\n')
         file.write('create_clock -period 10 -name default\n')
-        # file.write('csynth_design\n')
-        # file.write('exit\n')
 
     # Create the tcl script to create the project
     with open(tmp_tcl_create, 'w') as file:
         file.write(f'open_tcl_project {tmp_tcl_build}\n')
+        
+        if export_ip:
+            file.write('csynth_design\n')
+            file.write(f'export_design -format ip_catalog -flow impl -ipname {project_name}\n')
+            
         file.write('exit\n')
 
     # Check the OS type and run the appropriate script
@@ -102,27 +105,23 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='This script will checkout sources and create a Vitis HLS project(s)')
     parser.add_argument('--project', type=str, help='Name of the project')
+    parser.add_argument('--export_ip', action='store_true', help='Flag to export IP after project creation')
     args = parser.parse_args()
 
     build_all = False
     if args.project:
         project = hls_build_info.get(args.project)
         if project:
-            print(json.dumps(project, indent=4))
+            create_hls_project(args.project, hls_build_info, export_ip=args.export_ip)
         else:
             print(f"ERROR [create_projects.py] Project '{args.project}' not found.")
     else:
-        build_all = True
-        
-    if build_all:
         for project_name in hls_build_info:
             print(f"INFO [create_projects.py] Creating project '{project_name}'")
-            result = create_hls_project(project_name, hls_build_info, auto_overwrite=True)
+            result = create_hls_project(project_name, hls_build_info, auto_overwrite=True, export_ip=args.export_ip)
             if result != 0:
                 print(f"ERROR [create_projects.py] Failed to create project {project_name}")
                 exit(1)
-    else:
-        create_hls_project(args.project, hls_build_info)
         
     print("INFO [create_projects.py] All projects created successfully.")
     

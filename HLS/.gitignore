@@ -1,18 +1,6 @@
 *
 !.gitignore
-!create_HLS_projects.py
-!help_create_HLS_projects.sh
-!help_create_HLS_projects.bat
-!hls_build_info.json
-
-# Add source directories as needed
-# !convolution
-# !fifo
-# !passthrough
-# !archived_work
-# !add_mult_hls
-# !variance
-# !bilinear_interpolation
-# !bilinear_interpolation/*
 !src
 !src/**
+
+!build

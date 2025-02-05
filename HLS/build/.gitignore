@@ -1,0 +1,6 @@
+*
+!.gitignore
+!create_HLS_projects.py
+!help_create_HLS_projects.sh
+!help_create_HLS_projects.bat
+!hls_build_info.json
