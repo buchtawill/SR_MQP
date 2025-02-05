@@ -1,0 +1,60 @@
+{
+    "bilinear_interpolation": {
+        "src": [
+            "bilinear_interpolation.cpp",
+            "bilinear_interpolation.h",
+            "../image_coin_tile.h"
+        ],
+        "tb": [
+            "bilinear_interpolation_tb.cpp"
+        ],
+        "top_func": "bilinear_interpolation"
+    },
+    "add_mult_hls": {
+        "src": [
+            "main.cpp"
+        ],
+        "tb": [],
+        "top_func": "add_mult"
+    },
+    "fifo": {
+        "src": [
+            "fifo_32bit_v1.cpp",
+            "fifo_32bit_v1.h"
+        ],
+        "tb": [
+            "fifo_32bit_v1_tb.cpp"
+        ],
+        "top_func": "fifo_32bit_v1"
+    },
+    "passthrough": {
+        "src": [
+            "passthrough.cpp",
+            "passthrough.h"
+        ],
+        "tb": [
+            "passthrough_tb.cpp"
+        ],
+        "top_func": "passthrough"
+    },
+    "variance": {
+        "src": [
+            "VarianceAndRGB.cpp",
+            "VarianceAndRGB.h"
+        ],
+        "tb": [
+            "VarianceAndRGBTest.cpp"
+        ],
+        "top_func": "process_tile"
+    },
+    "convolution": {
+        "src": [
+            "convolution.cpp",
+            "convolution.h"
+        ],
+        "tb": [
+            "convolution_tb.cpp"
+        ],
+        "top_func": "convolution_top"
+    }
+}

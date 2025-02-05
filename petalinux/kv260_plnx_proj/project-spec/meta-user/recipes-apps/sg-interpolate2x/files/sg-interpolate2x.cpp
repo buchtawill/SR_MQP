@@ -668,8 +668,8 @@ int main(int argc, char *argv[]){
         die_with_error("ERROR [sg-interpolate2x] Failed to initialize DMA object\n", nullptr, &resources);
 	}
 
-    // Run the self test twice in a row
-    if(parser["--no_self_test"] == false){
+    // Run the self test twice in a row, only if upscale factor is 1
+    if(parser["--no_self_test"] == false && (UPSCALE_FACTOR==1)){
         if(dma1.self_test() < 0){
             die_with_error("ERROR [sg-interpolate2x] DMA self test failed\n", nullptr, &resources);
         }
