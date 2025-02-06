@@ -56,7 +56,7 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
     
     # Create the tcl script to make the project and import sources
     with open(tmp_tcl_build, 'w') as file:
-        file.write(f'open_project {project_name}\n')
+        file.write(f'open_project {project_name}_proj\n')
         file.write(f"set_top {hls_build_info[project_name]['top_func']}\n")
         
         for src_name in hls_build_info[project_name]['src']:
@@ -118,8 +118,12 @@ if __name__ == '__main__':
     
     if(args.clean):
         for project_name in hls_build_info:
-            if os.path.exists(project_name):
-                os.system(f'rm -rf {project_name}')
+            proj_path = f'{project_name}_proj'
+            if os.path.exists(proj_path):
+                if os.name == 'posix':
+                    os.system(f'rm -rf {proj_path}')
+                elif os.name == 'nt':
+                    os.system(f'rmdir /s /q {proj_path}')
         exit(0)
 
     build_all = False
