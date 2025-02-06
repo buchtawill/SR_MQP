@@ -90,6 +90,7 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
     
     if result != 0:
         print(f"ERROR [create_HLS_projects::create_hls_project] Vitis HLS project creation failed with exit code {result}")
+        exit(result)
         return result
     
     print(f"INFO [create_HLS_projects::create_hls_project] Project '{project_name}' created successfully.")
@@ -102,6 +103,7 @@ def create_project_thread(project_name, hls_build_info, export_ip):
     result = create_hls_project(project_name, hls_build_info, auto_overwrite=True, export_ip=export_ip)
     if result != 0:
         print(f"ERROR [create_projects.py] Failed to create project {project_name}")
+    return result
 
 if __name__ == '__main__':
     
@@ -114,6 +116,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     build_all = False
+    fail = False
     if args.project:
         project = hls_build_info.get(args.project)
         if project:
@@ -128,9 +131,3 @@ if __name__ == '__main__':
             thread = threading.Thread(target=create_project_thread, args=(project_name,hls_build_info,args.export_ip))
             threads.append(thread)
             thread.start()
-
-        for thread in threads:
-            thread.join()
-        
-    print("INFO [create_projects.py] All projects created successfully.")
-    
