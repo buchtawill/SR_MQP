@@ -113,7 +113,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='This script will checkout sources and create a Vitis HLS project(s)')
     parser.add_argument('--project', type=str, help='Name of the project')
     parser.add_argument('--export_ip', action='store_true', help='Flag to export IP after project creation')
+    parser.add_argument('--clean', action='store_true', help='If this flag is set, delete all existing projects in the build directory')
     args = parser.parse_args()
+    
+    if(args.clean):
+        for project_name in hls_build_info:
+            if os.path.exists(project_name):
+                os.system(f'rm -rf {project_name}')
+        exit(0)
 
     build_all = False
     fail = False
