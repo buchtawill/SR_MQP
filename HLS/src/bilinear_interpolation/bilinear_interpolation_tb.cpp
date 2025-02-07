@@ -12,7 +12,7 @@ int main() {
     // Define the number of test values
     //const int TEST_SIZE = 16;
 
-    data_streamed test_data[NUM_TRANSFERS + 1];
+    data_streamed test_data[NUM_TRANSFERS];
 
 
     /*
@@ -64,16 +64,13 @@ int main() {
 
     }
 
-
-    test_data[NUM_TRANSFERS] = (data_streamed)0;
-
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < NUM_TRANSFERS+1; i++) {
+    for (int i = 0; i < NUM_TRANSFERS; i++) {
 		axis_t input_stream;
 		input_stream.data = test_data[i];
 		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == NUM_TRANSFERS); // Set the last signal for the last element
+		input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
 		input_stream.keep = 0b1;
 		input_stream.strb = 0b1;
 		in_stream.write(input_stream);
