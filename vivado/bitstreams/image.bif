@@ -1,0 +1,4 @@
+all:
+{
+    ./bitstreams/fpga_image.bit
+}
