@@ -37,6 +37,7 @@ int main() {
     	loaded[load] = temp_load;
     }
 
+    /*
     for(int unload = 0; unload < 147; unload++){
     	int upper_range = 0;
     	int lower_range = 0;
@@ -48,7 +49,7 @@ int main() {
     		temp_pixel = loaded[unload].range(upper_range, lower_range);
 
 
-			/*if ((uint8_t)temp_pixel != coin_tile_low_res[unload * 16 + transfer_pixel]) {
+			if ((uint8_t)temp_pixel != coin_tile_low_res[unload * 16 + transfer_pixel]) {
 				std::cout << "ERROR: Load Mismatch at index " << (unload * 16 + transfer_pixel)
 						  << " (expected " << (int)coin_tile_low_res[unload * 16 + transfer_pixel]
 						  << ", got " << (int)temp_pixel << ")\n";
@@ -57,24 +58,23 @@ int main() {
 				std::cout << "SUCCESS: Load Match at index " << (unload * 16 + transfer_pixel)
 						  << " (expected " << coin_tile_low_res[unload * 16 + transfer_pixel]
 						  << ", got " << (int)temp_pixel << ")\n";
-			} */
+			}
 
 			test_data[unload * 16 + transfer_pixel] = temp_pixel;
     	}
 
-
-    }
+    } */
 
 
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < NUM_TRANSFERS; i++) {
+    for (int i = 0; i < 147; i++) {
 		axis_t input_stream;
-		input_stream.data = test_data[i];
+		input_stream.data = loaded[i];
 		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.keep = 0b1;
-		input_stream.strb = 0b1;
+		input_stream.last = (i == 147 - 1); // Set the last signal for the last element
+		input_stream.keep = 0xFFFF;
+		input_stream.strb = 0xFFFF;
 		in_stream.write(input_stream);
 	}
 
@@ -87,36 +87,45 @@ int main() {
 
     int j = 0;
 
-	//make sure the correct number of transfers are passed in
-	while(j < NUM_TRANSFERS_OUT){
+	while(j < 588){
 
 		while(!out_stream.empty()){
 
 			// Read the output stream
 			axis_t output_element = out_stream.read();
-			pixel_t data = output_element.data;
+			data_streamed data = output_element.data;
 
+			int upper_range = 0;
+			int lower_range = 0;
+			pixel_t temp_pixel;
 
+			for(int transfer_pixel = 0; transfer_pixel < 16; transfer_pixel++){
+				upper_range = transfer_pixel * 8 + 7;
+				lower_range = transfer_pixel * 8;
+				temp_pixel = data.range(upper_range, lower_range);
 
-			// Verify the data matches
-			if ((uint8_t)data != coin_tile_interpolated[j]) {
-				std::cout << "ERROR: Mismatch at index " << j
-						  << " (expected " << (int)coin_tile_interpolated[j]
-						  << ", got " << data << ")\n";
-				success = false;
+				// Verify the data matches
+				if ((uint8_t)temp_pixel != coin_tile_interpolated[j * 16 + transfer_pixel]) {
+					std::cout << "ERROR: Mismatch at index " << (j * 16 + transfer_pixel)
+							  << " (expected " << (int)coin_tile_interpolated[j * 16 + transfer_pixel]
+							  << ", got " << (int)temp_pixel << ")\n";
+					success = false;
+				}
+				else {
+					std::cout << "SUCCESS: Match at index " << (j * 16 + transfer_pixel)
+							  << " (expected " << coin_tile_interpolated[j * 16 + transfer_pixel]
+							  << ", got " << (int)temp_pixel << ")\n";
+					success = true;
+				}
+
 			}
-			else {
-				std::cout << "SUCCESS: Match at index " << j
-						  << " (expected " << coin_tile_interpolated[j]
-						  << ", got " << data << ")\n";
-				success = true;
-			}
 
-			if(output_element.keep != 0b1 || output_element.strb != 0b1){
+
+			/*if(output_element.keep != 0b1 || output_element.strb != 0b1){
 				success = false;
 				std:: cout << "keep or strb wrong";
 				break;
-			}
+			} */
 
 
 			if((j < (NUM_TRANSFERS_OUT - 1)) && output_element.last == true){

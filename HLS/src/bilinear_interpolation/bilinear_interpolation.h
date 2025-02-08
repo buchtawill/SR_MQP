@@ -26,7 +26,7 @@ typedef ap_uint<128> data_streamed;
 typedef ap_uint<128> temp_streamed;
 
 // Define axis_t with data width of 8 bits and no additional signals
-typedef hls::axis<pixel_t, 0, 0, 0> axis_t;
+typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
 
 // Function declaration for Bilinear Interpolation calculations
 int bilinear_interpolation_calculations(pixel_t image_in[NUM_TRANSFERS],
