@@ -64,7 +64,7 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
             
         for tb_name in hls_build_info[project_name]['tb']:
             file.write(f'add_files -tb ../src/{project_name}/{tb_name}\n')
-            file.write(f'set_property CFLAGS "-I../src " [get_files ../src/{project_name}/{tb_name}]\n')
+            # file.write(f'set_property CFLAGS "-I../src " [get_files -filepaths ../src/{project_name}/{tb_name}]\n')
             
         file.write('open_solution "solution1" -flow_target vivado\n')
         file.write('set_part {xck26-sfvc784-2LV-c}\n')
