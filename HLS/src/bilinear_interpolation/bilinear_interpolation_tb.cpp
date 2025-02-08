@@ -12,7 +12,7 @@ int main() {
     // Define the number of test values
     //const int TEST_SIZE = 16;
 
-    data_streamed test_data[NUM_TRANSFERS];
+    pixel_t test_data[NUM_TRANSFERS];
 
 
     /*
@@ -47,9 +47,8 @@ int main() {
     		lower_range = transfer_pixel * 8;
     		temp_pixel = loaded[unload].range(upper_range, lower_range);
 
-    		test_data[unload * 16 + transfer_pixel] = (data_streamed)temp_pixel;
-    		/*
-			if ((uint8_t)temp_pixel != coin_tile_low_res[unload * 16 + transfer_pixel]) {
+
+			/*if ((uint8_t)temp_pixel != coin_tile_low_res[unload * 16 + transfer_pixel]) {
 				std::cout << "ERROR: Load Mismatch at index " << (unload * 16 + transfer_pixel)
 						  << " (expected " << (int)coin_tile_low_res[unload * 16 + transfer_pixel]
 						  << ", got " << (int)temp_pixel << ")\n";
@@ -59,10 +58,13 @@ int main() {
 						  << " (expected " << coin_tile_low_res[unload * 16 + transfer_pixel]
 						  << ", got " << (int)temp_pixel << ")\n";
 			} */
+
+			test_data[unload * 16 + transfer_pixel] = temp_pixel;
     	}
 
 
     }
+
 
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
@@ -92,7 +94,7 @@ int main() {
 
 			// Read the output stream
 			axis_t output_element = out_stream.read();
-			data_streamed data = output_element.data;
+			pixel_t data = output_element.data;
 
 
 
