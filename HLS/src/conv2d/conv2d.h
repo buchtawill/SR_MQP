@@ -3,7 +3,8 @@
 
 #include <ap_axi_sdata.h>
 #include "hls_stream.h"
-#include <ap_int.h>
+#include "ap_int.h"
+#include "ap_fixed.h"
 
 #define STREAM_WIDTH            128
 #define INPUT_WIDTH             28
@@ -14,6 +15,11 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
+
+// Total bit width, integer bits, Quant mode, Overflow mode
+// TODO WARNING NOTE: Using AP_SAT can cost up to a 20% increase in LUT usage!!!
+// After development and debug, change to AP_WRAP
+typedef ap_fixed<12, 2, AP_RND_ZERO, AP_SAT> fixed_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
