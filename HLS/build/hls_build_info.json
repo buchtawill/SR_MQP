@@ -48,14 +48,14 @@
         ],
         "top_func": "process_tile"
     },
-    "convolution": {
+    "conv2d": {
         "src": [
-            "convolution.cpp",
-            "convolution.h"
+            "conv2d.cpp",
+            "conv2d.h"
         ],
         "tb": [
-            "convolution_tb.cpp"
+            "conv2d_tb.cpp"
         ],
-        "top_func": "convolution_top"
+        "top_func": "conv2d_top"
     }
 }
