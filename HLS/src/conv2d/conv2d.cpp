@@ -1,6 +1,7 @@
 #include "conv2d.h"
 #include <hls_stream.h>
 #include <ap_axi_sdata.h>
+#include <iostream>
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream){
 	#pragma HLS INTERFACE axis port=in_stream
@@ -16,7 +17,10 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	while(!tmp_stream.last){
 		tmp_stream = in_stream.read();
 		mem[in_ptr] = tmp_stream.data;
+		in_ptr++;
 	}
+
+//	std::cout<<"We have read the whole input image"<<std::endl;
 
 	int out_ptr = 0;
 	for(out_ptr = 0; out_ptr < STREAM_BEATS_PER_TILE; out_ptr++){
@@ -29,5 +33,4 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 
 		out_stream.write(tmp_stream);
 	}
-
 }

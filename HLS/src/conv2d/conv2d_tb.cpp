@@ -3,6 +3,8 @@
 #include <ap_int.h>
 #include <ap_axi_sdata.h>
 #include "image_coin_tile.h"
+#include <iostream>
+#include <stdio.h>
 
 int main(){
 
@@ -20,8 +22,8 @@ int main(){
 		// Fill the tdata
 		for(j = 0; j < BYTES_PER_TRANSFER; j++){
 			coin_idx = (i * BYTES_PER_TRANSFER) + j;
-			tmp_data <<= 8;
-			tmp_data.range(7,0) = coin_tile_low_res[coin_idx];
+			tmp_data >>= 8;
+			tmp_data.range(127,120) = coin_tile_low_res[coin_idx];
 		}
 
 		// Write it to the stream
@@ -40,6 +42,7 @@ int main(){
 	// Check the results
 	i = 0;
 	bool tlast = false;
+	bool failed = false;
 	do{
 		axis_t tmp_stream = out_stream.read();
 		tlast = tmp_stream.last;
@@ -47,20 +50,18 @@ int main(){
 		// Check the data
 		for(j = 0; j < BYTES_PER_TRANSFER; j++){
 			coin_idx = (i * BYTES_PER_TRANSFER) + j;
-			if(tmp_stream.data.range((j+1)*8-1, j*8) != coin_tile_low_res[coin_idx]){
-				std::cout << "ERROR: Mismatch at index " << coin_idx
-						  << " (expected " << (int)coin_tile_low_res[coin_idx]
-						  << ", got " << (int)tmp_stream.data.range((j+1)*8-1, j*8) << ")\n";
-//				return -1;
+			uint8_t tmp_stream_val = tmp_stream.data.range((j+1)*8-1, j*8);
+			if(tmp_stream_val != coin_tile_low_res[coin_idx]){
+				printf("ERROR [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res[coin_idx], tmp_stream_val);
+				failed = true;
 			}
 			else{
-				std::cout << "SUCCESS: Match at index " << coin_idx
-						  << " (expected " << coin_tile_low_res[coin_idx]
-						  << ", got " << (int)tmp_stream.data.range((j+1)*8-1, j*8) << ")\n";
+				printf("GOOD [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res[coin_idx], tmp_stream_val);
 			}
 		}
 		i++;
 	}while(!tlast);
 
-	return 0;
+	if(failed) return -1;
+	else return 0;
 }
