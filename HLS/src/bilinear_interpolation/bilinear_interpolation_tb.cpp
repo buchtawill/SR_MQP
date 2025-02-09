@@ -21,7 +21,7 @@ int main() {
     	test_data[i] = temp;
     } */
 
-    temp_streamed loaded[147];
+    temp_streamed loaded[147 + 1];
 
     for(int load = 0; load < 147; load++){
     	int upper_range = 0;
@@ -36,6 +36,8 @@ int main() {
 
     	loaded[load] = temp_load;
     }
+
+    loaded[147] = (data_streamed)0;
 
     /*
     for(int unload = 0; unload < 147; unload++){
@@ -68,11 +70,11 @@ int main() {
 
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < 147; i++) {
+    for (int i = 0; i < 147+1; i++) {
 		axis_t input_stream;
 		input_stream.data = loaded[i];
 		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == 147 - 1); // Set the last signal for the last element
+		input_stream.last = (i == 147); // Set the last signal for the last element
 		input_stream.keep = 0xFFFF;
 		input_stream.strb = 0xFFFF;
 		in_stream.write(input_stream);
@@ -83,7 +85,7 @@ int main() {
     bilinear_interpolation(in_stream, out_stream);
 
     // Check the output stream
-    bool success = false;
+    bool success = true;
 
     int j = 0;
 
@@ -115,26 +117,28 @@ int main() {
 					std::cout << "SUCCESS: Match at index " << (j * 16 + transfer_pixel)
 							  << " (expected " << coin_tile_interpolated[j * 16 + transfer_pixel]
 							  << ", got " << (int)temp_pixel << ")\n";
-					success = true;
+					//success = true;
 				}
 
 			}
 
 
-			/*if(output_element.keep != 0b1 || output_element.strb != 0b1){
+
+			if(output_element.keep != 0xFFFF || output_element.strb != 0xFFFF){
 				success = false;
 				std:: cout << "keep or strb wrong";
 				break;
-			} */
+			}
 
 
-			if((j < (NUM_TRANSFERS_OUT - 1)) && output_element.last == true){
+
+			if((j < (588 - 1)) && output_element.last == true){
 				success = false;
 				std::cout << "last triggered before end\n";
 				break;
 			}
 
-			else if(j == (NUM_TRANSFERS_OUT - 1) && output_element.last == false){
+			else if(j == (588 - 1) && output_element.last == false){
 				success = false;
 				std::cout << "last not triggered at end\n";
 				break;

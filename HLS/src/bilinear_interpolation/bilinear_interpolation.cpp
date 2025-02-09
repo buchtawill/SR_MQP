@@ -77,6 +77,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
 	int i = 0;
 
+	/*
 	//update later with reset signal, but make sure FIFO is cleared on start up
 	if(i == NUM_TRANSFERS || i == 0){
 		for(int k = 0; k < NUM_TRANSFERS; k++){
@@ -84,7 +85,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 			//input_last_stored[k] = 0;
 			//input_keep_stored[k] = 0;
 		}
-	}
+	} */
 
 
 	//make sure the correct number of transfers are passed in
@@ -252,6 +253,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     } */
 
 
+    /*
     //reset array and allow new transfers
     if(i >= NUM_TRANSFERS && k >= NUM_TRANSFERS_OUT){
 
@@ -263,5 +265,5 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
 		i = 0;
 		k = 0;
-    }
+    } */
 }
