@@ -13,17 +13,18 @@
 #define SCALE_FACTOR 2
 #define WIDTH_OUT (WIDTH_IN * SCALE_FACTOR)
 #define HEIGHT_OUT (HEIGHT_IN * SCALE_FACTOR)
+#define PIXELS_IN (WIDTH_IN * HEIGHT_IN * CHANNELS)
+#define PIXELS_OUT (WIDTH_OUT * HEIGHT_OUT * CHANNELS)
 #define BITS_PER_TRANSFER 128
 #define BITS_PER_PIXEL 8
 #define NUM_TRANSFERS (WIDTH_IN*HEIGHT_IN*CHANNELS*BITS_PER_PIXEL/BITS_PER_TRANSFER)
 #define NUM_TRANSFERS_OUT (NUM_TRANSFERS*SCALE_FACTOR*SCALE_FACTOR)
-#define PIXELS_PER_TRANSFERS (BITS_PER_TRANSFER / BITS_PER_PIXEL)
+#define PIXELS_PER_TRANSFER (BITS_PER_TRANSFER / BITS_PER_PIXEL)
 
 
 // Define pixel_t as an 8-bit unsigned integer
 typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
-typedef ap_uint<128> data_streamed;
-typedef ap_uint<128> temp_streamed;
+typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<data_streamed, 0, 0, 0> axis_t;

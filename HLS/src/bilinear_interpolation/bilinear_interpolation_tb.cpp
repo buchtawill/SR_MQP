@@ -12,7 +12,7 @@ int main() {
     // Define the number of test values
     //const int TEST_SIZE = 16;
 
-    pixel_t test_data[NUM_TRANSFERS];
+    pixel_t test_data[PIXELS_IN];
 
 
     /*
@@ -21,12 +21,12 @@ int main() {
     	test_data[i] = temp;
     } */
 
-    temp_streamed loaded[147 + 1];
+    data_streamed loaded[NUM_TRANSFERS + 1];
 
-    for(int load = 0; load < 147; load++){
+    for(int load = 0; load < NUM_TRANSFERS; load++){
     	int upper_range = 0;
     	int lower_range = 0;
-    	temp_streamed temp_load;
+    	data_streamed temp_load;
 
     	for(int transfer_pixel = 0; transfer_pixel < 16; transfer_pixel++){
     		upper_range = transfer_pixel * 8 + 7;
@@ -37,44 +37,16 @@ int main() {
     	loaded[load] = temp_load;
     }
 
-    loaded[147] = (data_streamed)0;
-
-    /*
-    for(int unload = 0; unload < 147; unload++){
-    	int upper_range = 0;
-    	int lower_range = 0;
-    	uint8_t temp_pixel;
-
-    	for(int transfer_pixel = 0; transfer_pixel < 16; transfer_pixel++){
-    		upper_range = transfer_pixel * 8 + 7;
-    		lower_range = transfer_pixel * 8;
-    		temp_pixel = loaded[unload].range(upper_range, lower_range);
-
-
-			if ((uint8_t)temp_pixel != coin_tile_low_res[unload * 16 + transfer_pixel]) {
-				std::cout << "ERROR: Load Mismatch at index " << (unload * 16 + transfer_pixel)
-						  << " (expected " << (int)coin_tile_low_res[unload * 16 + transfer_pixel]
-						  << ", got " << (int)temp_pixel << ")\n";
-			}
-			else {
-				std::cout << "SUCCESS: Load Match at index " << (unload * 16 + transfer_pixel)
-						  << " (expected " << coin_tile_low_res[unload * 16 + transfer_pixel]
-						  << ", got " << (int)temp_pixel << ")\n";
-			}
-
-			test_data[unload * 16 + transfer_pixel] = temp_pixel;
-    	}
-
-    } */
+    loaded[NUM_TRANSFERS] = (data_streamed)0;
 
 
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < 147+1; i++) {
+    for (int i = 0; i < NUM_TRANSFERS+1; i++) {
 		axis_t input_stream;
 		input_stream.data = loaded[i];
 		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == 147); // Set the last signal for the last element
+		input_stream.last = (i == NUM_TRANSFERS); // Set the last signal for the last element
 		input_stream.keep = 0xFFFF;
 		input_stream.strb = 0xFFFF;
 		in_stream.write(input_stream);
@@ -132,13 +104,13 @@ int main() {
 
 
 
-			if((j < (588 - 1)) && output_element.last == true){
+			if((j < (NUM_TRANSFERS_OUT - 1)) && output_element.last == true){
 				success = false;
 				std::cout << "last triggered before end\n";
 				break;
 			}
 
-			else if(j == (588 - 1) && output_element.last == false){
+			else if(j == (NUM_TRANSFERS_OUT - 1) && output_element.last == false){
 				success = false;
 				std::cout << "last not triggered at end\n";
 				break;
