@@ -122,7 +122,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     } */
 
 	//make sure the correct number of transfers are passed in
-	while(i < 147){
+	while(i < NUM_TRANSFERS){
 
 		while(!in_stream.empty()){
 
@@ -153,7 +153,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
 	bilinear_interpolation_calculations(unloaded, output_data_stored);
 
-    data_streamed output_loaded[588];
+    data_streamed output_loaded[NUM_TRANSFERS_OUT];
     //pixel_t output_unloaded[NUM_TRANSFERS_OUT];
 
     int k = 0;
@@ -168,7 +168,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 			//ap_uint<BITS_PER_TRANSFER / 8> keep;
 			bool last;
 
-			if(k == (588 - 1)){
+			if(k == (NUM_TRANSFERS_OUT - 1)){
 				last = true;
 			}
 			else {
