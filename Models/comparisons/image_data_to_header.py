@@ -70,7 +70,7 @@ if __name__ == '__main__':
         f.write('const unsigned char image_data[] = {\n')
         for row in image_data:
             for pixel in row:
-                f.write(f'\t{pixel[0]}, {pixel[1]}, {pixel[2]}, \n')
+                f.write(f'\t{pixel[0]}, {pixel[1]}, {pixel[2]},\n')
         f.write('};\n')
         f.write("\n#endif\n")
         
@@ -82,7 +82,9 @@ if __name__ == '__main__':
         f.write(f'const uint8_t {tile_name}_tile_low_res_rgb[] = {{\n')
         for row in image_tile:
             for pixel in row:
-                f.write(f'\t{pixel[0]}, {pixel[1]}, {pixel[2]}, \n')
+                f.write(f'\t{pixel[0]:>3}, {pixel[1]:>3}, {pixel[2]:>3},')
+                f.write(f' // {(pixel[0] / 256.0) : .6f} {(pixel[1] / 256.0) : .6f} {(pixel[2] / 256.0) : .6f} \n')
+                
         f.write('};\n')
         
         f.write('\n')
