@@ -53,5 +53,6 @@ if __name__ == '__main__':
                 global_max = param_max
                 max_param_name = param_name
 
-    print(f"The smallest weight is {global_min} found in {min_param_name}")
-    print(f"The largest weight is {global_max} found in {max_param_name}")
+    print(f"The smallest weight is {global_min:.6f} found in {min_param_name}")
+    print(f"The largest weight is  {global_max:.6f} found in {max_param_name}")
+    
