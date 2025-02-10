@@ -1,4 +1,5 @@
 from FSRCNN import *
+import os
 import sys
 import time
 import torch
@@ -97,6 +98,9 @@ def plot_images(low_res, inference, truths, title):
         axs[i, 3].imshow(tensor_to_image(normalize_tensor_image(truths[i])))
         axs[i, 3].axis('off')
     plt.tight_layout()
+    
+    if(not os.path.exists("epoch_results")):
+        os.mkdir("epoch_results")
     plt.savefig(title)
     # plt.show()
     plt.close()
