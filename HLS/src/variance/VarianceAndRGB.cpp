@@ -24,7 +24,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 
     unsigned int i = 0;
     while(i < NUM_TRANSFERS) {
-//        #pragma HLS PIPELINE II=1
+        #pragma HLS PIPELINE II=1
         while (!pixel_stream_in.empty()) {
         	if (i == NUM_TRANSFERS){
         		break;
