@@ -54,17 +54,12 @@ class FSRCNN(nn.Module):
         self.map = nn.Sequential(
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
             nn.PReLU(12),
-            nn.BatchNorm2d(12),
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
             nn.PReLU(12),
-            nn.BatchNorm2d(12),
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
             nn.PReLU(12),
-            nn.BatchNorm2d(12),
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
             nn.PReLU(12),
-            nn.BatchNorm2d(12)
-            
         )
 
         # Expanding layer.
