@@ -2,7 +2,7 @@
 #include "hls_stream.h"
 #include <ap_int.h>
 #include <ap_axi_sdata.h>
-#include "image_coin_tile.h"
+#include "../image_coin_tile.h"
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
@@ -25,7 +25,7 @@ int main(){
 			uint16_t low_bit  = high_bit - 7;
 			coin_idx = (i * BYTES_PER_TRANSFER) + j;
 			tmp_data >>= 8;
-			tmp_data.range(high_bit,low_bit) = coin_tile_low_res[coin_idx];
+			tmp_data.range(high_bit,low_bit) = coin_tile_low_res_rgb[coin_idx];
 		}
 
 		// Write it to the stream
@@ -41,8 +41,6 @@ int main(){
 	// Run the conv2d
 	conv2d_top(in_stream, out_stream);
 
-	return 0;
-
 	// Check the results
 	i = 0;
 	bool tlast = false;
@@ -57,12 +55,12 @@ int main(){
 		for(j = 0; j < BYTES_PER_TRANSFER; j++){
 			coin_idx = (i * BYTES_PER_TRANSFER) + j;
 			uint8_t tmp_stream_val = tmp_stream.data.range((j+1)*8-1, j*8);
-			if(tmp_stream_val != coin_tile_low_res[coin_idx]){
-				printf("ERROR [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res[coin_idx], tmp_stream_val);
+			if(tmp_stream_val != coin_tile_low_res_rgb[coin_idx]){
+				printf("ERROR [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res_rgb[coin_idx], tmp_stream_val);
 				failed = true;
 			}
 			else{
-				printf("GOOD [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res[coin_idx], tmp_stream_val);
+				printf("GOOD [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res_rgb[coin_idx], tmp_stream_val);
 			}
 		}
 		i++;
