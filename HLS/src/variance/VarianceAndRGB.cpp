@@ -20,21 +20,17 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     bool variance_calculated = false;
 
     data_stream pixel_data[NUM_TRANSFERS];
+	axis_t tmp_stream;
+	tmp_stream.last = 0;
 	// #pragma HLS BIND_STORAGE variable=pixel_data type=RAM_1P impl=URAM
 
     unsigned int i = 0;
-    while(i < NUM_TRANSFERS) {
-        #pragma HLS PIPELINE II=1
-        while (!pixel_stream_in.empty()) {
-        	if (i == NUM_TRANSFERS){
-        		break;
-        	}
-            axis_t temp_input = pixel_stream_in.read();
-            pixel_data[i] = temp_input.data;
-//            std::cout << "Package transfer: " << std::hex << pixel_data[i] << std::endl;
-            i++;
-        }
-    }
+    while(!tmp_stream.last && i < NUM_TRANSFERS){
+		#pragma HLS PIPELINE II=1
+		tmp_stream = pixel_stream_in.read();
+		pixel_data[i] = tmp_stream.data;
+		i++;
+	}
 
     if (override_mode == OVERRIDE_MODE_DEFAULT){
 		for (i = 0; i < NUM_TRANSFERS; i++) {
