@@ -6,7 +6,7 @@
 #include "ap_int.h"
 #include "ap_fixed.h"
 
-#define STREAM_WIDTH            128 // Must be a power of 2 greater than 8
+#define STREAM_WIDTH            64 // Must be a power of 2 greater than 8
 #define INPUT_WIDTH_PIX         28
 #define INPUT_HEIGHT_PIX        28
 #define BYTES_PER_PIXEL         3

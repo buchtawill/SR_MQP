@@ -11,6 +11,7 @@ int main() {
     axis_t pixel_data; // 128-bit wide transfer (4 YUYV pixel packages --> 8 pixels)
 
     pixel_data.data = 0;
+    pixel_data.last = 0;
     // Simulate 28x28 pixels in YUYV422 format --> HIGH VARIANCE
     for (int i = 0; i < NUM_TRANSFERS; i++) {
         for (int j = 0; j < 4; j++) { // 4 32-bit YUYV pixel groups per transfer
@@ -23,7 +24,7 @@ int main() {
         }
 
 //        std::cout << "INFO [testbench] Package transfer: " << std::hex << pixel_data.data << std::endl;
-
+        pixel_data.last = (i == NUM_TRANSFERS - 1);
         pixel_stream_in.write(pixel_data);
     }
 

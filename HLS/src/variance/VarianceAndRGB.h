@@ -3,6 +3,7 @@
 
 #include <hls_stream.h>
 #include <ap_int.h>
+#include <ap_fixed.h>
 #include <iostream>
 #include <ap_axi_sdata.h>
 
@@ -17,9 +18,10 @@
 #define OVERRIDE_MODE_CONV 1
 #define OVERRIDE_MODE_INTERP 2
 
-typedef ap_uint<8> pixel_component; // 8-bit per channel for each pixel
+typedef ap_uint<8> ap_8; // 8-bit per channel for each pixel
 typedef ap_uint<32> YUYV32;
 typedef ap_uint<128> data_stream; // 128-bit YUYV pixel stream (8 pixels)
+typedef ap_fixed<32, 24> fixed; // fixed point instead of float
 
 // Define axis_t with data width of 32 bits and no additional signals
 typedef hls::axis<data_stream, 0, 0, 0> axis_t;

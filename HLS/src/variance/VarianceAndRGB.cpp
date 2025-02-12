@@ -14,48 +14,46 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 #pragma HLS INTERFACE s_axilite port=return
 
     unsigned int sum = 0;
-    unsigned int variance;
+    fixed mean;
+    fixed variance_sum;
+    fixed variance;
     bool variance_calculated = false;
 
     data_stream pixel_data[NUM_TRANSFERS];
+	axis_t tmp_stream;
+	tmp_stream.last = 0;
 	// #pragma HLS BIND_STORAGE variable=pixel_data type=RAM_1P impl=URAM
 
     unsigned int i = 0;
-    while(i < NUM_TRANSFERS) {
-//        #pragma HLS PIPELINE II=1
-        while (!pixel_stream_in.empty()) {
-        	if (i == NUM_TRANSFERS){
-        		break;
-        	}
-            axis_t temp_input = pixel_stream_in.read();
-            pixel_data[i] = temp_input.data;
-//            std::cout << "Package transfer: " << std::hex << pixel_data[i] << std::endl;
-            i++;
-        }
-    }
+    while(!tmp_stream.last && i < NUM_TRANSFERS){
+		#pragma HLS PIPELINE II=1
+		tmp_stream = pixel_stream_in.read();
+		pixel_data[i] = tmp_stream.data;
+		i++;
+	}
 
     if (override_mode == OVERRIDE_MODE_DEFAULT){
 		for (i = 0; i < NUM_TRANSFERS; i++) {
-			#pragma HLS PIPELINE II=25
+			#pragma HLS PIPELINE II=1
 			for (int j = 0; j < 4; j++) {
-				pixel_component Y0 = pixel_data[i]((j * 32) + 7, (j * 32));
-				pixel_component Y1 = pixel_data[i]((j * 32) + 23, (j * 32) + 16);
-				sum += static_cast<float>(Y0) + static_cast<float>(Y1);
+				ap_8 Y0 = pixel_data[i]((j * 32) + 7, (j * 32));
+				ap_8 Y1 = pixel_data[i]((j * 32) + 23, (j * 32) + 16);
+				sum += Y0 + Y1;
 			}
 		}
 
-		unsigned int mean = sum / (PIXEL_COUNT);
+		mean = sum / (PIXEL_COUNT);
 
 		// calculate variance
-		unsigned int variance_sum = 0;
+		variance_sum = 0;
 		for (i = 0; i < NUM_TRANSFERS; i++) {
-			#pragma HLS PIPELINE II=25
+			#pragma HLS PIPELINE II=1
 			for (int j = 0; j < 4; j++) {
-				pixel_component Y0 = pixel_data[i]((j * 32) + 7, (j * 32));
-				pixel_component Y1 = pixel_data[i]((j * 32) + 23, (j * 32) + 16);
+				ap_8 Y0 = pixel_data[i]((j * 32) + 7, (j * 32));
+				ap_8 Y1 = pixel_data[i]((j * 32) + 23, (j * 32) + 16);
 
-				float diff0 = static_cast<float>(Y0) - mean;
-				float diff1 = static_cast<float>(Y1) - mean;
+				unsigned int diff0 = static_cast<fixed>(Y0) - mean;
+				unsigned int diff1 = static_cast<fixed>(Y1) - mean;
 
 				variance_sum += (diff0 * diff0) + (diff1 * diff1);
 			}
@@ -64,7 +62,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 		variance = variance_sum / PIXEL_COUNT;
 		variance_calculated = true;
 
-		printf("Variance = %d \n", variance);
+		std::cout << "INFO: Variance: " << std::hex << (double)variance << std::endl;
     }
 
     // YUYV422 --> RGB888 conversion here
