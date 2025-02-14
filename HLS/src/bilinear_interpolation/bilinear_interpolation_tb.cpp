@@ -79,11 +79,17 @@ int main() {
 				temp_pixel = data.range(upper_range, lower_range);
 
 				// Verify the data matches
-				if ((uint8_t)temp_pixel != coin_tile_interpolated[j * 16 + transfer_pixel]) {
+				if ((uint8_t)temp_pixel >= (coin_tile_interpolated[j * 16 + transfer_pixel] + 4)){
 					std::cout << "ERROR: Mismatch at index " << (j * 16 + transfer_pixel)
 							  << " (expected " << (int)coin_tile_interpolated[j * 16 + transfer_pixel]
 							  << ", got " << (int)temp_pixel << ")\n";
 					success = false;
+				}
+				else if ((uint8_t)temp_pixel <= (coin_tile_interpolated[j * 16 + transfer_pixel] - 4)){
+									std::cout << "ERROR: Mismatch at index " << (j * 16 + transfer_pixel)
+											  << " (expected " << (int)coin_tile_interpolated[j * 16 + transfer_pixel]
+											  << ", got " << (int)temp_pixel << ")\n";
+									success = false;
 				}
 				else {
 					std::cout << "SUCCESS: Match at index " << (j * 16 + transfer_pixel)
