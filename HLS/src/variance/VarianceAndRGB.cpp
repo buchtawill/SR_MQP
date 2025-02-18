@@ -22,7 +22,6 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     data_stream pixel_data[NUM_TRANSFERS];
 	axis_t tmp_stream;
 	tmp_stream.last = 0;
-	// #pragma HLS BIND_STORAGE variable=pixel_data type=RAM_1P impl=URAM
 
     unsigned int i = 0;
     while(!tmp_stream.last && i < NUM_TRANSFERS){
@@ -32,6 +31,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 		i++;
 	}
 
+    // calculate sum
     if (override_mode == OVERRIDE_MODE_DEFAULT){
 		for (i = 0; i < NUM_TRANSFERS; i++) {
 			#pragma HLS PIPELINE II=1
@@ -67,46 +67,45 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 
     // YUYV422 --> RGB888 conversion here
 
-	// logic for sending tiles
-	for (i = 0; i < NUM_TRANSFERS; i++) {
-		axis_t temp_output;
-		temp_output.data = 0;
-		temp_output.last = false;
-		temp_output.keep = 0b1;
-		temp_output.strb = 0b1;
+	axis_t temp_output;
+	temp_output.data = 0;
 
-		bool last;
-
-		if(i == (NUM_TRANSFERS - 1)){
-			last = true;
-		}
-		else {
-			last = false;
-		}
-
-		temp_output.data = pixel_data[i];
-		temp_output.last = last;
-		temp_output.keep = 0b1;
-		temp_output.strb = 0b1;
-
-		if (override_mode == OVERRIDE_MODE_CONV) { // send all tiles to convolution
+	// send all tiles to convolution
+    if (override_mode == OVERRIDE_MODE_CONV) {
+    	for (i = 0; i < NUM_TRANSFERS; i++) {
+			temp_output.last = (i == NUM_TRANSFERS - 1);
+			temp_output.keep = 0xf;
+			temp_output.strb = 0b1;
+			temp_output.data = pixel_data[i];
 			conv_out.write(temp_output);
-		    interp_out.write({0, false, 0b0, 0b0});  // Ensure interp_out is empty
+    	}
+	}
 
-		} else if (override_mode == OVERRIDE_MODE_INTERP) {	// send all tiles to interpolation
+    // send all tiles to interpolation
+    else if (override_mode == OVERRIDE_MODE_INTERP) {
+    	for (i = 0; i < NUM_TRANSFERS; i++) {
+			temp_output.last = (i == NUM_TRANSFERS - 1);
+			temp_output.keep = 0xf;
+			temp_output.strb = 0b1;
+			temp_output.data = pixel_data[i];
 			interp_out.write(temp_output);
-		    conv_out.write({0, false, 0b0, 0b0});  // Ensure conv_out is empty
+    	}
+	}
 
-		}
-		else if (variance_calculated){ // send based on variance
+    // send based on variance
+    else if (variance_calculated) {
+    	for (i = 0; i < NUM_TRANSFERS; i++) {
+			temp_output.last = (i == NUM_TRANSFERS - 1);
+			temp_output.keep = 0xf;
+			temp_output.strb = 0b1;
+			temp_output.data = pixel_data[i];
+
 			if (variance > threshold) {
 				conv_out.write(temp_output);
-			    interp_out.write({0, false, 0b0, 0b0});  // Ensure interp_out is empty
-			} else {
+			}
+			else {
 				interp_out.write(temp_output);
-			    conv_out.write({0, false, 0b0, 0b0});  // Ensure conv_out is empty
-
 			}
 		}
-	}
+    }
 }

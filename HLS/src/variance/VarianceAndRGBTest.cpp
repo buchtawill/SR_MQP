@@ -48,6 +48,7 @@ int main() {
 			YUYV32 tmp_YUYV = (V << 24) | (Y1 << 16) | (U << 8) | Y0;
 			pixel_data.data.range((j+1)*32-1, j*32) = tmp_YUYV;
 		}
+        pixel_data.last = (i == NUM_TRANSFERS - 1);
         pixel_stream_in.write(pixel_data);
     }
 
