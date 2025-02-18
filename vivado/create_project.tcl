@@ -29,7 +29,7 @@
 #
 #    <none>
 #  To save updates to the project, if you create any new sources, add them to "proc checkRequiredFiles" and at line 168
-#  If you only wish to update the block design, save it to src/bd/design_1.tcl
+#  If you only wish to update the block design, save it to src/bd/kv260/design_1.tcl
 #
 #*****************************************************************************************
 
@@ -37,7 +37,7 @@
 proc checkRequiredFiles { origin_dir} {
   set status true
   set files [list \
- "[file normalize "$origin_dir/src/bd/design_1.tcl"]"\
+ "[file normalize "$origin_dir/src/bd/kv260/design_1.tcl"]"\
   ]
   foreach ifile $files {
     if { ![file isfile $ifile] } {
@@ -173,7 +173,7 @@ set obj [get_filesets sources_1]
 # set added_files [add_files -fileset sources_1 $files]
 
 # Create 'design_1' block design
-source ${origin_dir}/src/bd/design_1.tcl
+source ${origin_dir}/src/bd/kv260/design_1.tcl
 
 # Generate the wrapper
 set design_name [get_bd_designs]
