@@ -21,21 +21,21 @@ int main() {
     	test_data[i] = temp;
     } */
 
-    data_streamed loaded[196]; //28 * 28 / 4
+    data_streamed loaded[NUM_TRANSFERS];
 
-    for (int load = 0; load < 196; load++) {
+    for (int load = 0; load < NUM_TRANSFERS; load++) {
         data_streamed temp_load = 0;
 
-        int base_index = load * 4 * CHANNELS; //4 = # pixels/transfer, 3 = num
+        int base_index = load * PIXELS_PER_TRANSFER * CHANNELS;
 
         for (int pixel_transfer = 0; pixel_transfer < 4; pixel_transfer++) {
-            pixel_t R = coin_tile_low_res[base_index + pixel_transfer * 3];
-            pixel_t G = coin_tile_low_res[base_index + pixel_transfer * 3 + 1];
-            pixel_t B = coin_tile_low_res[base_index + pixel_transfer * 3 + 2];
+            pixel_t R = coin_tile_low_res[base_index + pixel_transfer * CHANNELS];
+            pixel_t G = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 1];
+            pixel_t B = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 2];
 
-            temp_load.range(pixel_transfer * 32 + 7, pixel_transfer * 32)     = R;
-            temp_load.range(pixel_transfer * 32 + 15, pixel_transfer * 32 + 8) = G;
-            temp_load.range(pixel_transfer * 32 + 23, pixel_transfer * 32 + 16) = B;
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 7, pixel_transfer * BITS_PER_PIXEL)     = R;
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 15, pixel_transfer * BITS_PER_PIXEL + 8) = G;
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL + 16) = B;
             //temp_load.range(pixel_transfer * 32 + 31, pixel_transfer * 32 + 24) = 0; // Don't-care bits
         }
 
@@ -44,12 +44,10 @@ int main() {
 
 
 	// Fill the input stream with test data
-	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < 196; i++) {
+    for (int i = 0; i < NUM_TRANSFERS; i++) {
 		axis_t input_stream;
 		input_stream.data = loaded[i];
-		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == 196 - 1); // Set the last signal for the last element
+		input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
 		input_stream.keep = 0xFFFF;
 		input_stream.strb = 0xFFFF;
 		in_stream.write(input_stream);
@@ -63,6 +61,114 @@ int main() {
     bool success = true;
 
     int j = 0;
+
+	while(j < NUM_TRANSFERS_OUT){
+
+
+		while(!out_stream.empty()){
+
+			// Read the output stream
+			axis_t output_element = out_stream.read();
+			data_streamed data = output_element.data;
+
+	        // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
+	        for (int pixel = 0; pixel < PIXELS_PER_TRANSFER; pixel++) {
+	            pixel_t R = data.range(pixel * BITS_PER_PIXEL + 7, pixel * BITS_PER_PIXEL);
+	            pixel_t G = data.range(pixel * BITS_PER_PIXEL + 15, pixel * BITS_PER_PIXEL + 8);
+	            pixel_t B = data.range(pixel * BITS_PER_PIXEL + 23, pixel * BITS_PER_PIXEL + 16);
+
+				// Verify the R pixel matches
+				if ((uint8_t)R >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] + 4)){
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
+							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS]
+							  << ", got " << (int)R << ")\n";
+					success = false;
+				}
+				else if ((uint8_t)R <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] - 4)){
+									std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
+											  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS]
+											  << ", got " << (int)R << ")\n";
+									success = false;
+				}
+				else {
+					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
+							  << " (expected " << coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS]
+							  << ", got " << (int)R << ")\n";
+					//success = true;
+				}
+
+
+
+				// Verify the G pixel matches
+				if ((uint8_t)G >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1] + 4)){
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
+							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1]
+							  << ", got " << (int)G << ")\n";
+					success = false;
+				}
+				else if ((uint8_t)G <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1] - 4)){
+									std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
+											  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1]
+											  << ", got " << (int)G << ")\n";
+									success = false;
+				}
+				else {
+					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
+							  << " (expected " << coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1]
+							  << ", got " << (int)G << ")\n";
+					//success = true;
+				}
+
+
+				// Verify the B pixel matches
+				if ((uint8_t)B >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2] + 4)){
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
+							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2]
+							  << ", got " << (int)B << ")\n";
+					success = false;
+				}
+				else if ((uint8_t)B <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2] - 4)){
+									std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
+											  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2]
+											  << ", got " << (int)B << ")\n";
+									success = false;
+				}
+				else {
+					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
+							  << " (expected " << coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2]
+							  << ", got " << (int)B << ")\n";
+					//success = true;
+				}
+	        }
+
+
+			if(output_element.keep != 0xFFFF || output_element.strb != 0xFFFF){
+				success = false;
+				std:: cout << "keep or strb wrong";
+				break;
+			}
+
+
+
+			if((j < (NUM_TRANSFERS_OUT - 1)) && output_element.last == true){
+				success = false;
+				std::cout << "last triggered before end\n";
+				break;
+			}
+
+			else if(j == (NUM_TRANSFERS_OUT - 1) && output_element.last == false){
+				success = false;
+				std::cout << "last not triggered at end\n";
+				break;
+			}
+
+			j++;
+
+		}
+
+	}
+
+    /*int j = 0;
 
 	while(j < 588){
 
@@ -129,7 +235,7 @@ int main() {
 
 		}
 
-    }
+    } */
 
 
     // Final result

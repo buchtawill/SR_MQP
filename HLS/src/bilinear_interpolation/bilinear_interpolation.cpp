@@ -67,15 +67,15 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 
 	int i = 0;
 
-	data_streamed input_streams_stored[196];
+	data_streamed input_streams_stored[NUM_TRANSFERS];
 
 	//make sure the correct number of transfers are passed in
-	while(i < 196){
+	while(i < NUM_TRANSFERS){
 
 		while(!in_stream.empty()){
 
 			//if the correct number of transfers have been received stop taking in new data
-			if(i == 196){
+			if(i == NUM_TRANSFERS){
 				break;
 			}
 
@@ -88,16 +88,16 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 		}
 	}
 
-    for (int transfer = 0; transfer < 196; transfer++) {
+    for (int transfer = 0; transfer < NUM_TRANSFERS; transfer++) {
 
         // Compute the base index for storing extracted values
-        int base_index = transfer * 4 * CHANNELS; //4 = # pixels per stream
+        int base_index = transfer * PIXELS_PER_TRANSFER * CHANNELS;
 
         // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
-        for (int j = 0; j < 4; j++) {
-            input_data_stored[base_index + j * 3]     = input_streams_stored[transfer].range(j * 32 + 7, j * 32);
-            input_data_stored[base_index + j * 3 + 1] = input_streams_stored[transfer].range(j * 32 + 15, j * 32 + 8);
-            input_data_stored[base_index + j * 3 + 2] = input_streams_stored[transfer].range(j * 32 + 23, j * 32 + 16);
+        for (int j = 0; j < PIXELS_PER_TRANSFER; j++) {
+            input_data_stored[base_index + j * CHANNELS]     = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 7, j * BITS_PER_PIXEL);
+            input_data_stored[base_index + j * CHANNELS + 1] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 15, j * BITS_PER_PIXEL + 8);
+            input_data_stored[base_index + j * CHANNELS + 2] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL + 16);
             // Don't store X (bits 31:24)
         }
     }
@@ -105,44 +105,36 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 
 void stream_samples_out(pixel_t output_data_stored[PIXELS_OUT], hls::stream<axis_t> &out_stream){
 
-	int k = 0;
+    data_streamed loaded[NUM_TRANSFERS_OUT];
 
-	while(k < NUM_TRANSFERS_OUT){
+    for (int load = 0; load < NUM_TRANSFERS_OUT; load++) {
+        data_streamed temp_load = 0;
 
-		//axis_t output_data = input_stored[j];
-		axis_t temp_output;
+        int base_index = load * 4 * CHANNELS;
+
+        for (int pixel_transfer = 0; pixel_transfer < 4; pixel_transfer++) {
+            pixel_t R = output_data_stored[base_index + pixel_transfer * CHANNELS];
+            pixel_t G = output_data_stored[base_index + pixel_transfer * CHANNELS + 1];
+            pixel_t B = output_data_stored[base_index + pixel_transfer * CHANNELS + 2];
+
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 7, pixel_transfer * BITS_PER_PIXEL)     = R;
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 15, pixel_transfer * BITS_PER_PIXEL + 8) = G;
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL + 16) = B;
+            //temp_load.range(pixel_transfer * 32 + 31, pixel_transfer * 32 + 24) = 0; // Don't-care bits
+        }
+
+        loaded[load] = temp_load;
+    }
 
 
-		//ap_uint<BITS_PER_TRANSFER / 8> keep;
-		bool last;
-
-		if(k == (NUM_TRANSFERS_OUT - 1)){
-			last = true;
-		}
-		else {
-			last = false;
-		}
-
-		int upper_range = 0;
-		int lower_range = 0;
-		data_streamed temp_load;
-
-		for(int transfer_pixel = 0; transfer_pixel < PIXELS_PER_TRANSFER; transfer_pixel++){
-			upper_range = transfer_pixel * BITS_PER_PIXEL + 7;
-			lower_range = transfer_pixel * BITS_PER_PIXEL;
-			temp_load.range(upper_range, lower_range) = output_data_stored[k * PIXELS_PER_TRANSFER + transfer_pixel];
-		}
-
-		temp_output.data = temp_load;
-		temp_output.last = last;
-		temp_output.keep = 0xFFFF;
-		temp_output.strb = 0xFFFF;
-
-		// Write data to output stream
-		out_stream.write(temp_output);
-
-        k++;
-
+	//Fill the output stream with interpolated data
+    for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
+		axis_t output_stream;
+		output_stream.data = loaded[i];
+		output_stream.last = (i == NUM_TRANSFERS_OUT - 1); // Set the last signal for the last element
+		output_stream.keep = 0xFFFF;
+		output_stream.strb = 0xFFFF;
+		out_stream.write(output_stream);
 	}
 }
 
