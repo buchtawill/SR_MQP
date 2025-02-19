@@ -67,15 +67,15 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 
 	int i = 0;
 
-	data_streamed input_streams_stored[NUM_TRANSFERS];
+	data_streamed input_streams_stored[196];
 
 	//make sure the correct number of transfers are passed in
-	while(i < NUM_TRANSFERS){
+	while(i < 196){
 
 		while(!in_stream.empty()){
 
 			//if the correct number of transfers have been received stop taking in new data
-			if(i == NUM_TRANSFERS){
+			if(i == 196){
 				break;
 			}
 
@@ -88,19 +88,19 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 		}
 	}
 
-	for(int j = 0; j < NUM_TRANSFERS; j++){
-		int upper_range = 0;
-		int lower_range = 0;
-		uint8_t temp_pixel;
+    for (int transfer = 0; transfer < 196; transfer++) {
 
-		for(int transfer_pixel = 0; transfer_pixel < PIXELS_PER_TRANSFER; transfer_pixel++){
-			upper_range = transfer_pixel * BITS_PER_PIXEL + 7;
-			lower_range = transfer_pixel * BITS_PER_PIXEL;
-			temp_pixel = input_streams_stored[j].range(upper_range, lower_range);
+        // Compute the base index for storing extracted values
+        int base_index = transfer * 4 * CHANNELS; //4 = # pixels per stream
 
-			input_data_stored[j * PIXELS_PER_TRANSFER + transfer_pixel] = temp_pixel;
-		}
-	}
+        // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
+        for (int j = 0; j < 4; j++) {
+            input_data_stored[base_index + j * 3]     = input_streams_stored[transfer].range(j * 32 + 7, j * 32);
+            input_data_stored[base_index + j * 3 + 1] = input_streams_stored[transfer].range(j * 32 + 15, j * 32 + 8);
+            input_data_stored[base_index + j * 3 + 2] = input_streams_stored[transfer].range(j * 32 + 23, j * 32 + 16);
+            // Don't store X (bits 31:24)
+        }
+    }
 }
 
 void stream_samples_out(pixel_t output_data_stored[PIXELS_OUT], hls::stream<axis_t> &out_stream){

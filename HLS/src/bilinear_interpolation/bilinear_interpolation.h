@@ -20,12 +20,16 @@
 #define NUM_TRANSFERS (WIDTH_IN*HEIGHT_IN*CHANNELS*BITS_PER_PIXEL/BITS_PER_TRANSFER)
 #define NUM_TRANSFERS_OUT (NUM_TRANSFERS*SCALE_FACTOR*SCALE_FACTOR)
 #define PIXELS_PER_TRANSFER (BITS_PER_TRANSFER / BITS_PER_PIXEL)
+#define SLIDING_SNAPSHOT_WIDTH 4
+#define SLIDING_SNAPSHOT_HEIGHT 4
+#define NUM_SLIDING_SNAPSHOT (WIDTH_IN * HEIGHT_IN / SLIDING SNAPSHOT_WIDTH / SLIDING_SNAPSHOT_HEIGHT)
 
 
 // Define pixel_t as an 8-bit unsigned integer
 typedef ap_uint<8> pixel_t; // 8-bit per channel for each pixel
 typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
 typedef ap_fixed<32, 20> fixed;
+typedef ap_uint<24> full_pixel;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
