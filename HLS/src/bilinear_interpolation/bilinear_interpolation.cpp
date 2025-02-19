@@ -63,6 +63,89 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
     return 1;
 }
 
+void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored[PIXELS_IN]){
+
+	int i = 0;
+
+	data_streamed input_streams_stored[196];
+
+	//make sure the correct number of transfers are passed in
+	while(i < 196){
+
+		while(!in_stream.empty()){
+
+			//if the correct number of transfers have been received stop taking in new data
+			if(i == 196){
+				break;
+			}
+
+			axis_t temp_input = in_stream.read();
+			input_streams_stored[i] = temp_input.data;
+	        //data_streamed temp_data = temp_input.data;
+
+
+			i++;
+		}
+	}
+
+    for (int transfer = 0; transfer < 196; transfer++) {
+
+        // Compute the base index for storing extracted values
+        int base_index = transfer * 4 * CHANNELS; //4 = # pixels per stream
+
+        // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
+        for (int j = 0; j < 4; j++) {
+            input_data_stored[base_index + j * 3]     = input_streams_stored[transfer].range(j * 32 + 7, j * 32);
+            input_data_stored[base_index + j * 3 + 1] = input_streams_stored[transfer].range(j * 32 + 15, j * 32 + 8);
+            input_data_stored[base_index + j * 3 + 2] = input_streams_stored[transfer].range(j * 32 + 23, j * 32 + 16);
+            // Don't store X (bits 31:24)
+        }
+    }
+}
+
+void stream_samples_out(pixel_t output_data_stored[PIXELS_OUT], hls::stream<axis_t> &out_stream){
+
+	int k = 0;
+
+	while(k < NUM_TRANSFERS_OUT){
+
+		//axis_t output_data = input_stored[j];
+		axis_t temp_output;
+
+
+		//ap_uint<BITS_PER_TRANSFER / 8> keep;
+		bool last;
+
+		if(k == (NUM_TRANSFERS_OUT - 1)){
+			last = true;
+		}
+		else {
+			last = false;
+		}
+
+		int upper_range = 0;
+		int lower_range = 0;
+		data_streamed temp_load;
+
+		for(int transfer_pixel = 0; transfer_pixel < PIXELS_PER_TRANSFER; transfer_pixel++){
+			upper_range = transfer_pixel * BITS_PER_PIXEL + 7;
+			lower_range = transfer_pixel * BITS_PER_PIXEL;
+			temp_load.range(upper_range, lower_range) = output_data_stored[k * PIXELS_PER_TRANSFER + transfer_pixel];
+		}
+
+		temp_output.data = temp_load;
+		temp_output.last = last;
+		temp_output.keep = 0xFFFF;
+		temp_output.strb = 0xFFFF;
+
+		// Write data to output stream
+		out_stream.write(temp_output);
+
+        k++;
+
+	}
+}
+
 
 void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
     #pragma HLS INTERFACE axis port=in_stream
@@ -71,10 +154,10 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	//#pragma HLS INTERFACE ap_ctrl_hs port=return
 
 	pixel_t input_data_stored[PIXELS_IN];
-	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
+	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_2P impl=BRAM
 
 	pixel_t output_data_stored[PIXELS_OUT];
-	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_1P impl=URAM
+	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_2P impl=BRAM
 
 
 	int i = 0;
@@ -90,83 +173,12 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	} */
 
 
-    pixel_t unloaded[PIXELS_IN];
+	#pragma HLS DATAFLOW
+	stream_samples_in(in_stream, input_data_stored);
 
+	bilinear_interpolation_calculations(input_data_stored, output_data_stored);
 
-	//make sure the correct number of transfers are passed in
-	while(i < NUM_TRANSFERS){
+	stream_samples_out(output_data_stored, out_stream);
 
-		while(!in_stream.empty()){
-
-			//if the correct number of transfers have been received stop taking in new data
-			if(i == NUM_TRANSFERS){
-				break;
-			}
-
-			axis_t temp_input = in_stream.read();
-	        data_streamed temp_data = temp_input.data;
-
-			int upper_range = 0;
-			int lower_range = 0;
-			uint8_t temp_pixel;
-
-			for(int transfer_pixel = 0; transfer_pixel < PIXELS_PER_TRANSFER; transfer_pixel++){
-				upper_range = transfer_pixel * BITS_PER_PIXEL + 7;
-				lower_range = transfer_pixel * BITS_PER_PIXEL;
-				temp_pixel = temp_data.range(upper_range, lower_range);
-
-				unloaded[i * 16 + transfer_pixel] = temp_pixel;
-			}
-
-			i++;
-		}
-	}
-
-
-	bilinear_interpolation_calculations(unloaded, output_data_stored);
-
-    data_streamed output_loaded[NUM_TRANSFERS_OUT];
-
-    int k = 0;
-
-    if(i >= NUM_TRANSFERS){
-    	while(k < NUM_TRANSFERS_OUT){
-
-			//axis_t output_data = input_stored[j];
-			axis_t temp_output;
-
-
-			//ap_uint<BITS_PER_TRANSFER / 8> keep;
-			bool last;
-
-			if(k == (NUM_TRANSFERS_OUT - 1)){
-				last = true;
-			}
-			else {
-				last = false;
-			}
-
-			int upper_range = 0;
-			int lower_range = 0;
-			data_streamed temp_load;
-
-			for(int transfer_pixel = 0; transfer_pixel < PIXELS_PER_TRANSFER; transfer_pixel++){
-				upper_range = transfer_pixel * BITS_PER_PIXEL + 7;
-				lower_range = transfer_pixel * BITS_PER_PIXEL;
-				temp_load.range(upper_range, lower_range) = output_data_stored[k * PIXELS_PER_TRANSFER + transfer_pixel];
-			}
-
-			temp_output.data = temp_load;
-			temp_output.last = last;
-			temp_output.keep = 0xFFFF;
-			temp_output.strb = 0xFFFF;
-
-			// Write data to output stream
-			out_stream.write(temp_output);
-
-            k++;
-
-    	}
-    }
 
 }

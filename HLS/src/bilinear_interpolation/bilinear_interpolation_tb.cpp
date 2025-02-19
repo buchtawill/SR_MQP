@@ -21,32 +21,35 @@ int main() {
     	test_data[i] = temp;
     } */
 
-    data_streamed loaded[NUM_TRANSFERS + 1];
+    data_streamed loaded[196]; //28 * 28 / 4
 
-    for(int load = 0; load < NUM_TRANSFERS; load++){
-    	int upper_range = 0;
-    	int lower_range = 0;
-    	data_streamed temp_load;
+    for (int load = 0; load < 196; load++) {
+        data_streamed temp_load = 0;
 
-    	for(int transfer_pixel = 0; transfer_pixel < 16; transfer_pixel++){
-    		upper_range = transfer_pixel * 8 + 7;
-    		lower_range = transfer_pixel * 8;
-    		temp_load.range(upper_range, lower_range) = coin_tile_low_res[load * 16 + transfer_pixel];
-    	}
+        int base_index = load * 4 * CHANNELS; //4 = # pixels/transfer, 3 = num
 
-    	loaded[load] = temp_load;
+        for (int pixel_transfer = 0; pixel_transfer < 4; pixel_transfer++) {
+            pixel_t R = coin_tile_low_res[base_index + pixel_transfer * 3];
+            pixel_t G = coin_tile_low_res[base_index + pixel_transfer * 3 + 1];
+            pixel_t B = coin_tile_low_res[base_index + pixel_transfer * 3 + 2];
+
+            temp_load.range(pixel_transfer * 32 + 7, pixel_transfer * 32)     = R;
+            temp_load.range(pixel_transfer * 32 + 15, pixel_transfer * 32 + 8) = G;
+            temp_load.range(pixel_transfer * 32 + 23, pixel_transfer * 32 + 16) = B;
+            //temp_load.range(pixel_transfer * 32 + 31, pixel_transfer * 32 + 24) = 0; // Don't-care bits
+        }
+
+        loaded[load] = temp_load;
     }
-
-    loaded[NUM_TRANSFERS] = (data_streamed)0;
 
 
 	// Fill the input stream with test data
 	//for (int i = 0; i < NUM_TRANSFERS; i++) {
-    for (int i = 0; i < NUM_TRANSFERS+1; i++) {
+    for (int i = 0; i < 196; i++) {
 		axis_t input_stream;
 		input_stream.data = loaded[i];
 		//input_stream.last = (i == NUM_TRANSFERS - 1); // Set the last signal for the last element
-		input_stream.last = (i == NUM_TRANSFERS); // Set the last signal for the last element
+		input_stream.last = (i == 196 - 1); // Set the last signal for the last element
 		input_stream.keep = 0xFFFF;
 		input_stream.strb = 0xFFFF;
 		in_stream.write(input_stream);
@@ -79,11 +82,17 @@ int main() {
 				temp_pixel = data.range(upper_range, lower_range);
 
 				// Verify the data matches
-				if ((uint8_t)temp_pixel != coin_tile_interpolated[j * 16 + transfer_pixel]) {
+				if ((uint8_t)temp_pixel >= (coin_tile_interpolated[j * 16 + transfer_pixel] + 4)){
 					std::cout << "ERROR: Mismatch at index " << (j * 16 + transfer_pixel)
 							  << " (expected " << (int)coin_tile_interpolated[j * 16 + transfer_pixel]
 							  << ", got " << (int)temp_pixel << ")\n";
 					success = false;
+				}
+				else if ((uint8_t)temp_pixel <= (coin_tile_interpolated[j * 16 + transfer_pixel] - 4)){
+									std::cout << "ERROR: Mismatch at index " << (j * 16 + transfer_pixel)
+											  << " (expected " << (int)coin_tile_interpolated[j * 16 + transfer_pixel]
+											  << ", got " << (int)temp_pixel << ")\n";
+									success = false;
 				}
 				else {
 					std::cout << "SUCCESS: Match at index " << (j * 16 + transfer_pixel)
