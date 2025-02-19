@@ -4,7 +4,7 @@
 #include <algorithm>
 
 int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * CHANNELS],
-                                        pixel_t image_out[HEIGHT_OUT * WIDTH_OUT * CHANNELS]) {
+                                        channel_t image_out[HEIGHT_OUT * WIDTH_OUT * CHANNELS]) {
 
     fixed widthRatio  = fixed(WIDTH_IN - 1) / fixed(WIDTH_OUT - 1);
     fixed heightRatio = fixed(HEIGHT_IN - 1) / fixed(HEIGHT_OUT - 1);
@@ -36,27 +36,28 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN * WIDTH_IN * 
             fixed w01 = (fixed(1) - dx) * dy;
             fixed w11 = dx * dy;
 
-            // Perform bilinear interpolation for each channel
-            for (int ch = 0; ch < CHANNELS; ++ch) {
+            // Read pixel data from input (packed format 0xRRGGBB)
+            pixel_t pixel00 = image_in[y0 * WIDTH_IN + x0];
+            pixel_t pixel10 = image_in[y0 * WIDTH_IN + x1];
+            pixel_t pixel01 = image_in[y1 * WIDTH_IN + x0];
+            pixel_t pixel11 = image_in[y1 * WIDTH_IN + x1];
 
-                #pragma HLS UNROLL factor=2
+            // Extract RGB channels
+            channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
+            channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
+            channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
+            channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
 
-                int index00 = (y0 * WIDTH_IN + x0) * CHANNELS + ch;
-                int index10 = (y0 * WIDTH_IN + x1) * CHANNELS + ch;
-                int index01 = (y1 * WIDTH_IN + x0) * CHANNELS + ch;
-                int index11 = (y1 * WIDTH_IN + x1) * CHANNELS + ch;
+            // Compute interpolated values for each channel
+            fixed r_interp = w00 * fixed(r00) + w10 * fixed(r10) + w01 * fixed(r01) + w11 * fixed(r11);
+            fixed g_interp = w00 * fixed(g00) + w10 * fixed(g10) + w01 * fixed(g01) + w11 * fixed(g11);
+            fixed b_interp = w00 * fixed(b00) + w10 * fixed(b10) + w01 * fixed(b01) + w11 * fixed(b11);
 
-                // Compute interpolated value using fixed-point
-                fixed interpolated_value =
-                    w00 * fixed(image_in[index00]) +
-                    w10 * fixed(image_in[index10]) +
-                    w01 * fixed(image_in[index01]) +
-                    w11 * fixed(image_in[index11]);
-
-                // Assign the interpolated value to the output image (rounding correctly)
-                int out_index = (y_out * WIDTH_OUT + x_out) * CHANNELS + ch;
-                image_out[out_index] = static_cast<pixel_t>(interpolated_value + fixed(0.5)); // Rounding
-            }
+            // Store interpolated values in `image_out` (rounded)
+            int out_index = (y_out * WIDTH_OUT + x_out) * CHANNELS;
+            image_out[out_index]     = static_cast<channel_t>(r_interp + fixed(0.5)); // Red
+            image_out[out_index + 1] = static_cast<channel_t>(g_interp + fixed(0.5)); // Green
+            image_out[out_index + 2] = static_cast<channel_t>(b_interp + fixed(0.5)); // Blue
         }
     }
 
@@ -90,20 +91,16 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 
     for (int transfer = 0; transfer < NUM_TRANSFERS; transfer++) {
 
-        // Compute the base index for storing extracted values
-        int base_index = transfer * PIXELS_PER_TRANSFER * CHANNELS;
-
         // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
         for (int j = 0; j < PIXELS_PER_TRANSFER; j++) {
-            input_data_stored[base_index + j * CHANNELS]     = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 7, j * BITS_PER_PIXEL);
-            input_data_stored[base_index + j * CHANNELS + 1] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 15, j * BITS_PER_PIXEL + 8);
-            input_data_stored[base_index + j * CHANNELS + 2] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL + 16);
+
+            input_data_stored[transfer * PIXELS_PER_TRANSFER + j] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL);
             // Don't store X (bits 31:24)
         }
     }
 }
 
-void stream_samples_out(pixel_t output_data_stored[PIXELS_OUT], hls::stream<axis_t> &out_stream){
+void stream_samples_out(channel_t output_data_stored[PIXELS_OUT], hls::stream<axis_t> &out_stream){
 
     data_streamed loaded[NUM_TRANSFERS_OUT];
 
@@ -113,9 +110,9 @@ void stream_samples_out(pixel_t output_data_stored[PIXELS_OUT], hls::stream<axis
         int base_index = load * 4 * CHANNELS;
 
         for (int pixel_transfer = 0; pixel_transfer < 4; pixel_transfer++) {
-            pixel_t R = output_data_stored[base_index + pixel_transfer * CHANNELS];
-            pixel_t G = output_data_stored[base_index + pixel_transfer * CHANNELS + 1];
-            pixel_t B = output_data_stored[base_index + pixel_transfer * CHANNELS + 2];
+            channel_t R = output_data_stored[base_index + pixel_transfer * CHANNELS];
+            channel_t G = output_data_stored[base_index + pixel_transfer * CHANNELS + 1];
+            channel_t B = output_data_stored[base_index + pixel_transfer * CHANNELS + 2];
 
             temp_load.range(pixel_transfer * BITS_PER_PIXEL + 7, pixel_transfer * BITS_PER_PIXEL)     = R;
             temp_load.range(pixel_transfer * BITS_PER_PIXEL + 15, pixel_transfer * BITS_PER_PIXEL + 8) = G;
@@ -148,7 +145,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	pixel_t input_data_stored[PIXELS_IN];
 	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_2P impl=BRAM
 
-	pixel_t output_data_stored[PIXELS_OUT];
+	channel_t output_data_stored[PIXELS_OUT];
 	#pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_2P impl=BRAM
 
 

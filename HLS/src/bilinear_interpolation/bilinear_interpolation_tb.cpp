@@ -12,12 +12,12 @@ int main() {
     // Define the number of test values
     //const int TEST_SIZE = 16;
 
-    pixel_t test_data[PIXELS_IN];
+    channel_t test_data[PIXELS_IN];
 
 
     /*
     for(int i = 0; i < NUM_TRANSFERS; i++){
-    	pixel_t temp = coin_tile_low_res[i];
+    	channel_t temp = coin_tile_low_res[i];
     	test_data[i] = temp;
     } */
 
@@ -29,9 +29,9 @@ int main() {
         int base_index = load * PIXELS_PER_TRANSFER * CHANNELS;
 
         for (int pixel_transfer = 0; pixel_transfer < 4; pixel_transfer++) {
-            pixel_t R = coin_tile_low_res[base_index + pixel_transfer * CHANNELS];
-            pixel_t G = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 1];
-            pixel_t B = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 2];
+            channel_t R = coin_tile_low_res[base_index + pixel_transfer * CHANNELS];
+            channel_t G = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 1];
+            channel_t B = coin_tile_low_res[base_index + pixel_transfer * CHANNELS + 2];
 
             temp_load.range(pixel_transfer * BITS_PER_PIXEL + 7, pixel_transfer * BITS_PER_PIXEL)     = R;
             temp_load.range(pixel_transfer * BITS_PER_PIXEL + 15, pixel_transfer * BITS_PER_PIXEL + 8) = G;
@@ -73,9 +73,9 @@ int main() {
 
 	        // Extract RGB values from {xbgr-xbgr-xbgr-xbgr} format
 	        for (int pixel = 0; pixel < PIXELS_PER_TRANSFER; pixel++) {
-	            pixel_t R = data.range(pixel * BITS_PER_PIXEL + 7, pixel * BITS_PER_PIXEL);
-	            pixel_t G = data.range(pixel * BITS_PER_PIXEL + 15, pixel * BITS_PER_PIXEL + 8);
-	            pixel_t B = data.range(pixel * BITS_PER_PIXEL + 23, pixel * BITS_PER_PIXEL + 16);
+	            channel_t R = data.range(pixel * BITS_PER_PIXEL + 7, pixel * BITS_PER_PIXEL);
+	            channel_t G = data.range(pixel * BITS_PER_PIXEL + 15, pixel * BITS_PER_PIXEL + 8);
+	            channel_t B = data.range(pixel * BITS_PER_PIXEL + 23, pixel * BITS_PER_PIXEL + 16);
 
 				// Verify the R pixel matches
 				if ((uint8_t)R >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] + 4)){
@@ -180,7 +180,7 @@ int main() {
 
 			int upper_range = 0;
 			int lower_range = 0;
-			pixel_t temp_pixel;
+			channel_t temp_pixel;
 
 			for(int transfer_pixel = 0; transfer_pixel < 16; transfer_pixel++){
 				upper_range = transfer_pixel * 8 + 7;
