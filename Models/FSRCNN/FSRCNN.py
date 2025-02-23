@@ -28,7 +28,7 @@ class FSRCNN(nn.Module):
 
     def __init__(self, upscale_factor: int, color_space = 'rgb') -> None:
         
-        mid_f_maps = 56
+        mid_f_maps = 44
         
         super(FSRCNN, self).__init__()
         
@@ -39,6 +39,7 @@ class FSRCNN(nn.Module):
         
         # Feature extraction layer.
         self.feature_extraction = nn.Sequential(
+            #                                          Kernel  stride  padding
             nn.Conv2d(self.input_channels, mid_f_maps, (5, 5), (1, 1), (2, 2)),
             nn.PReLU(mid_f_maps)
         )
