@@ -79,16 +79,16 @@ int main() {
 
 				// Verify the R pixel matches
 				if ((uint8_t)R >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] + MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS]
 							  << ", got " << (int)R << ")\n";
-					//success = false;
+					success = false;
 				}
 				else if ((uint8_t)R <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] - MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS]
 							  << ", got " << (int)R << ")\n";
-					//success = false;
+					success = false;
 				}
 				else {
 					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
@@ -101,16 +101,16 @@ int main() {
 
 				// Verify the G pixel matches
 				if ((uint8_t)G >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1] + MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1]
 							  << ", got " << (int)G << ")\n";
-					//success = false;
+					success = false;
 				}
 				else if ((uint8_t)G <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1] - MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1]
 							  << ", got " << (int)G << ")\n";
-					//success = false;
+					success = false;
 				}
 				else {
 					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 1)
@@ -122,16 +122,16 @@ int main() {
 
 				// Verify the B pixel matches
 				if ((uint8_t)B >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2] + MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2]
 							  << ", got " << (int)B << ")\n";
-					//success = false;
+					success = false;
 				}
 				else if ((uint8_t)B <= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2] - MARGIN_OF_ERROR)){
-					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
+					std::cout << "ERROR: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)
 							  << " (expected " << (int)coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2]
 							  << ", got " << (int)B << ")\n";
-					//success = false;
+					success = false;
 				}
 				else {
 					std::cout << "SUCCESS: Match at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS + 2)

@@ -67,11 +67,12 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_HEIGHT_IN][SLIDE
 }
 
 // Function to stream input samples into 2D array
-void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN]) {
+//void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN]) {
+void stream_samples_in(hls::stream<axis_t> &in_stream, hls::stream<data_streamed, PIXELS_PER_TRANSFER> &data_fifo_in){
 
     int i = 0;
 
-    data_streamed input_streams_stored[NUM_TRANSFERS];
+    //data_streamed input_streams_stored[NUM_TRANSFERS];
 
     while (i < NUM_TRANSFERS) {
 
@@ -82,29 +83,49 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
             }
 
             axis_t temp_input = in_stream.read();
-            input_streams_stored[i] = temp_input.data;
+            data_streamed temp_data = temp_input.data;
+            data_fifo_in.write(temp_data);
 
             i++;
         }
     }
 
-    for (int transfer = 0; transfer < NUM_TRANSFERS; transfer++) {
+}
+
+void fill_image_array(hls::stream<data_streamed, PIXELS_PER_TRANSFER> &input_fifo, pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN]){
+
+	for (int transfer = 0; transfer < NUM_TRANSFERS; transfer++) {
+
+		data_streamed temp_data = input_fifo.read();
 
         for (int j = 0; j < PIXELS_PER_TRANSFER; j++) {
 
             int index = transfer * PIXELS_PER_TRANSFER + j;
             int y = index / WIDTH_IN;
             int x = index % WIDTH_IN;
-            input_data_stored[y][x] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL);
+            input_data_stored[y][x] = temp_data.range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL);
         }
     }
 }
 
 // Function to stream output samples from 2D array
-void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::stream<axis_t> &out_stream) {
-    data_streamed loaded[NUM_TRANSFERS_OUT];
+//void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::stream<axis_t> &out_stream) {
+void stream_samples_out(hls::stream<data_streamed, PIXELS_PER_TRANSFER> &data_fifo_out, hls::stream<axis_t> &out_stream){
+    //data_streamed loaded[NUM_TRANSFERS_OUT];
 
-    for (int load = 0; load < NUM_TRANSFERS_OUT; load++) {
+    for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
+        axis_t output_stream;
+        output_stream.data = data_fifo_out.read();
+        output_stream.last = (i == NUM_TRANSFERS_OUT - 1);
+        output_stream.keep = 0xFFFF;
+        output_stream.strb = 0xFFFF;
+        out_stream.write(output_stream);
+    }
+}
+
+void fill_output_fifo(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::stream<data_streamed, PIXELS_PER_TRANSFER> &output_fifo){
+
+	for (int load = 0; load < NUM_TRANSFERS_OUT; load++) {
 
         data_streamed temp_load = 0;
 
@@ -116,28 +137,12 @@ void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::
             temp_load.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = output_data_stored[y][x];
         }
 
-        loaded[load] = temp_load;
-    }
-
-    for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
-        axis_t output_stream;
-        output_stream.data = loaded[i];
-        output_stream.last = (i == NUM_TRANSFERS_OUT - 1);
-        output_stream.keep = 0xFFFF;
-        output_stream.strb = 0xFFFF;
-        out_stream.write(output_stream);
+        output_fifo.write(temp_load);
     }
 }
 
-void assemble_slider(pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN], pixel_t input_data_slider[SLIDER_HEIGHT_IN][SLIDER_WIDTH_IN], int width_start, int height_start){
 
 
-}
-
-void disassemble_slider(pixel_t output_data_slider[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT], pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], int width_start, int height_start){
-
-
-}
 
 // Main function for bilinear interpolation processing
 void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
@@ -149,25 +154,33 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	//decrease latency
     pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN];
     #pragma HLS BIND_STORAGE variable=input_data_stored type=RAM_2P impl=BRAM
-	#pragma HLS array_partition variable=input_data_stored type=complete factor=4
+	//#pragma HLS array_partition variable=input_data_stored type=complete factor=4 dim=1
 
     pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT];
     #pragma HLS BIND_STORAGE variable=output_data_stored type=RAM_2P impl=BRAM
-	#pragma HLS array_partition variable=output_data_stored type=complete factor=4
+	//#pragma HLS array_partition variable=output_data_stored type=complete factor=4 dim=1
+
+	hls::stream<data_streamed, PIXELS_PER_TRANSFER> input_fifo;
+	hls::stream<data_streamed, PIXELS_PER_TRANSFER> output_fifo;
+	#pragma HLS BIND_STORAGE variable=input_fifo  type=ram_2p impl=bram
+	#pragma HLS BIND_STORAGE variable=output_fifo type=ram_2p impl=bram
 
 
     #pragma HLS DATAFLOW
-    stream_samples_in(in_stream, input_data_stored);
+    stream_samples_in(in_stream, input_fifo);
+    fill_image_array(input_fifo, input_data_stored);
 
+
+    //SPLIT IMAGE INTO SLIDING ARRAY
     for(int i = 0; i < NUM_SLIDERS_HEIGHT; i++){
 
     	for(int j = 0; j < NUM_SLIDERS_WIDTH; j++){
 
     		//these should be LUT ram
     		pixel_t temp_data_slider_in[SLIDER_HEIGHT_IN][SLIDER_WIDTH_IN];
-			#pragma HLS array_partition variable=temp_data_slider_in type=complete factor=4
+			//#pragma HLS array_partition variable=temp_data_slider_in type=complete factor=4
     		pixel_t temp_data_slider_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
-			#pragma HLS array_partition variable=temp_data_slider_out type=complete factor=4
+			//#pragma HLS array_partition variable=temp_data_slider_out type=complete factor=4
 
     		int height_start_in = i * SLIDER_HEIGHT_IN;
     		int width_start_in = j * SLIDER_WIDTH_IN;
@@ -200,7 +213,6 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     	}
     }
 
-    //bilinear_interpolation_calculations(input_data_stored, output_data_stored);
-
-    stream_samples_out(output_data_stored, out_stream);
+    fill_output_fifo(output_data_stored, output_fifo);
+    stream_samples_out(output_fifo, out_stream);
 }
