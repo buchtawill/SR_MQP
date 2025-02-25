@@ -606,6 +606,43 @@ int save_screenshot(void *before_frame, void* after_frame){
     return 0;
 }
 
+/**
+ * Save the contents of before frame and after frame to a file. Assumes input and output are RGB888
+ * @param before_frame Pointer to the before frame
+ * @param after_frame Pointer to the after frame
+ * @return 0 on success, -1 on failure
+ */
+int save_yuyv_888_screenshot(void *yuyv, void* rgb888){
+    // Save the input888 block and interp 888 block to a file
+    FILE *input_fp = fopen("input_yuyv.raw", "wb");
+    if(input_fp == nullptr){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open input_yuyv.raw for writing\n");
+        return -1;
+    }
+    size_t num_bytes = fwrite(yuyv, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*2, input_fp);
+    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*2){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write input_yuyv.raw\n");
+        return -1;
+    }
+    fflush(input_fp);
+    fclose(input_fp);
+
+    FILE *interp_fp = fopen("rgb888.raw", "wb");
+    if(interp_fp == nullptr){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open rgb888.raw for writing\n");
+        return -1;
+    }
+    num_bytes = fwrite(rgb888, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3, interp_fp);
+    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write rgb888.raw\n");
+        return -1;
+    }
+    fflush(interp_fp);
+    fclose(interp_fp);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]){
     printf("INFO [sg-interpolate2x] Entering main\n");
     
@@ -735,6 +772,9 @@ int main(int argc, char *argv[]){
                        (uint8_t*)(resources.input888_block->get_mem_ptr()), 
                        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
 
+
+        // save_yuyv_888_screenshot((void*)resources.vid_mem_ptr[queued_buffer], (void*)(resources.input888_block->get_mem_ptr()));
+        
         if(queued_buffer == 0){
             queued_buffer = 1;
             next_buffer = 0;
