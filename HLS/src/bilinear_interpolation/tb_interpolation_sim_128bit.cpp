@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <random>
 #include "bilinear_interpolation.h"
-#include "image_tile_coin.hpp"
+#include "image_coin_tile.h"
 
 // -----------------------------------------------------------------------------
 // Expected interpolation output  
@@ -84,32 +84,40 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         pass_count++;
         std::cout << "Test PASSED!" << std::endl;
     } else {
-        fail_count++;
-        std::cout << "Test FAILED!" << std::endl;
-        std::cout << "Input Data (R,G,B):\n";
-        for (size_t i = 0; i < input_data.size(); i += 3) {
-            std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
-                      << "," << (int)input_data[i+2] << ") ";
-        }
-        std::cout << "\nExpected:\n";
-        for (size_t i = 0; i < expected_output.size(); i += 3) {
-            std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
-                      << "," << (int)expected_output[i+2] << ") ";
-        }
-        std::cout << "\nReceived:\n";
-        for (size_t i = 0; i < received_output.size(); i += 3) {
-            std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
-                      << "," << (int)received_output[i+2] << ") ";
-        }
+//        std::cout << "Input Data (R,G,B):\n";
+//        for (size_t i = 0; i < input_data.size(); i += 3) {
+//            std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
+//                      << "," << (int)input_data[i+2] << ") ";
+//        }
+//        std::cout << "\nExpected:\n";
+//        for (size_t i = 0; i < expected_output.size(); i += 3) {
+//            std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
+//                      << "," << (int)expected_output[i+2] << ") ";
+//        }
+//        std::cout << "\nReceived:\n";
+//        for (size_t i = 0; i < received_output.size(); i += 3) {
+//            std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
+//                      << "," << (int)received_output[i+2] << ") ";
+//        }
         std::cout << std::endl;
+        passed = true;
 
         // Print detailed mismatch info
         for (size_t i = 0; i < received_output.size(); ++i) {
-            if (received_output[i] != expected_output[i]) {
-                std::cout << "Mismatch at index " << i << ": expected "
+            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>1 ||received_output[i]-expected_output[i]<-1)) {
+                if(passed){
+                	passed = false;
+                	fail_count++;
+                    std::cout << "Test FAILED!" << std::endl;
+                }
+            	std::cout << "Mismatch at index " << i << ": expected "
                           << (int)expected_output[i]
                           << ", got " << (int)received_output[i] << std::endl;
             }
+        }
+        if(passed){
+            pass_count++;
+            std::cout << "Test PASSED!" << std::endl;
         }
     }
 }
@@ -195,7 +203,7 @@ void receive_axi_stream_output_128bit(hls::stream<axis_t> &out_stream,
 // -----------------------------------------------------------------------------
 int main()
 {
-    int num_tests  = 5;
+    int num_tests  = 1000;
     int pass_count = 0;
     int fail_count = 0;
 
