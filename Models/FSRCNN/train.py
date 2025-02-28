@@ -16,6 +16,9 @@ from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
+# For bilinear interpolation
+from scipy.ndimage import zoom
+
 NUM_EPOCHS = 100
 BATCH_SIZE = 64
 LEARN_RATE = 0.0002
@@ -82,15 +85,16 @@ def plot_images(low_res, inference, truths, title):
 
     fig, axs = plt.subplots(3, 4, figsize=(12, 8))
     for i in range(3):
+        low_res_img = tensor_to_image(normalize_tensor_image(low_res[i]))
         axs[i, 0].set_title('Low Res')
-        axs[i, 0].imshow(tensor_to_image(normalize_tensor_image(low_res[i])))
+        axs[i, 0].imshow(low_res_img)
         axs[i, 0].axis('off')
         
-        axs[i, 1].set_title('Upscaled')
-        axs[i, 1].imshow(tensor_to_image(inference[i]))
+        axs[i, 1].set_title('Bilinear')
+        axs[i, 1].imshow(zoom(low_res_img, (2, 2, 1), order=1))
         axs[i, 1].axis('off')
         
-        axs[i, 2].set_title('Normalized')
+        axs[i, 2].set_title('Modeled, Normalized')
         axs[i, 2].imshow(tensor_to_image(normalize_tensor_image(inference[i])))
         axs[i, 2].axis('off')
         

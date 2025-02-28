@@ -15,15 +15,26 @@ def sec_to_human(seconds):
     seconds %= 60
     return "%d:%02d:%02d" % (hours, minutes, seconds)
 
+
+def print_c_arr(weight_mat:torch.tensor):
+    for channel in range(len(weight_mat)):
+        print('{')
+        for row in range(len(weight_mat[0])):
+            print('{', end='')
+            for col in range(len(weight_mat[0][0])):
+                print(f'{weight_mat[channel,row,col].numpy():>11.8f}, ', end='')
+            print('},')
+        print('},')
+    
 if __name__ == '__main__':
     tstart = time.time()
     
     # Set up device, model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
     print(f'INFO [extract_weights.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [extract_weights.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights.pth', weights_only=True))
+    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
     
     state_dict = model.state_dict()
     
@@ -34,6 +45,13 @@ if __name__ == '__main__':
     # print(state_dict['feature_extraction.0.bias'].shape)   # Conv2D bias
     # print(state_dict['feature_extraction.1.weight'])       # PReLU
     
+    weights_0 = state_dict['feature_extraction.0.weight'][0]
+    print(weights_0)
+    print_c_arr(weights_0)
+    exit()
+    
+    print("Bias from feature extraction filter0: ")
+    print(state_dict['feature_extraction.0.bias'][0])
     # print(state_dict['feature_extraction.0.weight'][0]) # Conv2D weights
 
     global_min = float('inf')
