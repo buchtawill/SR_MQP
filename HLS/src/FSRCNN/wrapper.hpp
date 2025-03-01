@@ -7,6 +7,7 @@
 #include <ap_int.h>                                     // Brings the ap_uint type
 #include <hls_stream.h>                                 // Brings the stream
 //#include "common/xf_common.h"                           // Brings the macros for channel and data width
+#include "ap_axi_sdata.h"
 //#include "common/xf_infra.h"
 //#include "common/xf_utility.h"
 ///defines
@@ -283,7 +284,7 @@ struct my_data{
 };
 typedef hls::stream<package_t> stream_t;               // Define the AXI Stream type
 typedef hls::stream<my_data> stream_t2;                // Define the AXI Stream type 2
-using namespace xf;
+//using namespace xf;
 using namespace std;
 ///---------------------------------------------------------------------------------------------------------------------
 ///Declare the top function - This function needs redundant inputs

@@ -117,6 +117,9 @@ class FSRCNN(nn.Module):
     def _forward_impl_rgb(self, x: torch.Tensor) -> torch.Tensor:
         
         out = self.feature_extraction(x)
+        print(out.shape)
+        print(out[0][0][0])
+        exit()
         out = self.shrink(out)
         out = self.map(out)
         out = self.expand(out)

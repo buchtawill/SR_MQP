@@ -57,6 +57,9 @@ if __name__ == '__main__':
     image_tile = image_data[TILE_HEIGHT*TILE_LOCATION[0]:TILE_HEIGHT*(TILE_LOCATION[0]+1), 
                             TILE_WIDTH*TILE_LOCATION[1]:TILE_WIDTH*(TILE_LOCATION[1]+1)]
     
+    # Save the tile 
+    np.save('./images/image_coin_tile.np', image_tile)
+    
     # Convert the tile to YUYV format
     yuyv_tile = rgb_to_yuyv(image_tile)
     

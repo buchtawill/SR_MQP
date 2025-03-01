@@ -43,15 +43,16 @@ if __name__ == '__main__':
     
     # print(state_dict['feature_extraction.0.weight'].shape) # Conv2D weights
     # print(state_dict['feature_extraction.0.bias'].shape)   # Conv2D bias
-    # print(state_dict['feature_extraction.1.weight'])       # PReLU
+    print(state_dict['feature_extraction.1.weight'])       # PReLU
     
-    weights_0 = state_dict['feature_extraction.0.weight'][0]
-    print(weights_0)
-    print_c_arr(weights_0)
-    exit()
+    # weights_0 = state_dict['feature_extraction.0.weight'][0]
+    # print(weights_0)
+    # print_c_arr(weights_0)
+    # exit()
     
-    print("Bias from feature extraction filter0: ")
-    print(state_dict['feature_extraction.0.bias'][0])
+    # print("Bias from feature extraction filter0: ")
+    # print(state_dict['feature_extraction.0.bias'])
+    # exit()
     # print(state_dict['feature_extraction.0.weight'][0]) # Conv2D weights
 
     global_min = float('inf')
