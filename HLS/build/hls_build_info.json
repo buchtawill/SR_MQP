@@ -51,7 +51,8 @@
     "conv2d": {
         "src": [
             "conv2d.cpp",
-            "conv2d.h"
+            "conv2d.h",
+            "fsrcnn_weights.h"
         ],
         "tb": [
             "conv2d_tb.cpp"
