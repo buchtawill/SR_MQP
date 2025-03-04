@@ -76,8 +76,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     if (override_mode == OVERRIDE_MODE_CONV) {
     	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
-			temp_output.keep = 0xf;
-			temp_output.strb = 0b1;
+			temp_output.keep = 0xffff;
+			temp_output.strb = 0xffff;
 			temp_output.data = YUYV_pixel_data[i];
 			conv_out.write(temp_output);
     	}
@@ -87,8 +87,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     else if (override_mode == OVERRIDE_MODE_INTERP) {
     	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
-			temp_output.keep = 0xf;
-			temp_output.strb = 0b1;
+			temp_output.keep = 0xffff;
+			temp_output.strb = 0xffff;
 			temp_output.data = YUYV_pixel_data[i];
 			interp_out.write(temp_output);
     	}
@@ -98,8 +98,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     else if (variance_calculated) {
     	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
-			temp_output.keep = 0xf;
-			temp_output.strb = 0b1;
+			temp_output.keep = 0xffff;
+			temp_output.strb = 0xffff;
 			temp_output.data = YUYV_pixel_data[i];
 
 			if (variance > threshold) {
