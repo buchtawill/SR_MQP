@@ -38,9 +38,27 @@ def get_real_conv_result(start_x, start_y, channel_arr):
 
 def fifo_psum_conv(channel_arr):
     
+    outputs = np.zeros((28,28))
+    for row in range(32):
+        for col in range(28):
+            slider = channel_arr[row, col:col+5]
+            if(row < 28):
+                psums[0].append(np.sum(slider * WEIGHTS[0,0]))
+            if(row < 29 and row > 0):
+                psums[1].append(np.sum(slider * WEIGHTS[0,1]) + psums[0].pop(0))
+            if(row < 30 and row > 1):
+                psums[2].append(np.sum(slider * WEIGHTS[0,2]) + psums[1].pop(0))
+            if(row < 31 and row > 2):
+                psums[3].append(np.sum(slider * WEIGHTS[0,3]) + psums[2].pop(0))
+                
+            if(row > 3):
+                pre_activation = np.sum(slider * WEIGHTS[0,4]) + psums[3].pop(0) + BIAS_1
+                output = np.maximum(0, pre_activation) + PRELU_1 * np.minimum(0, pre_activation)
+                outputs[row - 4, col] = output
+    
     ############################## Do the first 4 rows ##############################
     # print("First row slider")
-    for i in range(28):
+    '''for i in range(28):
         slider = channel_arr[0, i:i+5]
         # print(slider)
         psums[0].append(np.sum(slider * WEIGHTS[0,0]))
@@ -71,7 +89,6 @@ def fifo_psum_conv(channel_arr):
         
     # # print("\nFifth row slider / start printing results")
     ############################## Pipeline is ready ##############################
-    outputs = np.zeros((28,28))
     for row in range(4, 32):
         for i in range(28):
             slider = channel_arr[row, i:i+5]
@@ -86,7 +103,7 @@ def fifo_psum_conv(channel_arr):
                 psums[3].append(np.sum(slider * WEIGHTS[0,3]) + psums[2].pop(0))
             pre_activation = np.sum(slider * WEIGHTS[0,4]) + psums[3].pop(0) + BIAS_1
             output = np.maximum(0, pre_activation) + PRELU_1 * np.minimum(0, pre_activation)
-            outputs[row-4, i] = output
+            outputs[row-4, i] = output'''
     print(len(psums[0]))
     print(len(psums[1]))
     print(len(psums[2]))
