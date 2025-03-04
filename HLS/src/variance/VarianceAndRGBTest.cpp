@@ -1,6 +1,7 @@
 #include <iostream>
 #include "VarianceAndRGB.h"
 #include "image_tile_coin_yuyv_rgb.hpp"
+#include "image_tile_conversion.hpp"
 
 int test_rgb_convert();
 
@@ -79,7 +80,7 @@ int test_rgb_convert(){
 	for (int i = 0; i < YUYV_NUM_TRANSFERS; i++){
 	    ap_uint_128 packed_data = 0;
 	    for (int j = 0; j < 16; j++){
-	        packed_data |= ((ap_uint_128)coin_tile_low_res_yuyv[i * 16 + j]) << (8 * j);
+	        packed_data |= ((ap_uint_128)conversion_tile_yuyv[i * 16 + j]) << (8 * j);
 	    }
 //        std::cout << "Packed YUYV pixels: " << std::hex << packed_data << std::endl; // data is correct here
 
@@ -106,14 +107,14 @@ int test_rgb_convert(){
 		bool this_pass;
 		std::cout << "Expected vs. Output RGB Values:\n";
 		for (int i = 0; i < PIXEL_COUNT; i++) {
-			if (coin_tile_low_res_rgb[i] != extracted_rgb[i]) {
-				std::cout << "Expected: " << std::setw(3) << (int)coin_tile_low_res_rgb[i]
+			if (conversion_tile_rgb[i] != extracted_rgb[i]) {
+				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i]
 						  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL \n";
 				all_pass = false;
 				this_pass = false;
 			}
 			else {
-				std::cout << "Expected: " << std::setw(3) << (int)coin_tile_low_res_rgb[i]
+				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i]
 									  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   		PASS \n";
 				this_pass = true;
 			}

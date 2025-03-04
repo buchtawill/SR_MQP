@@ -3,6 +3,7 @@
 
 //Project header
 #include "wrapper.hpp"
+#include "math.h" // for sqrt
 ///--------------------------------------------------------------------------------------
 my_float_type minn(my_float_type a){
     my_float_type zeroo = 0;

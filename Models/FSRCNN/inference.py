@@ -199,7 +199,7 @@ if __name__ == '__main__':
     print(f'INFO [inference.py] Using device: {device} [torch version: {torch.__version__}]')
     print(f'INFO [inference.py] Python version: {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}')
     model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./saved_weights/100E_5em4_b64.pth', weights_only=True))
+    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
     
     # print_model_summary(model, 1, 3, 32, 32)
     # exit()
@@ -229,11 +229,23 @@ if __name__ == '__main__':
     print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
     #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
 
-    low_res, hi_res_truth = next(iter(test_dataloader))
-    
-    inference = model(low_res.to(device))
-    plot_images(low_res, normalize_tensor_image(inference), hi_res_truth)
-    
+    low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
+    # Ensure it's float type for compatibility with neural networks
+    low_res_coin = low_res_coin.float()
+    # print(low_res_coin)
+
+    # Change shape from (28, 28, 3) → (1, 3, 28, 28)
+    low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
+    # low_res_coin = torch.zeros((1, 3, 28, 28))
+    print("Low res coin:")
+    print(low_res_coin.shape)
+    print(low_res_coin)
+    # exit()
+    # inference = model(low_res.to(device))
+    # plot_images(low_res, normalize_tensor_image(inference), hi_res_truth)
+    inference = model.feature_extraction(low_res_coin.to(device))
+    print(inference.cpu().detach().numpy()[0,0])
+        
     # loss = criterion(inference, hi_res_truth)
 
     tEnd = time.time()

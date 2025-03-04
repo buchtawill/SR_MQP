@@ -72,7 +72,7 @@ def main():
     rgb_filename = 'images/rgb888.raw'
     rgb_data = load_raw_image(rgb_filename, (height, width, 3))
     
-    x, y = 80, 320
+    x, y = 300, 400
     tile_size = 28
     tile_rgb888 = rgb_data[y:y+tile_size, x:x+tile_size, :]
 
