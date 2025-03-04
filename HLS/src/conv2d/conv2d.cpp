@@ -203,18 +203,33 @@ fixed_4_8_t prelu(const fixed_4_8_t weight, fixed_4_8_t value){
 	else return value * weight;
 }
 
+void print_slider(fixed_4_8_t **slider, int n_ch, int n_cols){
+    for(int i = 0; i < n_ch; i++){
+        std::cout << "Channel " << i << ": \n    " <<std::endl;
+        for(int j = 0; j < n_cols; j++){
+            std::cout << std::setw(10) << std::fixed << std::setprecision(6) << slider[i][j] << " ";
+        }
+        std::cout << std::endl; 
+    }
+}
+
 /**
  * Perform feature extraction convolutional layer. Assumes input feature map (tile_in) is appropriately padded
  */
 void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> tile_in[3], 
 					 hls::stream<fixed_4_8_t, 28*28> map_out[OUT_CHN_LAYER_1]){
-	
+
 
 	// 3 input channels, 5 weights
 	fixed_4_8_t slider[IN_CHN_LAYER_1][5];
 	#pragma HLS ARRAY PARTITION variable=slider dim=0 type=complete
+	#pragma HLS ARRAY PARTITION variable=slider dim=1 type=complete
 
 	hls::stream<fixed_4_8_t> psum1[IN_CHN_LAYER_1], psum2[IN_CHN_LAYER_1], psum3[IN_CHN_LAYER_1], psum4[IN_CHN_LAYER_1];
+	// #pragma HLS ARRAY PARTITION variable=psum1 dim=0 type=complete
+	// #pragma HLS ARRAY PARTITION variable=psum2 dim=0 type=complete
+	// #pragma HLS ARRAY PARTITION variable=psum3 dim=0 type=complete
+	// #pragma HLS ARRAY PARTITION variable=psum4 dim=0 type=complete
 
 	/////////////////////////////////////////////////
 	// First row initialization                    //
@@ -236,6 +251,7 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 		for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
 			#pragma HLS UNROLL
 			slider[ch][4] = tile_in[ch].read();
+
 			psum1[ch].write(perform_mac5(conv_weights[ch][0], slider[ch]));
 
 			slider[ch][0] = slider[ch][1];
@@ -298,6 +314,22 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 			fixed_4_8_t row2_psum = psum2[ch].read();
 
 			slider[ch][4] = tile_in[ch].read();
+
+			// std::cout<<"Weights: " << conv_weights[ch][0][0].to_float() << ", " \
+			// << conv_weights[ch][0][1].to_float() << ", " \
+			// << conv_weights[ch][0][2].to_float() << ", " \
+			// << conv_weights[ch][0][3].to_float() << ", " \
+			// << conv_weights[ch][0][4].to_float() << std::endl; 
+
+			// std::cout<<"Slider: " << slider[ch][0].to_float() << ", " \
+			// << slider[ch][1].to_float() << ", " \
+			// << slider[ch][2].to_float() << ", " \
+			// << slider[ch][3].to_float() << ", " \
+			// << slider[ch][4].to_float() << std::endl; 
+					 
+//			std::cout << "mac5: " << perform_mac5(conv_weights[ch][0], slider[ch]) << std::endl;
+//			return;
+
 			psum1[ch].write(perform_mac5(conv_weights[ch][0], slider[ch]));
 			psum2[ch].write(row1_psum + perform_mac5(conv_weights[ch][1], slider[ch]));
 			psum3[ch].write(row2_psum + perform_mac5(conv_weights[ch][2], slider[ch]));
@@ -378,7 +410,7 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 
 			fixed_4_8_t pre_activation = row4_psum + perform_mac5(conv_weights[ch][4], slider[ch]) + conv_bias_extraction[0];
 			final_sum += pre_activation;
-//			map_out[0].write(prelu(conv_extraction_prelu[0], pre_activation));
+            //map_out[0].write(prelu(conv_extraction_prelu[0], pre_activation));
 
 			slider[ch][0] = slider[ch][1];
 			slider[ch][1] = slider[ch][2];
@@ -387,6 +419,8 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 		}
 		map_out[0].write(prelu(conv_extraction_prelu[0], final_sum));
 	}
+
+    // Now we gotta do the last 5 rows
 }
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream){
@@ -402,11 +436,9 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 
 	prep_tile(in_stream, tile_in);
 //
-//	for(int i = 0; i < 28; i++){
+//	for(int i = 0; i < IN_PADDED_SIZE; i++){
 //		std::cout<<tile_in[0].read() << ", "<<(tile_in[1].read()) << ", "<<(tile_in[2].read()) << ", "<<std::endl;
 //	}
-
-//	return;
 
 	conv_extraction(tile_in, map_extraction);
 
