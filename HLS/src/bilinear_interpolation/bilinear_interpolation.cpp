@@ -3,17 +3,20 @@
 #include <algorithm>
 
 // HLS function for bilinear interpolation
-int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_HEIGHT_IN][SLIDER_WIDTH_IN],
+int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_BUFFER_HEIGHT][SLIDER_BUFFER_WIDTH],
                                         pixel_t image_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]) {
 
+	pixel_t image_out_big[SLIDER_BUFFER_HEIGHT_OUT][SLIDER_BUFFER_WIDTH_OUT];
+
+	//want ratios to still use values of the unbuffered image
     fixed widthRatio  = fixed(SLIDER_WIDTH_IN - 1) / fixed(SLIDER_WIDTH_OUT - 1);
     fixed heightRatio = fixed(SLIDER_HEIGHT_IN - 1) / fixed(SLIDER_HEIGHT_OUT - 1);
 
-    for (int y_out = 0; y_out < SLIDER_HEIGHT_OUT; ++y_out) {
+    for (int y_out = 0; y_out < SLIDER_BUFFER_HEIGHT_OUT; ++y_out){
 
         #pragma HLS PIPELINE II=11
 
-        for (int x_out = 0; x_out < SLIDER_WIDTH_OUT; ++x_out) {
+        for (int x_out = 0; x_out < SLIDER_BUFFER_WIDTH_OUT; ++x_out){
 
             #pragma HLS UNROLL factor=2
 
@@ -24,8 +27,8 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_HEIGHT_IN][SLIDE
             // Determine the four nearest neighbors
             int x0 = static_cast<int>(x_in);
             int y0 = static_cast<int>(y_in);
-            int x1 = std::min(x0 + 1, SLIDER_WIDTH_IN - 1);
-            int y1 = std::min(y0 + 1, SLIDER_HEIGHT_IN - 1);
+            int x1 = std::min(x0 + 1, SLIDER_BUFFER_WIDTH - 1);
+            int y1 = std::min(y0 + 1, SLIDER_BUFFER_HEIGHT - 1);
 
             // Calculate interpolation weights
             fixed dx = x_in - fixed(x0);
@@ -59,7 +62,33 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_HEIGHT_IN][SLIDE
             temp_pixel.range(15, 8) = g_interp;
             temp_pixel.range(23, 16) = b_interp;
 
-            image_out[y_out][x_out] = temp_pixel;
+            //int temp_rview = (int)r_interp;
+            //int temp_gview = (int)g_interp;
+            //int temp_bview = (int)b_interp;
+
+            image_out_big[y_out][x_out] = temp_pixel;
+        }
+    }
+
+
+    int row = 0, col = 0;
+    //output the interpolated value without the buffer values
+    for (int y_out = 0; y_out < SLIDER_BUFFER_HEIGHT_OUT; ++y_out){
+        for (int x_out = 0; x_out < SLIDER_BUFFER_WIDTH_OUT; ++x_out){
+
+        	//if value is within the bounds of the slice we want
+        	if(x_out >= 2 && x_out < 16 && y_out >= 2 && y_out < 16){
+
+        		image_out[row][col] = image_out_big[y_out][x_out];
+        		int pixel_view = (int)image_out_big[y_out][x_out];;
+
+        		col++;
+        		if(col >= SLIDER_WIDTH_OUT){
+        			col = 0;
+        			row++;
+        		}
+        	}
+
         }
     }
 
@@ -164,7 +193,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     	for(int j = 0; j < NUM_SLIDERS_WIDTH; j++){
 
     		//these should be LUT ram
-    		pixel_t temp_data_slider_in[SLIDER_HEIGHT_IN][SLIDER_WIDTH_IN];
+    		pixel_t temp_data_slider_in[SLIDER_BUFFER_HEIGHT][SLIDER_BUFFER_WIDTH];
 			#pragma HLS array_partition variable=temp_data_slider_in type=complete factor=4
     		pixel_t temp_data_slider_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
 			#pragma HLS array_partition variable=temp_data_slider_out type=complete factor=4

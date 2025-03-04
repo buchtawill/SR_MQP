@@ -77,6 +77,10 @@ int main() {
 	            channel_t G = data.range(pixel * BITS_PER_PIXEL + 15, pixel * BITS_PER_PIXEL + 8);
 	            channel_t B = data.range(pixel * BITS_PER_PIXEL + 23, pixel * BITS_PER_PIXEL + 16);
 
+	            int temp_r = (int)R;
+	            int temp_g = (int)G;
+	            int temp_b = (int)B;
+
 				// Verify the R pixel matches
 				if ((uint8_t)R >= (coin_tile_interpolated[j * CHANNELS_PER_TRANSFER + pixel * CHANNELS] + MARGIN_OF_ERROR)){
 					std::cout << "NOPE: Mismatch at index " << (j * CHANNELS_PER_TRANSFER + pixel * CHANNELS)
