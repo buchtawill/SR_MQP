@@ -2,6 +2,7 @@
 #include "VarianceAndRGB.h"
 #include "image_tile_coin_yuyv_rgb.hpp"
 #include "image_tile_conversion.hpp"
+#include <cmath>
 
 int test_rgb_convert();
 
@@ -66,6 +67,25 @@ int main() {
         std::cout << "Interpolation: " << std::hex << interp_out.read().data << std::endl;
     }
 
+
+    // Send image_tile_conversion.hpp data through the whole block
+	for (int i = 0; i < YUYV_NUM_TRANSFERS; i++){
+	    for (int j = 0; j < 16; j++){
+	        pixel_data.data |= ((ap_uint_128)conversion_tile_yuyv[i * 16 + j]) << (8 * j);
+	    }
+        pixel_data.last = (i == YUYV_NUM_TRANSFERS - 1);
+        pixel_stream_in.write(pixel_data);
+	}
+
+    process_tile(pixel_stream_in, conv_out, interp_out, threshold, override_mode);
+
+    while (!conv_out.empty()) {
+        std::cout << "Convolution: " << std::hex << conv_out.read().data << std::endl;
+    }
+    while (!interp_out.empty()) {
+        std::cout << "Interpolation: " << std::hex << interp_out.read().data << std::endl;
+    }
+
     test_rgb_convert();
 
     return 0;
@@ -105,11 +125,17 @@ int test_rgb_convert(){
 	    // compare extracted and expected values
 		bool all_pass = true;
 		bool this_pass;
+		int biggest_diff = 0;
+		int diff = 0;
 		std::cout << "Expected vs. Output RGB Values:\n";
 		for (int i = 0; i < PIXEL_COUNT; i++) {
 			if (conversion_tile_rgb[i] != extracted_rgb[i]) {
+				diff = abs(conversion_tile_rgb[i] - extracted_rgb[i]);
+
+				if (diff > biggest_diff) biggest_diff = diff;
+
 				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i]
-						  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL \n";
+						  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
 				all_pass = false;
 				this_pass = false;
 			}
@@ -124,6 +150,7 @@ int test_rgb_convert(){
 			std::cout << "All Tests Passed!\n";
 		} else {
 			std::cout << "Test Failed!\n";
+			std::cout << "Biggest Pixel Difference: " << biggest_diff << "\n" ;
 		}
 
 	return 0;

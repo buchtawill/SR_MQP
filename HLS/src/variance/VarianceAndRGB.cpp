@@ -67,7 +67,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     }
 
     // YUYV422 --> RGB888 conversion
-//    RGB_pixel_data = rgb_convert(YUYV_pixel_data);
+    rgb_convert(RGB_pixel_data, YUYV_pixel_data);
 
 	axis_t temp_output;
 	temp_output.data = 0;
@@ -78,7 +78,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
-			temp_output.data = YUYV_pixel_data[i];
+			temp_output.data = RGB_pixel_data[i];
 			conv_out.write(temp_output);
     	}
 	}
@@ -89,7 +89,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
-			temp_output.data = YUYV_pixel_data[i];
+			temp_output.data = RGB_pixel_data[i];
 			interp_out.write(temp_output);
     	}
 	}
@@ -100,7 +100,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
-			temp_output.data = YUYV_pixel_data[i];
+			temp_output.data = RGB_pixel_data[i];
 
 			if (variance > threshold) {
 				conv_out.write(temp_output);
@@ -117,6 +117,7 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
     int rgb_idx = 0;  // Output index
 
     for (int i = 0; i < YUYV_NUM_TRANSFERS; i++) {
+		#pragma HLS PIPELINE II=1
         ap_uint_128 rgb_packed = 0;
         int bit_offset = 0;
 
@@ -127,27 +128,29 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
         	ap_8 Y1 = pixel_data[i].range((j * 16) + 23, (j * 16) + 16);
         	ap_8 V  = pixel_data[i].range((j * 16) + 31, (j * 16) + 24);
 
-//            // convert to RGB for first Y value
-//        	fixed_pixel R0 = (fixed_pixel)(1.164 * (Y0 - 16) + 1.596 * (V - 128));
-//        	fixed_pixel G0 = (fixed_pixel)(1.164 * (Y0 - 16) - 0.534 * (V - 128) - 0.213 * (U - 128));
-//        	fixed_pixel B0 = (fixed_pixel)(1.164 * (Y0 - 16) + 2.115 * (V - 128));
+////        	 constant integer calculations ////
+//        	// convert to RGB for first Y value
+//        	fixed_pixel R0 = (fixed_pixel)(Y0 + ((1436 * (V - 128) + 512) >> 10));
+//        	fixed_pixel G0 = (fixed_pixel)(Y0 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
+//        	fixed_pixel B0 = (fixed_pixel)(Y0 + ((1811 * (U - 128) + 512) >> 10));
 //
-//            // convert to RGB for second Y value
-//        	fixed_pixel R1 = (fixed_pixel)(1.164 * (Y1 - 16) + 1.596 * (V - 128));
-//        	fixed_pixel G1 = (fixed_pixel)(1.164 * (Y1 - 16) - 0.534 * (V - 128) - 0.213 * (U - 128));
-//        	fixed_pixel B1 = (fixed_pixel)(1.164 * (Y1 - 16) + 2.115 * (V - 128));
+//			// convert to RGB for second Y value
+//        	fixed_pixel R1 = (fixed_pixel)(Y1 + ((1436 * (V - 128) + 512) >> 10));
+//        	fixed_pixel G1 = (fixed_pixel)(Y1 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
+//        	fixed_pixel B1 = (fixed_pixel)(Y1 + ((1811 * (U - 128) + 512) >> 10));
+////        	///////////////////////////////////
 
-        	// convert to RGB for first Y value
-			fixed_pixel R0 = (fixed_pixel)(Y0 + 1.403 * (V - 128));
-			fixed_pixel G0 = (fixed_pixel)(Y0 - 0.344 * (U - 128) - 0.714 * (V - 128));
-			fixed_pixel B0 = (fixed_pixel)(Y0 + 1.770 * (U - 128));
+        	// float calculations ///////
+        	fixed_pixel R0 = (fixed_pixel)(Y0 + 1.403 * (V - 128));
+        	fixed_pixel G0 = (fixed_pixel)(Y0 - 0.344 * (U - 128) - 0.714 * (V - 128));
+        	fixed_pixel B0 = (fixed_pixel)(Y0 + 1.770 * (U - 128));
 
-			// convert to RGB for second Y value
 			fixed_pixel R1 = (fixed_pixel)(Y1 + 1.403 * (V - 128));
 			fixed_pixel G1 = (fixed_pixel)(Y1 - 0.344 * (U - 128) - 0.714 * (V - 128));
 			fixed_pixel B1 = (fixed_pixel)(Y1 + 1.770 * (U - 128));
+        	/////////////////////////////
 
-            std::cout << std::dec;
+			std::cout << std::dec;
 
             // clamp to [0, 255]
             ap_8 R0_clamped = (R0 < RGB_MIN) ? RGB_MIN : ((R0 > RGB_MAX) ? RGB_MAX : R0);
