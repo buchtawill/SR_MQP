@@ -188,9 +188,6 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
             RGB1.range(23,16) = B1_clamped;
             RGB1.range(31,24) = RGB_PAD;
 
-//            std::cout << "RGB0 "<< std::hex << RGB0 << "\n";
-//            std::cout << "RGB1 "<< std::hex << RGB1 << "\n";
-
             rgb_packed.range(bit_offset + 31, bit_offset) = RGB0;
             rgb_packed.range(bit_offset + 63, bit_offset + 32) = RGB1;
 

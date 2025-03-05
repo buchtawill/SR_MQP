@@ -29,7 +29,7 @@
 typedef ap_uint<8> ap_8; // 8-bit per channel for each pixel
 typedef ap_uint<32> ap_32;
 typedef ap_uint<128> ap_uint_128; // 128-bit YUYV pixel stream (8 pixels)
-typedef ap_fixed<32, 9> fixed_pixel; // for channel conversion math
+typedef ap_fixed<32, 9, AP_RND, AP_SAT> fixed_pixel; // for channel conversion math
 typedef ap_fixed<32, 24> fixed_32; // fixed point instead of float
 
 // Define axis_t with data width of 128 bits and no additional signals
