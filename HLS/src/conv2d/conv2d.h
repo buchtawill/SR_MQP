@@ -16,7 +16,7 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 #define IN_CHN_LAYER_1          3
-#define OUT_CHN_LAYER_1         44
+#define OUT_CHN_LAYER_1         22
 #define IN_PADDED_SIZE          32
 
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
@@ -28,14 +28,14 @@ typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<32, 8, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<24, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
-const fixed_4_8_t conv_bias_extraction[OUT_CHN_LAYER_1] = {
+const fixed_4_8_t conv_bias_extraction[44] = {
     0.0146,  0.0190,  0.0002,  0.0117, -0.0083,  0.0153, -0.0042, -0.0126,
      0.0144, -0.0129, -0.0040, -0.0017, -0.0195,  0.0217, -0.0023,  0.0185,
     -0.0176,  0.0032, -0.0055,  0.0332,  0.0142,  0.0031, -0.0357,  0.0090,
@@ -44,7 +44,7 @@ const fixed_4_8_t conv_bias_extraction[OUT_CHN_LAYER_1] = {
      0.0062,  0.0106, -0.0149,  0.0020
 };
 
-const fixed_4_8_t conv_extraction_prelu[OUT_CHN_LAYER_1] = {
+const fixed_4_8_t conv_extraction_prelu[44] = {
     0.3086,  0.7313,  0.5082, -0.0311,  0.2554,  0.6756,  0.2276,  0.2919,
     0.5258,  0.2568,  1.4363,  0.4791,  0.3077,  1.0420,  1.0725,  1.0955,
     0.2495,  0.9166,  0.2436,  0.6043,  0.7211,  1.2348,  0.2671,  1.0052,

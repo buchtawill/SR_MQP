@@ -209,24 +209,24 @@ if __name__ == '__main__':
     # Get dataset
     seed = 50  # Set the seed for reproducibility
     torch.manual_seed(seed)
-    print("INFO [inference.py] Loading Tensor pair dataset")
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors_10k.pt', low_res_tensors_path='../data/data/low_res_tensors_10k.pt')
+    # print("INFO [inference.py] Loading Tensor pair dataset")
+    # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors_10k.pt', low_res_tensors_path='../data/data/low_res_tensors_10k.pt')
     
     # Create train and test datasets. Set small train set for faster training
 
-    train_dataset, valid_dataset, test_dataset = \
-            torch.utils.data.random_split(full_dataset, [0.85, 0.10, 0.05], generator=torch.Generator())
-    num_train_samples = len(train_dataset)
-    print(f'INFO [inference.py] Total num data samples:    {len(full_dataset)}')
-    print(f'INFO [inference.py] Num of training samples:   {num_train_samples}')
-    print(f'INFO [inference.py] Num of validation samples: {len(valid_dataset)}')
-    print(f'INFO [inference.py] Num of test samples:       {len(test_dataset)}')
+    # train_dataset, valid_dataset, test_dataset = \
+    #         torch.utils.data.random_split(full_dataset, [0.85, 0.10, 0.05], generator=torch.Generator())
+    # num_train_samples = len(train_dataset)
+    # print(f'INFO [inference.py] Total num data samples:    {len(full_dataset)}')
+    # print(f'INFO [inference.py] Num of training samples:   {num_train_samples}')
+    # print(f'INFO [inference.py] Num of validation samples: {len(valid_dataset)}')
+    # print(f'INFO [inference.py] Num of test samples:       {len(test_dataset)}')
     
     # Get Dataloader
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
-    print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
+    # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
+    # print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
     #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
 
     low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
@@ -236,15 +236,16 @@ if __name__ == '__main__':
 
     # Change shape from (28, 28, 3) → (1, 3, 28, 28)
     low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
-    # low_res_coin = torch.zeros((1, 3, 28, 28))
-    print("Low res coin:")
-    print(low_res_coin.shape)
-    print(low_res_coin)
+    # print("Low res coin:")
+    # print(low_res_coin.shape)
+    # print(low_res_coin.shape[0])
+    # print(low_res_coin[0][0]) # Red color channel of image coin tile
     # exit()
-    # inference = model(low_res.to(device))
-    # plot_images(low_res, normalize_tensor_image(inference), hi_res_truth)
+
     inference = model.feature_extraction(low_res_coin.to(device))
-    print(inference.cpu().detach().numpy()[0,0])
+    print(inference.cpu().detach().numpy()[0,0,0])
+    print(inference.cpu().detach().numpy()[0,0,1])
+    print(inference.cpu().detach().numpy()[0,0,2])
         
     # loss = criterion(inference, hi_res_truth)
 
