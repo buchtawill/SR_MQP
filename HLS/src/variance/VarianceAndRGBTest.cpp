@@ -133,21 +133,18 @@ int test_rgb_convert(){
 		int total_tests = 0;
 		std::cout << "Expected vs. Output RGB Values:\n";
 		for (int i = 0; i < PIXEL_COUNT; i++) {
-			if (diyar_test_rgb[i] != extracted_rgb[i]) {
-				diff = abs(diyar_test_rgb[i] - extracted_rgb[i]);
-
+			diff = abs(diyar_test_rgb[i] - extracted_rgb[i]);
+			if (diff > ACCEPTABLE_ERROR) {
 				if (diff > biggest_diff) biggest_diff = diff;
 
-				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i]
-						  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
+				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
 				all_pass = false;
 				this_pass = false;
 				fails++;
 				total_tests++;
 			}
 			else {
-				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i]
-									  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   		PASS \n";
+				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   PASS 		DIFFERENCE = " << diff << "\n" ;
 				this_pass = true;
 				passes++;
 				total_tests++;

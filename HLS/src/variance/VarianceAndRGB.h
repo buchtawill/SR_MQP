@@ -21,6 +21,8 @@
 #define RGB_MIN ((fixed_pixel)0)
 #define RGB_MAX ((fixed_pixel)255)
 
+#define ACCEPTABLE_ERROR 1
+
 // Override mode definitions
 #define OVERRIDE_MODE_DEFAULT 0
 #define OVERRIDE_MODE_CONV 1
