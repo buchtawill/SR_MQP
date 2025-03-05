@@ -213,6 +213,8 @@ void print_slider5(fixed_4_8_t slider[IN_CHN_LAYER_1][5]){
 	printf("] ");
 }
 
+void conv_5x5();
+
 /**
  * Perform feature extraction convolutional layer. Assumes input feature map (tile_in) is appropriately padded
  */
@@ -225,9 +227,16 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 	#pragma HLS array_partition variable=slider dim=0 type=complete
 	#pragma array_partition variable=slider dim=1 type=complete
 
-	hls::stream<fixed_4_8_t, 32> psum1[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum2[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum3[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum4[OUT_CHN_LAYER_1][IN_CHN_LAYER_1];
-//	#pragma HLS BIND_STORAGE variable=psum1 type=bram
-	#pragma HLS array_partition variable=psum1 dim=0 type=complete
+	hls::stream<fixed_4_8_t, 28> psum1[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum2[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum3[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum4[OUT_CHN_LAYER_1][IN_CHN_LAYER_1];
+	#pragma HLS STREAM variable=psum1 depth=28
+	#pragma HLS STREAM variable=psum2 depth=28
+	#pragma HLS STREAM variable=psum3 depth=28
+	#pragma HLS STREAM variable=psum4 depth=28
+	#pragma HLS RESOURCE variable=psum1 core=FIFO_BRAM
+	#pragma HLS RESOURCE variable=psum2 core=FIFO_BRAM
+	#pragma HLS RESOURCE variable=psum3 core=FIFO_BRAM
+	#pragma HLS RESOURCE variable=psum4 core=FIFO_BRAM
+	// #pragma HLS array_partition variable=psum1 dim=0 type=complete
 
 	for(int row = 0; row < IN_PADDED_SIZE; row++){
 
@@ -258,11 +267,9 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 				#pragma HLS UNROLL
 				slider[ch][4] = tile_in[ch].read();
 			}
-			for(int filter = 0; filter < OUT_CHN_LAYER_1; filter++){
-				// #pragma HLS UNROLL factor=2
+			for(int filter = 0; filter < 4; filter++){
 				
 				for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
-					#pragma HLS UNROLL
 	
 					fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
 					fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
@@ -296,6 +303,7 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 					}
 				}
 				if(row >= 4) map_out[filter].write(prelu(conv_extraction_prelu[filter], final_sum[filter] + conv_bias_extraction[filter]));
+				// if(row >= 4) map_out[filter].write(final_sum[filter]);
 			} // For every filter in the layer
 
 			// Shift the slider
@@ -340,8 +348,8 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	// 	std::cout<<"INFO [conv2d] Value from Conv: "<< map_extraction[0].read().to_float() << std::endl;
 	// }
 	// std::cout<<"INFO [conv2d] Stream size: "<< map_extraction[0].size()<<std::endl;
-	for(int i = 0; i < 5; i++){
-		printf("INFO [conv2d] First row of conv from feature map %d:\n", i);
+	for(int i = 0; i < 44; i++){
+		printf("INFO [conv2d] First row of feature map %d:\n", i);
 		for (int col = 0; col < 28; col++){
 			printf("%9.6f ", map_extraction[i].read().to_float());
 		}
