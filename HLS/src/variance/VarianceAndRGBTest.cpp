@@ -1,6 +1,5 @@
 #include <iostream>
 #include "VarianceAndRGB.h"
-#include "image_tile_coin_yuyv_rgb.hpp"
 #include "image_tile_conversion.hpp"
 #include <cmath>
 
@@ -16,6 +15,8 @@ int main() {
     axis_t pixel_data; // 128-bit wide transfer (4 YUYV pixel packages --> 8 pixels)
 
     pixel_data.data = 0;
+    pixel_data.keep = 0xffff;
+    pixel_data.strb = 0xffff;
     pixel_data.last = 0;
     // Simulate 28x28 pixels in YUYV422 format --> HIGH VARIANCE
     for (int i = 0; i < YUYV_NUM_TRANSFERS; i++) {
@@ -100,7 +101,7 @@ int test_rgb_convert(){
 	for (int i = 0; i < YUYV_NUM_TRANSFERS; i++){
 	    ap_uint_128 packed_data = 0;
 	    for (int j = 0; j < 16; j++){
-	        packed_data |= ((ap_uint_128)conversion_tile_yuyv[i * 16 + j]) << (8 * j);
+	        packed_data |= ((ap_uint_128)diyar_test_yuv[i * 16 + j]) << (8 * j);
 	    }
 //        std::cout << "Packed YUYV pixels: " << std::hex << packed_data << std::endl; // data is correct here
 
@@ -127,22 +128,29 @@ int test_rgb_convert(){
 		bool this_pass;
 		int biggest_diff = 0;
 		int diff = 0;
+		int passes = 0;
+		int fails = 0;
+		int total_tests = 0;
 		std::cout << "Expected vs. Output RGB Values:\n";
 		for (int i = 0; i < PIXEL_COUNT; i++) {
-			if (conversion_tile_rgb[i] != extracted_rgb[i]) {
-				diff = abs(conversion_tile_rgb[i] - extracted_rgb[i]);
+			if (diyar_test_rgb[i] != extracted_rgb[i]) {
+				diff = abs(diyar_test_rgb[i] - extracted_rgb[i]);
 
 				if (diff > biggest_diff) biggest_diff = diff;
 
-				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i]
+				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i]
 						  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
 				all_pass = false;
 				this_pass = false;
+				fails++;
+				total_tests++;
 			}
 			else {
-				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i]
+				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i]
 									  << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   		PASS \n";
 				this_pass = true;
+				passes++;
+				total_tests++;
 			}
 		}
 
@@ -152,6 +160,9 @@ int test_rgb_convert(){
 			std::cout << "Test Failed!\n";
 			std::cout << "Biggest Pixel Difference: " << biggest_diff << "\n" ;
 		}
+
+		std::cout << "PASSES: " << passes << " OUT OF " << total_tests << "\n";
+		std::cout << "FAILS: " << fails << " OUT OF " << total_tests << "\n";
 
 	return 0;
 }

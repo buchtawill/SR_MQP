@@ -74,8 +74,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 
 	// send all tiles to convolution
     if (override_mode == OVERRIDE_MODE_CONV) {
-    	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
-			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
+    	for (i = 0; i < RGB_NUM_TRANSFERS; i++) {
+			temp_output.last = (i == RGB_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
 			temp_output.data = RGB_pixel_data[i];
@@ -85,8 +85,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 
     // send all tiles to interpolation
     else if (override_mode == OVERRIDE_MODE_INTERP) {
-    	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
-			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
+    	for (i = 0; i < RGB_NUM_TRANSFERS; i++) {
+			temp_output.last = (i == RGB_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
 			temp_output.data = RGB_pixel_data[i];
@@ -96,8 +96,8 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 
     // send based on variance
     else if (variance_calculated) {
-    	for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
-			temp_output.last = (i == YUYV_NUM_TRANSFERS - 1);
+    	for (i = 0; i < RGB_NUM_TRANSFERS; i++) {
+			temp_output.last = (i == RGB_NUM_TRANSFERS - 1);
 			temp_output.keep = 0xffff;
 			temp_output.strb = 0xffff;
 			temp_output.data = RGB_pixel_data[i];
@@ -128,57 +128,68 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
         	ap_8 Y1 = pixel_data[i].range((j * 16) + 23, (j * 16) + 16);
         	ap_8 V  = pixel_data[i].range((j * 16) + 31, (j * 16) + 24);
 
-////        	 constant integer calculations ////
-//        	// convert to RGB for first Y value
-//        	fixed_pixel R0 = (fixed_pixel)(Y0 + ((1436 * (V - 128) + 512) >> 10));
-//        	fixed_pixel G0 = (fixed_pixel)(Y0 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
-//        	fixed_pixel B0 = (fixed_pixel)(Y0 + ((1811 * (U - 128) + 512) >> 10));
+//        	 constant integer calculations ////
+        	// convert to RGB for first Y value
+        	fixed_pixel R0 = (fixed_pixel)(Y0 + ((1436 * (V - 128) + 512) >> 10));
+        	fixed_pixel G0 = (fixed_pixel)(Y0 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
+        	fixed_pixel B0 = (fixed_pixel)(Y0 + ((1811 * (U - 128) + 512) >> 10));
+
+			// convert to RGB for second Y value
+        	fixed_pixel R1 = (fixed_pixel)(Y1 + ((1436 * (V - 128) + 512) >> 10));
+        	fixed_pixel G1 = (fixed_pixel)(Y1 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
+        	fixed_pixel B1 = (fixed_pixel)(Y1 + ((1811 * (U - 128) + 512) >> 10));
+//        	///////////////////////////////////
+
+//			std::cout << "INFO: R0: " << R0 << std::endl;
+//			std::cout << "INFO: G0: " << G0 << std::endl;
+//			std::cout << "INFO: B0: " << B0 << std::endl;
+//			std::cout << "INFO: R1: " << R1 << std::endl;
+//			std::cout << "INFO: G1: " << G1 << std::endl;
+//			std::cout << "INFO: B1: " << B1 << std::endl;
+
+//        	// float calculations /////////////
+//        	fixed_pixel R0 = (fixed_pixel)(Y0 + 1.403 * (V - 128));
+//        	fixed_pixel G0 = (fixed_pixel)(Y0 - 0.344 * (U - 128) - 0.714 * (V - 128));
+//        	fixed_pixel B0 = (fixed_pixel)(Y0 + 1.770 * (U - 128));
 //
-//			// convert to RGB for second Y value
-//        	fixed_pixel R1 = (fixed_pixel)(Y1 + ((1436 * (V - 128) + 512) >> 10));
-//        	fixed_pixel G1 = (fixed_pixel)(Y1 - ((352 * (U - 128) + 512) >> 10) - ((732 * (V - 128) + 512) >> 10));
-//        	fixed_pixel B1 = (fixed_pixel)(Y1 + ((1811 * (U - 128) + 512) >> 10));
-////        	///////////////////////////////////
-
-        	// float calculations ///////
-        	fixed_pixel R0 = (fixed_pixel)(Y0 + 1.403 * (V - 128));
-        	fixed_pixel G0 = (fixed_pixel)(Y0 - 0.344 * (U - 128) - 0.714 * (V - 128));
-        	fixed_pixel B0 = (fixed_pixel)(Y0 + 1.770 * (U - 128));
-
-			fixed_pixel R1 = (fixed_pixel)(Y1 + 1.403 * (V - 128));
-			fixed_pixel G1 = (fixed_pixel)(Y1 - 0.344 * (U - 128) - 0.714 * (V - 128));
-			fixed_pixel B1 = (fixed_pixel)(Y1 + 1.770 * (U - 128));
-        	/////////////////////////////
+//			fixed_pixel R1 = (fixed_pixel)(Y1 + 1.403 * (V - 128));
+//			fixed_pixel G1 = (fixed_pixel)(Y1 - 0.344 * (U - 128) - 0.714 * (V - 128));
+//			fixed_pixel B1 = (fixed_pixel)(Y1 + 1.770 * (U - 128));
+//        	///////////////////////////////////
 
 			std::cout << std::dec;
 
             // clamp to [0, 255]
             ap_8 R0_clamped = (R0 < RGB_MIN) ? RGB_MIN : ((R0 > RGB_MAX) ? RGB_MAX : R0);
-//			std::cout << "INFO: R0: " << R0_clamped << std::endl;
             ap_8 G0_clamped = (G0 < RGB_MIN) ? RGB_MIN : ((G0 > RGB_MAX) ? RGB_MAX : G0);
-//			std::cout << "INFO: G0: " << G0_clamped << std::endl;
             ap_8 B0_clamped = (B0 < RGB_MIN) ? RGB_MIN : ((B0 > RGB_MAX) ? RGB_MAX : B0);
-//			std::cout << "INFO: B0: " << B0_clamped << std::endl;
 
             ap_8 R1_clamped = (R1 < RGB_MIN) ? RGB_MIN : ((R1 > RGB_MAX) ? RGB_MAX : R1);
-//			std::cout << "INFO: R1: " << R1_clamped << std::endl;
             ap_8 G1_clamped = (G1 < RGB_MIN) ? RGB_MIN : ((G1 > RGB_MAX) ? RGB_MAX : G1);
-//			std::cout << "INFO: G1: " << G1_clamped << std::endl;
             ap_8 B1_clamped = (B1 < RGB_MIN) ? RGB_MIN : ((B1 > RGB_MAX) ? RGB_MAX : B1);
-//			std::cout << "INFO: B1: " << B1_clamped << std::endl;
+
+//			std::cout << "INFO: R0 CLAMPED: " << R0_clamped << std::endl;
+//			std::cout << "INFO: G0 CLAMPED: " << G0_clamped << std::endl;
+//			std::cout << "INFO: B0 CLAMPED: " << B0_clamped << std::endl;
+//			std::cout << "INFO: R1 CLAMPED: " << R1_clamped << std::endl;
+//			std::cout << "INFO: G1 CLAMPED: " << G1_clamped << std::endl;
+//			std::cout << "INFO: B1 CLAMPED: " << B1_clamped << std::endl;
 
             // pack as 0BGR (32-bit per pixel)
             ap_32 RGB0;
             RGB0.range(7,0) = R0_clamped;
             RGB0.range(15,8) = G0_clamped;
             RGB0.range(23,16) = B0_clamped;
-            RGB0.range(31,24) = 0x00;
+            RGB0.range(31,24) = RGB_PAD;
 
             ap_32 RGB1;
             RGB1.range(7,0) = R1_clamped;
             RGB1.range(15,8) = G1_clamped;
             RGB1.range(23,16) = B1_clamped;
-            RGB1.range(31,24) = 0x00;
+            RGB1.range(31,24) = RGB_PAD;
+
+//            std::cout << "RGB0 "<< std::hex << RGB0 << "\n";
+//            std::cout << "RGB1 "<< std::hex << RGB1 << "\n";
 
             rgb_packed.range(bit_offset + 31, bit_offset) = RGB0;
             rgb_packed.range(bit_offset + 63, bit_offset + 32) = RGB1;
