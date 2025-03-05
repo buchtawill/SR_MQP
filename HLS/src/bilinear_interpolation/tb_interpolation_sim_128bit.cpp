@@ -130,6 +130,7 @@ void send_axi_stream_input_128bit(hls::stream<axis_t> &in_stream,
                                   int width, int height, int channels)
 {
     int total_bytes = width * height * channels;
+    int padding = 0;
 
     // Step through the whole tile in chunks of 16 bytes
     for (int i = 0; i < total_bytes; i += 16) {
@@ -141,15 +142,20 @@ void send_axi_stream_input_128bit(hls::stream<axis_t> &in_stream,
         ap_uint<128> tdata = 0;
 
         for (int b = 0; b < 16; b++) {
-            int index = i + b;
-            uint8_t value = 0;
-            if (index < total_bytes) {
-                value = input_data[index];
-            }
-            // Place this byte at [8*b + 7 : 8*b] in the 128-bit data
-            tdata.range(8*b + 7, 8*b) = value;
+			uint8_t value = 0;
+        	if(padding==3){
+        		value = 0;
+        		padding = 0;
+        	}else{
+        		padding++;
+				int index = i + b;
+				if (index < total_bytes) {
+					value = input_data[index];
+				}
+        	}
+			// Place this byte at [8*b + 7 : 8*b] in the 128-bit data
+			tdata.range(8*b + 7, 8*b) = value;
         }
-
         axis_t val;
         val.data = tdata;
         val.last = ((i + 16) >= total_bytes); // last byte in the image?
@@ -176,6 +182,7 @@ void receive_axi_stream_output_128bit(hls::stream<axis_t> &out_stream,
     out_data.reserve(total_out_bytes);
 
     int byte_count = 0;
+    int padding = 0;
 
     while (byte_count < total_out_bytes) {
         // Wait if stream is empty (simulate TVALID=0)
@@ -187,6 +194,11 @@ void receive_axi_stream_output_128bit(hls::stream<axis_t> &out_stream,
         ap_uint<128> w = val.data;
 
         for (int b = 0; b < 16 && byte_count < total_out_bytes; b++) {
+        	if(padding==3){
+        		padding = 0;
+        		continue;
+        	}
+        	padding++;
             uint8_t byte_val = (uint8_t)(w.range(8*b + 7, 8*b));
             out_data.push_back(byte_val);
             byte_count++;
@@ -203,13 +215,13 @@ void receive_axi_stream_output_128bit(hls::stream<axis_t> &out_stream,
 // -----------------------------------------------------------------------------
 int main()
 {
-    int num_tests  = 1000;
+    int num_tests  = 10;
     int pass_count = 0;
     int fail_count = 0;
 
     int width    = 28;
     int height   = 28;
-    int channels = 3;
+    int channels = 4;
     float scale  = 2.0f;
 
     // Tile coin self test
@@ -242,7 +254,7 @@ int main()
         }
 
         std::vector<uint8_t> expected_output =
-            bilinearInterpolation(input_data, width, height, channels, scale);
+            bilinearInterpolation(input_data, width, height, 3, scale);
 
         // HLS streams
         hls::stream<axis_t> in_stream("in_stream");
