@@ -29,32 +29,40 @@ WEIGHTS = np.array(
 BIAS_1 = 0.0146
 PRELU_1 = 0.3086
 
-psums = [[], [], [], []]
 
 def get_real_conv_result(start_x, start_y, channel_arr):
     result = np.sum(channel_arr[start_y:start_y+5, start_x:start_x+5] * WEIGHTS[0]) + BIAS_1
     result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
     return result
 
-def fifo_psum_conv(channel_arr):
+def fifo_psum_conv(channel_arr, weight_mat, add_bias_and_prelu=True, print_slider=False):
     
+    psums = [[], [], [], []]
     outputs = np.zeros((28,28))
     for row in range(32):
         for col in range(28):
             slider = channel_arr[row, col:col+5]
+            if(print_slider):
+                print(slider)
             if(row < 28):
-                psums[0].append(np.sum(slider * WEIGHTS[0,0]))
+                psums[0].append(np.sum(slider * weight_mat[0]))
             if(row < 29 and row > 0):
-                psums[1].append(np.sum(slider * WEIGHTS[0,1]) + psums[0].pop(0))
+                psums[1].append(np.sum(slider * weight_mat[1]) + psums[0].pop(0))
             if(row < 30 and row > 1):
-                psums[2].append(np.sum(slider * WEIGHTS[0,2]) + psums[1].pop(0))
+                psums[2].append(np.sum(slider * weight_mat[2]) + psums[1].pop(0))
             if(row < 31 and row > 2):
-                psums[3].append(np.sum(slider * WEIGHTS[0,3]) + psums[2].pop(0))
+                psums[3].append(np.sum(slider * weight_mat[3]) + psums[2].pop(0))
                 
             if(row > 3):
-                pre_activation = np.sum(slider * WEIGHTS[0,4]) + psums[3].pop(0) + BIAS_1
-                output = np.maximum(0, pre_activation) + PRELU_1 * np.minimum(0, pre_activation)
+                pre_activation = np.sum(slider * weight_mat[4]) + psums[3].pop(0)
+                if(add_bias_and_prelu):
+                    pre_activation += BIAS_1
+                    output = np.maximum(0, pre_activation) + PRELU_1 * np.minimum(0, pre_activation)
+                else:
+                    output = pre_activation    
                 outputs[row - 4, col] = output
+        if(print_slider):
+            print("\n")
     
     ############################## Do the first 4 rows ##############################
     # print("First row slider")
@@ -104,21 +112,27 @@ def fifo_psum_conv(channel_arr):
             pre_activation = np.sum(slider * WEIGHTS[0,4]) + psums[3].pop(0) + BIAS_1
             output = np.maximum(0, pre_activation) + PRELU_1 * np.minimum(0, pre_activation)
             outputs[row-4, i] = output'''
-    print(len(psums[0]))
-    print(len(psums[1]))
-    print(len(psums[2]))
-    print(len(psums[3]))
-    
-    ############################ Drain the pipeline ############################
-    # for i in range(28):
-    #     slider = channel_arr[28, i:i+5]
-        # print(slider)
         
+    # print(len(psums[0]))
+    # print(len(psums[1]))
+    # print(len(psums[2]))
+    # print(len(psums[3]))       
     
     return outputs
 
 def float_compare(a, b, epsilon=0.000001):
     return abs(a - b) < epsilon
+
+def emulate_pytorch(tile, bias_prelu=True):
+    fifod_conv0 = fifo_psum_conv(tile[0], WEIGHTS[0], False)
+    fifod_conv1 = fifo_psum_conv(tile[1], WEIGHTS[1], False)
+    fifod_conv2 = fifo_psum_conv(tile[2], WEIGHTS[2], False)
+    result = fifod_conv0 + fifod_conv1 + fifod_conv2
+    
+    if(bias_prelu):
+        result += BIAS_1
+        result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
+    return result
 
 if __name__ == '__main__':
     
@@ -134,9 +148,12 @@ if __name__ == '__main__':
     
     # print("\nComputed via FIFOs and partial sums:")
     # channel[row, col]
-    fifod_conv = fifo_psum_conv(channel)
-    # print("\nOutputs:")
-    # print(outputs)
+    # fifod_conv = fifo_psum_conv(channel, WEIGHTS[0], print_slider=False, add_bias_and_prelu=False)
+    # print(fifod_conv[0])
+    # exit()
+    first_fmap = emulate_pytorch(image_tile, bias_prelu=True)
+    print(first_fmap[0])
+    exit()
     
     print("Ideal convolution results after bias and prelu:")
     ideal = np.zeros((28, 28))
