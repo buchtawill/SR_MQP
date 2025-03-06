@@ -17,9 +17,11 @@
 #define YUYV_NUM_TRANSFERS PIXEL_COUNT / (TRANSFER_WIDTH / YUYV_BITS_PER_PIXEL)
 #define RGB_NUM_TRANSFERS PIXEL_COUNT / (TRANSFER_WIDTH / RGB_BITS_PER_PIXEL)
 
-#define RGB_PAD 0b00000000
+#define RGB_PAD 0x00
 #define RGB_MIN ((fixed_pixel)0)
 #define RGB_MAX ((fixed_pixel)255)
+
+#define ACCEPTABLE_ERROR 1
 
 // Override mode definitions
 #define OVERRIDE_MODE_DEFAULT 0
@@ -29,7 +31,7 @@
 typedef ap_uint<8> ap_8; // 8-bit per channel for each pixel
 typedef ap_uint<32> ap_32;
 typedef ap_uint<128> ap_uint_128; // 128-bit YUYV pixel stream (8 pixels)
-typedef ap_fixed<32, 9> fixed_pixel; // for channel conversion math
+typedef ap_fixed<32, 9, AP_RND, AP_SAT> fixed_pixel; // for channel conversion math
 typedef ap_fixed<32, 24> fixed_32; // fixed point instead of float
 
 // Define axis_t with data width of 128 bits and no additional signals

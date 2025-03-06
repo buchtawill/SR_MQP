@@ -16,50 +16,24 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 #define IN_CHN_LAYER_1          3
-#define OUT_CHN_LAYER_1         44
+#define OUT_CHN_LAYER_1         22
 #define IN_PADDED_SIZE          32
 
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
 
-
 // TODO WARNING NOTE: Using AP_SAT can cost up to a 20% increase in LUT usage!!!
 // After development and debug, change to AP_WRAP
 // Total bit width, integer bits, Quant mode, Overflow mode
- typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
+typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
-typedef ap_fixed<12, 4, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
-
+// total bits, int bits
+typedef ap_fixed<24, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
-
-// Example weights - taken from Models/FSRCNN/extract_weights.py
-const fixed_4_8_t conv_weights[3][5][5] = {
-    {
-        {-0.11433014, -0.06428213,  0.04952151, -0.02263108,  0.02250793 },
-        {-0.03798941, -0.00633621, -0.07827316,  0.03095409,  0.01443817 },
-        { 0.03689848, -0.09081642,  0.05860689,  0.06232064,  0.00874583 },
-        { 0.00830404, -0.09028250,  0.04836075,  0.01574024, -0.05474688 },
-        { 0.03897108, -0.06225232,  0.01753724,  0.02418811, -0.03822224 }
-    },
-    {
-        { 0.00477085, -0.05933009, -0.04227761,  0.01911220, -0.06199792 },
-        {-0.04209856, -0.06560600, -0.05108242,  0.08851463, -0.02541809 },
-        { 0.03671201, -0.03489959, -0.01189760, -0.06215083,  0.01050324 },
-        {-0.00799513,  0.00076000,  0.01511470, -0.10405967,  0.01873976 },
-        {-0.04879151,  0.01140088,  0.04946414,  0.01681182, -0.00011618 }
-    },
-    {
-        {-0.03623180,  0.02557710, -0.01484760, -0.01260940,  0.00872839 },
-        {-0.00589560,  0.02435622, -0.06638044,  0.00577510,  0.00808473 },
-        { 0.01797765, -0.00885874,  0.16383554,  0.02077497,  0.00002132 },
-        {-0.00601372, -0.02807183,  0.08771470, -0.03528251,  0.05220633 },
-        { 0.01051262,  0.00916464, -0.05010103,  0.00487509,  0.01671523 }
-    }
-};
 
 const fixed_4_8_t conv_bias_extraction[44] = {
     0.0146,  0.0190,  0.0002,  0.0117, -0.0083,  0.0153, -0.0042, -0.0126,

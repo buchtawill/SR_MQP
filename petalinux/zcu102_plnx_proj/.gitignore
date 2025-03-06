@@ -1,0 +1,15 @@
+*/*/config.old
+*/*/rootfs_config.old
+build/
+images/linux/
+pre-built/linux/
+.petalinux/*
+!.petalinux/metadata
+*.o
+*.jou
+*.log
+/components/plnx_workspace
+/components/yocto
+.petalinux
+hardware/xilinx-zcu102-2023.1/**
+!hardware/xilinx-zcu102-2023.1/xilinx-zcu102-2023.1.srcs

@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+// Confirmed to match image_coin_tile.npy at Models/comparisons/images/image_coin_tile.npy
+
 const uint8_t coin_tile_low_res_rgb[] = {
 	 31,  17,  18, //  0.121094  0.066406  0.070312 
 	 31,  17,  17, //  0.121094  0.066406  0.066406 

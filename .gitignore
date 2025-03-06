@@ -20,3 +20,4 @@ Models/FSRCNN/Emulation/fsrcnn_cpp/debug_crops/
 *.bin
 *.out
 *.sh
+HLS/src/variance/image_tile_conversion.hpp
