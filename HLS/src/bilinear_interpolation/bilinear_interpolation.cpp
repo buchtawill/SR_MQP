@@ -4,13 +4,15 @@
 
 // HLS function for bilinear interpolation
 int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_BUFFER_HEIGHT][SLIDER_BUFFER_WIDTH],
-                                        pixel_t image_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]) {
+                                        pixel_t image_out[SLIDER_BUFFER_HEIGHT_OUT][SLIDER_BUFFER_WIDTH_OUT]) {
 
-	pixel_t image_out_big[SLIDER_BUFFER_HEIGHT_OUT][SLIDER_BUFFER_WIDTH_OUT];
+	int temp_pixel_view;
+
+	//pixel_t image_out_big[SLIDER_BUFFER_HEIGHT_OUT][SLIDER_BUFFER_WIDTH_OUT];
 
 	//want ratios to still use values of the unbuffered image
-    fixed widthRatio  = fixed(SLIDER_WIDTH_IN - 1) / fixed(SLIDER_WIDTH_OUT - 1);
-    fixed heightRatio = fixed(SLIDER_HEIGHT_IN - 1) / fixed(SLIDER_HEIGHT_OUT - 1);
+    fixed widthRatio  = fixed(WIDTH_IN - 1) / fixed(WIDTH_OUT - 1);
+    fixed heightRatio = fixed(HEIGHT_IN - 1) / fixed(HEIGHT_OUT - 1);
 
     for (int y_out = 0; y_out < SLIDER_BUFFER_HEIGHT_OUT; ++y_out){
 
@@ -45,6 +47,12 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_BUFFER_HEIGHT][S
             pixel_t pixel01 = image_in[y1][x0];
             pixel_t pixel11 = image_in[y1][x1];
 
+            int upper_left, upper_right, bottom_left, bottom_right;
+            upper_left = (int)pixel00;
+            upper_right = (int)pixel10;
+            bottom_left = (int)pixel01;
+            bottom_right = (int)pixel11;
+
             // Extract RGB channels
             channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
             channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
@@ -58,20 +66,19 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_BUFFER_HEIGHT][S
 
             // Store interpolated values in `image_out` (rounded)
             pixel_t temp_pixel;
-            temp_pixel.range(7, 0) = r_interp;
-            temp_pixel.range(15, 8) = g_interp;
-            temp_pixel.range(23, 16) = b_interp;
+            temp_pixel.range(7, 0) = (channel_t)r_interp;
+            temp_pixel.range(15, 8) = (channel_t)g_interp;
+            temp_pixel.range(23, 16) = (channel_t)b_interp;
 
-            //int temp_rview = (int)r_interp;
-            //int temp_gview = (int)g_interp;
-            //int temp_bview = (int)b_interp;
+            temp_pixel_view = (int)temp_pixel;
+             int temp_view_again = temp_pixel_view;
 
-            image_out_big[y_out][x_out] = temp_pixel;
+            image_out[y_out][x_out] = temp_pixel;
         }
     }
 
 
-    int row = 0, col = 0;
+    /*int row = 0, col = 0;
     //output the interpolated value without the buffer values
     for (int y_out = 0; y_out < SLIDER_BUFFER_HEIGHT_OUT; ++y_out){
         for (int x_out = 0; x_out < SLIDER_BUFFER_WIDTH_OUT; ++x_out){
@@ -90,7 +97,7 @@ int bilinear_interpolation_calculations(pixel_t image_in[SLIDER_BUFFER_HEIGHT][S
         	}
 
         }
-    }
+    } */
 
     return 1;
 }
@@ -158,15 +165,6 @@ void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::
     }
 }
 
-void assemble_slider(pixel_t input_data_stored[HEIGHT_IN][WIDTH_IN], pixel_t input_data_slider[SLIDER_HEIGHT_IN][SLIDER_WIDTH_IN], int width_start, int height_start){
-
-
-}
-
-void disassemble_slider(pixel_t output_data_slider[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT], pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], int width_start, int height_start){
-
-
-}
 
 // Main function for bilinear interpolation processing
 void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream) {
@@ -188,6 +186,9 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     #pragma HLS DATAFLOW
     stream_samples_in(in_stream, input_data_stored);
 
+	int height_start_in = -1;
+	int width_start_in = -1;
+
     for(int i = 0; i < NUM_SLIDERS_HEIGHT; i++){
 
     	for(int j = 0; j < NUM_SLIDERS_WIDTH; j++){
@@ -195,8 +196,12 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     		//these should be LUT ram
     		pixel_t temp_data_slider_in[SLIDER_BUFFER_HEIGHT][SLIDER_BUFFER_WIDTH];
 			#pragma HLS array_partition variable=temp_data_slider_in type=complete factor=4
-    		pixel_t temp_data_slider_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
+
+    		pixel_t temp_data_slider_out[SLIDER_BUFFER_HEIGHT_OUT][SLIDER_BUFFER_WIDTH_OUT];
 			#pragma HLS array_partition variable=temp_data_slider_out type=complete factor=4
+
+    		pixel_t temp_data_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
+
 
     		//int height_start_in = i * SLIDER_HEIGHT_IN;
     		//int width_start_in = j * SLIDER_WIDTH_IN;
@@ -211,9 +216,6 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     			}
     		}*/
 
-    		int height_start_in = -1;
-    		int width_start_in = -1;
-
     		//loop through sliding window w/ buffer size
     		for(int row = 0; row < SLIDER_BUFFER_HEIGHT; row++){
     			for(int col = 0; col < SLIDER_BUFFER_HEIGHT; col++){
@@ -222,13 +224,14 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     				int row_pos = height_start_in + row;
     				int col_pos = width_start_in + col;
     				pixel_t temp_pixel;
+    				//int show_pixel;
 
-    				//if index is outside the bounds of the image
-    				if(row_pos < 0 || row_pos >= HEIGHT_IN || col_pos < 0 ||col_pos >= WIDTH_IN){
-    					temp_pixel = (pixel_t)0;
+    				if(row_pos >= 0 && row_pos < HEIGHT_IN && col_pos >= 0 && col_pos < WIDTH_IN){
+    					temp_pixel = input_data_stored[row_pos][col_pos];
+    					//show_pixel = (int)temp_pixel;
     				}
     				else{
-    					temp_pixel = input_data_stored[row_pos][col_pos];
+    					temp_pixel = (pixel_t)0;
     				}
 
     				temp_data_slider_in[row][col] = temp_pixel;
@@ -243,12 +246,42 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
     		bilinear_interpolation_calculations(temp_data_slider_in, temp_data_slider_out);
 
+    		int start_x = 2;
+    		int start_y = 3;
+    		int end_x = SLIDER_BUFFER_WIDTH_OUT - 2;
+    		int end_y = SLIDER_BUFFER_HEIGHT_OUT - 2;
+
+    		int row = 0, col = 0;
+    		int show_pixel;
+
+    		//THIS IS WHERE THINGS ARE GOING BAD
+    		for (int y_out = 0; y_out < SLIDER_BUFFER_WIDTH_OUT; ++y_out) {
+    		    for (int x_out = 0; x_out < SLIDER_BUFFER_HEIGHT_OUT; ++x_out) {
+
+    		    	show_pixel = (int)temp_data_slider_out[y_out][x_out];
+
+    		    	if(x_out >= 2 && x_out <= SLIDER_BUFFER_WIDTH_OUT - 2 && y_out >= 2 && y_out <= SLIDER_BUFFER_WIDTH_OUT - 2){
+						temp_data_out[row][col] = temp_data_slider_out[y_out][x_out];
+
+
+						col++;
+						if (col >= SLIDER_WIDTH_OUT) {
+							col = 0;
+							row++;
+						}
+    		    	}
+
+
+    		    }
+    		}
+
+
     		//try moving this step into bilinear_interpolation_calculations so that once the value is calculated
     		//its stored directly in output_data_stored instead of an output data slider array
     		for(int x = 0; x < SLIDER_HEIGHT_OUT; x++){
     			for(int y = 0; y < SLIDER_WIDTH_OUT; y++){
 				#pragma HLS unroll factor=SLIDER_WIDTH_OUT
-    				output_data_stored[height_start_out + x][width_start_out + y] = temp_data_slider_out[x][y];
+    				output_data_stored[height_start_out + x][width_start_out + y] = temp_data_out[x][y];
     				//int data_to_store = output_data_slider[i][j];
     			}
     		}
