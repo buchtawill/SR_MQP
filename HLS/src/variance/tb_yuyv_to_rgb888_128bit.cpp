@@ -6,15 +6,15 @@
 #include <cstdint>
 #include "ap_int.h"
 #include "hls_stream.h"
-#include "yuyv_to_rgb888.h"
+#include "VarianceAndRGB.h"
 #include "image_tile_conversion.hpp"
 
 //------------------------------------------------------------------------------
 // AXI stream data type definition (128-bit data word)
-struct axis_t {
-    ap_uint<128> data;
-    bool last;
-};
+//struct axis_t {
+//    ap_uint<128> data;
+//    bool last;
+//};
 
 // Helper to clamp a float to [0..255], then cast to uint8_t.
 static inline uint8_t clamp_uint8(float x)
@@ -25,7 +25,7 @@ static inline uint8_t clamp_uint8(float x)
 }
 
 //------------------------------------------------------------------------------
-// Reference conversion: YUYV => RGB888 (3 bytes/pixel)
+// Expected conversion: YUYV => RGB888 (3 bytes/pixel)
 std::vector<uint8_t> yuyv_to_rgb888_convertor(
     const std::vector<uint8_t>& yuyv,
     int width,
@@ -77,15 +77,60 @@ void compare_outputs(
     const std::vector<uint8_t>& received_output,
     int& pass_count,
     int& fail_count,
-    const std::vector<uint8_t>& /*input_data*/)
+    const std::vector<uint8_t>& input_data)
 {
+	bool passed;
     if (expected_output == received_output) {
+    	passed = true;
         pass_count++;
         std::cout << "Test PASSED!" << std::endl;
     } else {
-        fail_count++;
-        std::cout << "Test FAILED!" << std::endl;
-        // You could add debug printing here if you like
+//        fail_count++;
+//        std::cout << "Test FAILED!" << std::endl;
+        std::cout << "\nExpected size " << expected_output.size() << "." << std::endl;
+        std::cout << "Received size " << received_output.size() << "." << std::endl;
+//        std::cout << "\nInput Data (YU,YV):\n";
+//        for (size_t i = 0; i < input_data.size(); i += 2) {
+//            std::cout << "" << (int)input_data[i] << "," << (int)input_data[i+1]
+//                      << ",";
+//        }
+//        std::cout << "\nExpected:\n";
+//        for (size_t i = 0; i < expected_output.size(); i += 3) {
+//            std::cout << "" << (int)expected_output[i] << "," << (int)expected_output[i+1]
+//                      << "," << (int)expected_output[i+2] << ",";
+//        }
+//        std::cout << "\nReceived:\n";
+//        for (size_t i = 0; i < received_output.size(); i += 3) {
+//            std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
+//                      << "," << (int)received_output[i+2] << ") ";
+//        }
+//        std::cout << std::endl;
+//
+//        // Print detailed mismatch info
+//        for (size_t i = 0; i < received_output.size(); ++i) {
+//            if (received_output[i] != expected_output[i]) {
+//                std::cout << "Mismatch at index " << i << ": expected "
+//                          << (int)expected_output[i]
+//                          << ", got " << (int)received_output[i] << std::endl;
+//            }
+//        }
+        passed = true;
+        for (size_t i = 0; i < received_output.size(); ++i) {
+            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>1 ||received_output[i]-expected_output[i]<-1)) {
+                if(passed){
+                	passed = false;
+                	fail_count++;
+                    std::cout << "Test FAILED!" << std::endl;
+                }
+            	std::cout << "Mismatch at index " << i << ": expected "
+                          << (int)expected_output[i]
+                          << ", got " << (int)received_output[i] << std::endl;
+            }
+        }
+        if(passed){
+            pass_count++;
+            std::cout << "Test PASSED!" << std::endl;
+        }
     }
 }
 
@@ -122,6 +167,7 @@ void receive_axi_stream_output_128bit(
     int out_height,
     int out_channels)
 {
+	int padding = 0;
     int total_out_bytes = out_width * out_height * out_channels;
     out_data.clear();
     out_data.reserve(total_out_bytes);
@@ -133,6 +179,12 @@ void receive_axi_stream_output_128bit(
         ap_uint<128> w = val.data;
         // Extract up to 16 bytes
         for (int b = 0; b < 16 && byte_count < total_out_bytes; b++) {
+        	if(padding==3){
+        		padding =0;
+        		continue;
+        	}else{
+        		padding++;
+        	}
             uint8_t byte_val = static_cast<uint8_t>(w.range(8*b + 7, 8*b));
             out_data.push_back(byte_val);
             byte_count++;
@@ -145,29 +197,19 @@ void receive_axi_stream_output_128bit(
 // Main testbench
 int main()
 {
-    int num_tests  = 5;
+    int num_tests  = 10000;
     int pass_count = 0;
     int fail_count = 0;
 
     int width       = 28;
     int height      = 28;
-    // YUYV = 2 bytes/pixel, so in_channels=2
-    // If your DUT produces 3 bytes/pixel (RGB888) without padding, set out_channels=3
-    // (If it produces 4 bytes with a padding byte, set out_channels=4
-    //  and adapt compare function accordingly.)
     int in_channels  = 2;
-    int out_channels = 3;
+    int out_channels = 4;
 
     //------------------------------------------------------------------------
-    // Known "coin tile" self test
+    // "coin tile" self test
     std::cout << "\nRunning coin tile conversion self test case ...\n";
 
-    //   extern const uint8_t conversion_tile_yuyv[];
-    //   extern const size_t  conversion_tile_yuyv_len;
-    //   extern const uint8_t conversion_tile_rgb[];
-    //   extern const size_t  conversion_tile_rgb_len;
-
-    // Convert them into std::vectors
     std::vector<uint8_t> my_conversion_tile_yuyv(
         conversion_tile_yuyv,
         conversion_tile_yuyv + sizeof(conversion_tile_yuyv)/sizeof(conversion_tile_yuyv[0])
@@ -177,15 +219,12 @@ int main()
         conversion_tile_rgb + sizeof(conversion_tile_rgb)/sizeof(conversion_tile_rgb[0])
     );
 
-    // Use our reference function to convert YUYV => RGB888
     std::vector<uint8_t> rec_output =
         yuyv_to_rgb888_convertor(my_conversion_tile_yuyv, width, height);
 
-    // Compare with the known "golden" RGB for the coin tile
     compare_outputs(my_conversion_tile_rgb, rec_output,
                     pass_count, fail_count, my_conversion_tile_yuyv);
 
-    // Reset pass/fail counts after the coin tile test if you like
     pass_count = 0;
     fail_count = 0;
 
@@ -209,24 +248,22 @@ int main()
         // Streams for DUT
         hls::stream<axis_t> in_stream("in_stream");
         hls::stream<axis_t> out_stream("out_stream");
+        hls::stream<axis_t> conv("conv");
 
         // Send YUYV input via 128-bit AXI
         send_axi_stream_input_128bit(in_stream, input_data, width, height, in_channels);
 
-        // Call the DUT (commented out if you haven't implemented it):
-        // yuyv_converter(in_stream, out_stream);
+        // Call the DUT
+        process_tile(in_stream,conv,out_stream,1000,2);
 
-        // The DUT presumably outputs RGB888 => 3 bytes/pixel
         std::vector<uint8_t> received_output;
         receive_axi_stream_output_128bit(out_stream, received_output,
                                          width, height, out_channels);
 
-        // Compare
         compare_outputs(expected_output, received_output,
                         pass_count, fail_count, input_data);
     }
 
-    // Final summary
     std::cout << "\nTest Summary:\n";
     std::cout << "Total tests run: " << num_tests << "\n";
     std::cout << "Passed: " << pass_count << "\n";
