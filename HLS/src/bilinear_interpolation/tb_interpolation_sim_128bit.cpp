@@ -84,21 +84,21 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         pass_count++;
         std::cout << "Test PASSED!" << std::endl;
     } else {
-//        std::cout << "Input Data (R,G,B):\n";
-//        for (size_t i = 0; i < input_data.size(); i += 3) {
-//            std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
-//                      << "," << (int)input_data[i+2] << ") ";
-//        }
-//        std::cout << "\nExpected:\n";
-//        for (size_t i = 0; i < expected_output.size(); i += 3) {
-//            std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
-//                      << "," << (int)expected_output[i+2] << ") ";
-//        }
-//        std::cout << "\nReceived:\n";
-//        for (size_t i = 0; i < received_output.size(); i += 3) {
-//            std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
-//                      << "," << (int)received_output[i+2] << ") ";
-//        }
+        std::cout << "Input Data (R,G,B):\n";
+        for (size_t i = 0; i < input_data.size(); i += 3) {
+            std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
+                      << "," << (int)input_data[i+2] << ") ";
+        }
+        std::cout << "\nExpected:\n";
+        for (size_t i = 0; i < expected_output.size(); i += 3) {
+            std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
+                      << "," << (int)expected_output[i+2] << ") ";
+        }
+        std::cout << "\nReceived:\n";
+        for (size_t i = 0; i < received_output.size(); i += 3) {
+            std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
+                      << "," << (int)received_output[i+2] << ") ";
+        }
         std::cout << std::endl;
         passed = true;
 
@@ -129,17 +129,18 @@ void send_axi_stream_input_128bit(hls::stream<axis_t> &in_stream,
                                   const std::vector<uint8_t> &input_data,
                                   int width, int height, int channels)
 {
-    int total_bytes = width * height * channels;
+    int total_bytes = width * height * (channels-1);
     int padding = 0;
 
     // Step through the whole tile in chunks of 16 bytes
-    for (int i = 0; i < total_bytes; i += 16) {
+    for (int i = 0; i < total_bytes; i += 12) {
         // Wait if stream is full (simulate TREADY=0)
         while (in_stream.full()) {
             // Wait
         }
 
         ap_uint<128> tdata = 0;
+        int index = i-1;
 
         for (int b = 0; b < 16; b++) {
 			uint8_t value = 0;
@@ -148,7 +149,8 @@ void send_axi_stream_input_128bit(hls::stream<axis_t> &in_stream,
         		padding = 0;
         	}else{
         		padding++;
-				int index = i + b;
+        		index++;
+//        		std::cout << "Index: " << index << "...\n";
 				if (index < total_bytes) {
 					value = input_data[index];
 				}
@@ -162,7 +164,7 @@ void send_axi_stream_input_128bit(hls::stream<axis_t> &in_stream,
 
         // // Optional debug
         // std::cout << "Sending bytes " << i << "-" << (i+15)
-        //           << " => 0x" << std::hex << tdata 
+        //           << " => 0x" << std::hex << tdata
         //           << " (last=" << val.last << ")" << std::dec << std::endl;
 
         in_stream.write(val);  // 128-bit transfer
