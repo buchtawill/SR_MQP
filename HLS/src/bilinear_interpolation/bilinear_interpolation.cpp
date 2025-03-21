@@ -4,11 +4,7 @@
 
 // HLS function for bilinear interpolation
 int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN],
-										data_streamed image_out[NUM_TRANSFERS_OUT]) {
-
-    int rgb_idx = 0;  // Output index
-    data_streamed rgb_packed = 0;
-    int bit_offset = 0;
+                                        pixel_t image_out[HEIGHT_OUT][WIDTH_OUT]) {
 
     fixed widthRatio  = fixed(WIDTH_IN - 1) / fixed(WIDTH_OUT - 1);
     fixed heightRatio = fixed(HEIGHT_IN - 1) / fixed(HEIGHT_OUT - 1);
@@ -63,25 +59,7 @@ int bilinear_interpolation_calculations(pixel_t image_in[HEIGHT_IN][WIDTH_IN],
             temp_pixel.range(15, 8) = g_interp;
             temp_pixel.range(23, 16) = b_interp;
 
-            // pack as 0BGR (32-bit per pixel)
-            full_pixel RGB;
-            RGB.range(7,0) = r_interp;
-            RGB.range(15,8) = g_interp;
-            RGB.range(23,16) = b_interp;
-            RGB.range(31,24) = 0x00;
-
-
-            rgb_packed.range(bit_offset + 31, bit_offset) = RGB;
-
-            bit_offset += 32;
-
-            if (bit_offset == 128) {
-                image_out[rgb_idx++] = rgb_packed;
-                rgb_packed = 0; // Reset for next set
-                bit_offset = 0;
-            }
-
-            //image_out[y_out][x_out] = temp_pixel;
+            image_out[y_out][x_out] = temp_pixel;
         }
     }
 
@@ -93,13 +71,13 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
 
     int i = 0;
 
-    data_streamed input_streams_stored[NUM_TRANSFERS];
+    data_streamed input_streams_stored[NUM_TRANSFERS_IN];
 
-    while (i < NUM_TRANSFERS) {
+    while (i < NUM_TRANSFERS_IN) {
 
         while (!in_stream.empty()) {
 
-            if (i == NUM_TRANSFERS){
+            if (i == NUM_TRANSFERS_IN){
             	break;
             }
 
@@ -110,13 +88,14 @@ void stream_samples_in(hls::stream<axis_t> &in_stream, pixel_t input_data_stored
         }
     }
 
-    for (int transfer = 0; transfer < NUM_TRANSFERS; transfer++) {
+    for (int transfer = 0; transfer < NUM_TRANSFERS_IN; transfer++) {
 
         for (int j = 0; j < PIXELS_PER_TRANSFER; j++) {
 
             int index = transfer * PIXELS_PER_TRANSFER + j;
             int y = index / WIDTH_IN;
             int x = index % WIDTH_IN;
+            int input_data_stored_value = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL);
             input_data_stored[y][x] = input_streams_stored[transfer].range(j * BITS_PER_PIXEL + 23, j * BITS_PER_PIXEL);
         }
     }
@@ -163,23 +142,10 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT];
     #pragma HLS BIND_STORAGE variable=output_data_stored type=RAM_2P impl=BRAM
 
-    data_streamed loaded[NUM_TRANSFERS_OUT];
-
     #pragma HLS DATAFLOW
     stream_samples_in(in_stream, input_data_stored);
 
-    bilinear_interpolation_calculations(input_data_stored, loaded);
+    bilinear_interpolation_calculations(input_data_stored, output_data_stored);
 
-	axis_t temp_output;
-	temp_output.data = 0;
-
-	for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
-		temp_output.last = (i == NUM_TRANSFERS_OUT - 1);
-		temp_output.keep = 0xffff;
-		temp_output.strb = 0xffff;
-		temp_output.data = loaded[i];
-		out_stream.write(temp_output);
-    }
-
-    //stream_samples_out(output_data_stored, out_stream);
+    stream_samples_out(output_data_stored, out_stream);
 }
