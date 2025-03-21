@@ -6,10 +6,10 @@
 #include <iostream>
 #include <cmath>
 
-
 #define WIDTH_IN 28
 #define HEIGHT_IN 28
 #define CHANNELS 3
+
 #define SCALE_FACTOR 2
 #define WIDTH_OUT (WIDTH_IN * SCALE_FACTOR)
 #define HEIGHT_OUT (HEIGHT_IN * SCALE_FACTOR)
@@ -20,9 +20,27 @@
 #define PIXELS_PER_TRANSFER (BITS_PER_TRANSFER/BITS_PER_PIXEL)
 #define CHANNELS_PER_TRANSFER (PIXELS_PER_TRANSFER * CHANNELS)
 #define BITS_PER_CHANNEL 8
-#define NUM_TRANSFERS (WIDTH_IN*HEIGHT_IN/PIXELS_PER_TRANSFER)
-#define NUM_TRANSFERS_OUT (NUM_TRANSFERS*SCALE_FACTOR*SCALE_FACTOR)
+#define NUM_TRANSFERS_IN (WIDTH_IN*HEIGHT_IN/PIXELS_PER_TRANSFER)
+#define NUM_TRANSFERS_OUT (NUM_TRANSFERS_IN*SCALE_FACTOR*SCALE_FACTOR)
 
+// Define pixel_t as an 8-bit unsigned integer
+typedef ap_uint<24> pixel_t; // 8-bit per channel for each pixel
+typedef ap_uint<8> channel_t;
+typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
+typedef ap_fixed<32, 20> fixed;
+typedef ap_uint<32> full_pixel;
+
+// Define axis_t with data width of 8 bits and no additional signals
+typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
+
+void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
+
+std::vector<uint8_t> bilinearInterpolation(
+    const std::vector<uint8_t>& image,
+    int width,
+    int height,
+    int channels,
+    float scale);
 
 #define SLIDER_WIDTH_IN 7
 #define SLIDER_HEIGHT_IN 7
@@ -40,21 +58,5 @@
 
 #define MARGIN_OF_ERROR 10
 
-
-// Define pixel_t as an 8-bit unsigned integer
-typedef ap_uint<24> pixel_t; // 8-bit per channel for each pixel
-typedef ap_uint<8> channel_t;
-typedef ap_uint<BITS_PER_TRANSFER> data_streamed;
-typedef ap_fixed<32, 20> fixed;
-typedef ap_uint<32> full_pixel;
-
-// Define axis_t with data width of 8 bits and no additional signals
-typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
-
-// Function declaration for Bilinear Interpolation calculations
-int bilinear_interpolation_calculations(pixel_t image_in[NUM_TRANSFERS],
-                           	   	   	   	pixel_t image_out[NUM_TRANSFERS_OUT]);
-
-void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
 #endif
