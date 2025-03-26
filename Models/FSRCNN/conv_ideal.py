@@ -28,12 +28,16 @@ WEIGHTS = np.array(
 
 BIAS_1 = 0.0146
 PRELU_1 = 0.3086
+NUM_PE = 8
 
 
 def get_real_conv_result(start_x, start_y, channel_arr):
     result = np.sum(channel_arr[start_y:start_y+5, start_x:start_x+5] * WEIGHTS[0]) + BIAS_1
     result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
     return result
+
+
+# def conv_5x5_fixed_pe()
 
 def fifo_psum_conv(channel_arr, weight_mat, add_bias_and_prelu=True, print_slider=False):
     
