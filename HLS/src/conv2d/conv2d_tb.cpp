@@ -18,10 +18,7 @@ int main(){
 	int coin_idx = 0;
 	for(i = 0; i < STREAM_BEATS_PER_TILE; i++){
 
-		// Fill the tdata
-//		for(j = 0; j < 4; j++){
-
-			// 4 pixels per transfer from a 128-bit stream
+		// 4 pixels per transfer from a 128-bit stream
 	
 		// Pixel 0
 		tmp_data.range(7, 0)   = coin_tile_low_res_rgb[coin_idx + 0];
@@ -47,7 +44,6 @@ int main(){
 		tmp_data.range(119, 112) = coin_tile_low_res_rgb[coin_idx + 11];
 		coin_idx += 12;
 		// Discard tmp_data.range(127, 120)
-//		}
 
 		// Write it to the stream
 		axis_t tmp_stream;

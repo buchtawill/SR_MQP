@@ -100,28 +100,28 @@ void fill_output_fifo(fixed_4_8_t img_in[INPUT_HEIGHT_PIX][INPUT_WIDTH_PIX][BYTE
 }
 
 /**
- * Load the tile_in array with values, accounting for padding (2x2)
+ * Load the tile_in array with values, ignoring any padding
  */
-void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> tile_in[3]){
+void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> tile_in[3]){
 	axis_t tmp_stream;
 	tmp_stream.last = 0;
 
 	// Fill the first two rows with zeros
-	PAD_TOP:
-	for(int i = 0; i < IN_PADDED_SIZE * 2; i++){
-		tile_in[0].write(0);
-		tile_in[1].write(0);
-		tile_in[2].write(0);
-	}
+	// PAD_TOP:
+	// for(int i = 0; i < IN_PADDED_SIZE * 2; i++){
+	// 	tile_in[0].write(0);
+	// 	tile_in[1].write(0);
+	// 	tile_in[2].write(0);
+	// }
 
 	// Do the 28 rows of pixels
 	READ_ROWS:
 	for(int row = 0; row < INPUT_HEIGHT_PIX; row++){
 
 		// Pad the first two pixels with zeros
-		tile_in[0].write(0); tile_in[0].write(0);
-		tile_in[1].write(0); tile_in[1].write(0);
-		tile_in[2].write(0); tile_in[2].write(0);
+		// tile_in[0].write(0); tile_in[0].write(0);
+		// tile_in[1].write(0); tile_in[1].write(0);
+		// tile_in[2].write(0); tile_in[2].write(0);
 
 		// Fill the meat and potatos 
 		for(int beat = 0; beat < BEATS_PER_ROW; beat++){
@@ -173,18 +173,18 @@ void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, IN_PADDE
 		}
 	
 		// Pad the last two pixels with zeros
-		tile_in[0].write(0); tile_in[0].write(0);
-		tile_in[1].write(0); tile_in[1].write(0);
-		tile_in[2].write(0); tile_in[2].write(0);
+		// tile_in[0].write(0); tile_in[0].write(0);
+		// tile_in[1].write(0); tile_in[1].write(0);
+		// tile_in[2].write(0); tile_in[2].write(0);
 	}
 	
 	// Fill the last two rows with zeros
-	PAD_BOTTOM:
-	for(int i = 0; i < IN_PADDED_SIZE * 2; i++){
-		tile_in[0].write(0);
-		tile_in[1].write(0);
-		tile_in[2].write(0);
-	}
+	// PAD_BOTTOM:
+	// for(int i = 0; i < IN_PADDED_SIZE * 2; i++){
+	// 	tile_in[0].write(0);
+	// 	tile_in[1].write(0);
+	// 	tile_in[2].write(0);
+	// }
 }
 
 fixed_4_8_t perform_mac5(const fixed_4_8_t weights[5], fixed_4_8_t slider[5]){
@@ -217,9 +217,10 @@ void conv_5x5();
 
 /**
  * Perform feature extraction convolutional layer. Assumes input feature map (tile_in) is appropriately padded
+ * TODO: Modify to handle padding on its own
  */
-void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> tile_in[IN_CHN_LAYER_1], 
-					 hls::stream<fixed_4_8_t, 28*28> map_out[OUT_CHN_LAYER_1]){
+void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> tile_in[IN_CHN_LAYER_1], 
+					 hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> map_out[OUT_CHN_LAYER_1]){
 
 
 	// 3 input channels, 5 weights
@@ -227,7 +228,7 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 	#pragma HLS array_partition variable=slider dim=0 type=complete
 	#pragma array_partition variable=slider dim=1 type=complete
 
-	hls::stream<fixed_4_8_t, 28> psum1[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum2[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum3[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum4[OUT_CHN_LAYER_1][IN_CHN_LAYER_1];
+	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum2[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum3[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum4[OUT_CHN_LAYER_1][IN_CHN_LAYER_1];
 	#pragma HLS STREAM variable=psum1 depth=28
 	#pragma HLS STREAM variable=psum2 depth=28
 	#pragma HLS STREAM variable=psum3 depth=28
@@ -238,20 +239,32 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 	#pragma HLS RESOURCE variable=psum4 core=FIFO_BRAM
 	// #pragma HLS array_partition variable=psum1 dim=0 type=complete
 
-	for(int row = 0; row < IN_PADDED_SIZE; row++){
-
+	for(int row = 0; row < FEAT_EXT_PADDED_SIZE; row++){
+		printf("Start of row: %3d, Red size: %d\n", row, tile_in[0].size());
 		// Prep the slider
+		// Since input is zero-padded, fill the first FEAT_EXT_PADDING with zeros
+		
 		for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
 			#pragma HLS UNROLL
 			for(int idx = 0; idx < 4; idx++){
 				#pragma HLS PIPELINE II=1
-				slider[ch][idx] = tile_in[ch].read();
+				
+				// First or last FEAT_EXT_PADDING rows, fill with zeros
+				if((row < FEAT_EXT_PADDING) || row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)){
+					slider[ch][idx] = 0;
+				}
+
+				// Not the first two or last two rows (0,1, 30,31)
+				else{
+					if(idx < FEAT_EXT_PADDING) slider[ch][idx] = 0;
+					else		               slider[ch][idx] = tile_in[ch].read();
+				}
 			}
 		}
 
 		// printf("Row %d\n", row);
 		// Go across the column
-		for(int col = 4; col < IN_PADDED_SIZE; col++){
+		for(int col = 4; col < FEAT_EXT_PADDED_SIZE; col++){
 			#pragma HLS PIPELINE II=1
 			
 			// Reset the final sum for each filter
@@ -265,7 +278,15 @@ void conv_extraction(hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> til
 			// Read the next slider value
 			for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
 				#pragma HLS UNROLL
-				slider[ch][4] = tile_in[ch].read();
+
+				// First or last FEAT_EXT_PADDING rows, fill with zeros
+				if((row < FEAT_EXT_PADDING) || row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)){
+					slider[ch][4] = 0;
+				}
+				else{
+					if(col >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)) slider[ch][4] = 0;
+					else    				                             slider[ch][4] = tile_in[ch].read();
+				}
 			}
 			for(int filter = 0; filter < 4; filter++){
 				
@@ -324,14 +345,18 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
     #pragma HLS INTERFACE ap_ctrl_none port=return
 	
 	// 1. Load the image into 3 separate streams (FIFOs), converting to fixed_4_8_t on the fly
-	hls::stream<fixed_4_8_t, IN_PADDED_SIZE*IN_PADDED_SIZE> tile_in[3];
+	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> tile_in[3];
+	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> map_extraction[OUT_CHN_LAYER_1];
 //	#pragma HLS BIND_STORAGE variable=tile_in type=bram
-	#pragma HLS array_partition variable=tile_in dim=0 type=complete
-	hls::stream<fixed_4_8_t, 28*28> map_extraction[OUT_CHN_LAYER_1];
+	// #pragma HLS array_partition variable=tile_in dim=0 type=complete
 
 //	#pragma HLS DATAFLOW
 
 	prep_tile(in_stream, tile_in);
+	printf("INFO [conv2d_top] Successfully prep'd the tile\n");
+	printf("Red size:   %d\n", tile_in[0].size());
+	printf("Green size: %d\n", tile_in[1].size());
+	printf("Blue size:  %d\n", tile_in[2].size());
 
 //	for(int i = 0; i < 5; i++){
 //		for(int j = 0; j < 32; j++){
@@ -342,6 +367,8 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 //	return;
 
 	conv_extraction(tile_in, map_extraction);
+
+	printf("INFO [conv2d_top] Successfully ran conv_extraction\n");
 
 	// std::cout<<"INFO [conv2d] Stream size: "<< map_extraction[0].size()<<std::endl;
 	// for(int i = 0; i < 28; i++){

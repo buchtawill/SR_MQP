@@ -19,6 +19,9 @@
 #define OUT_CHN_LAYER_1         22
 #define IN_PADDED_SIZE          32
 
+#define FEAT_EXT_PADDING 2
+#define FEAT_EXT_PADDED_SIZE    (INPUT_WIDTH_PIX + 2*FEAT_EXT_PADDING)
+
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
 
 // TODO WARNING NOTE: Using AP_SAT can cost up to a 20% increase in LUT usage!!!
@@ -28,7 +31,7 @@ typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<24, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<32, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
