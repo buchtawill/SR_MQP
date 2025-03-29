@@ -219,16 +219,14 @@ void conv_5x5();
  * Perform feature extraction convolutional layer. Assumes input feature map (tile_in) is appropriately padded
  * TODO: Modify to handle padding on its own
  */
-void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> tile_in[IN_CHN_LAYER_1], 
-					 hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> map_out[OUT_CHN_LAYER_1]){
-
+void conv_extraction(ch_stream_t tile_in[IN_CHN_LAYER_1], ch_stream_t map_out[OUT_CHN_LAYER_1]){
 
 	// 3 input channels, 5 weights
 	fixed_4_8_t slider[IN_CHN_LAYER_1][5];
-	#pragma HLS array_partition variable=slider dim=0 type=complete
-	#pragma array_partition variable=slider dim=1 type=complete
+	#pragma HLS ARRAY_PARTITION variable=slider dim=0 type=complete
 
-	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> inbuf[IN_CHN_LAYER_1];
+
+	ch_stream_t inbuf[IN_CHN_LAYER_1];
 
 	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[NUM_PE_LAYER_1][IN_CHN_LAYER_1], 
 											  psum2[NUM_PE_LAYER_1][IN_CHN_LAYER_1], 

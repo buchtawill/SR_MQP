@@ -301,7 +301,8 @@ if __name__ == '__main__':
     
     # Read the simulation log results
     dut_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_1shot.log')
-    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/csim_pe_loops.log')
+    # pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/csim_pe_loops.log')
+    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_even.log')
 
     inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
     # for value in inference.cpu().detach().numpy()[0,0,0]:

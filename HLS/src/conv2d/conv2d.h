@@ -17,7 +17,7 @@
 
 #define IN_CHN_LAYER_1          3
 #define OUT_CHN_LAYER_1         44
-#define NUM_PE_LAYER_1          44
+#define NUM_PE_LAYER_1          4
 #define IN_PADDED_SIZE          32
 
 #define FEAT_EXT_PADDING 2
@@ -36,6 +36,8 @@ typedef ap_fixed<18, 5, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
+
+typedef hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> ch_stream_t;
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 

@@ -68,12 +68,13 @@ if __name__ == '__main__':
     global_min = float('inf')
     global_max = float('-inf')
     
-    print_weights_as_c_array(state_dict)
-    exit()
+    # print_weights_as_c_array(state_dict)
+    # exit()
 
     # Iterate over all parameters in the state_dict
     for param_name, param_tensor in state_dict.items():
         
+        print(param_name)
         # if 'weight' in param_name:  # Ensure we're only looking at weight tensors
         param_min = param_tensor.min().item()
         param_max = param_tensor.max().item()

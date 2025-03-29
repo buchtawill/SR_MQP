@@ -138,6 +138,71 @@ def emulate_pytorch(tile, bias_prelu=True):
         result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
     return result
 
+def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_width_pix):
+    padding = kernel_size // 2
+    if(kernel_size == 1):
+        padding = 0
+    func =  f"void conv_{name}(ch_stream_t tile_in[IN_CHN_LAYER_{name}], ch_stream_t map_out[OUT_CH_LAYER_{name}]){{\n"
+    func += f"    // NOTE: This function was auto generated. Do not edit here, edit FSRCNN/conv_ideal.py"
+    func += f"    fixed_4_8_t slider[IN_CHN_LAYER_{name}][{kernel_size}];\n"
+    func +=  "    #pragma HLS ARRAY_PARTITION variable=slider dim=0 type=complete\n"
+    func += f"    ch_stream_t inbuf[IN_CHN_LAYER_{name}];\n"
+    # Declare PE's
+    for i in range(kernel_size):
+        func += f"    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum{i+1}[NUM_PE_LAYER_{name}][IN_CHN_LAYER_{name}];\n"
+
+    # Partition and assign to BRAM
+    for i in range(kernel_size):
+        func += f"    #pragma HLS STREAM variable=psum{i+1} depth={in_width_pix}\n"
+        func += f"    #pragma HLS RESOURCE variable=psum{i+1} core=FIFO_BRAM\n"
+        
+    # Calculate how many times need to go thru PE's
+    func += f"    int num_pe_loops = OUT_CHN_LAYER_{name} / NUM_PE_LAYER_{name};\n"
+    func += f"    if((OUT_CHN_LAYER_{name} % NUM_PE_LAYER_{name}) != 0) num_pe_loops++;\n"
+    
+    func +=  "    for(int pe_loop = 0; pe_loop < num_pe_loops; pe_loop++){\n"
+    func += f"        // WARNING: if number fmap % num_pe != 0, utilization explodes!!\n"
+    func += f"        int low_filter = (pe_loop*NUM_PE_LAYER_{name});\n"
+    func += f"        int high_filter = ((pe_loop+1)*NUM_PE_LAYER_{name}) < OUT_CHN_LAYER_{name} ? ((pe_loop+1)*NUM_PE_LAYER_{name}) : OUT_CHN_LAYER_{name};\n"
+    func += f"        for(int row = 0; row < {in_width_pix + 2*padding}; row++){{\n\n" # Calculate size of padding
+    func +=  "            // Prep the slider\n"
+    func += f"            for(int ch = 0; ch < IN_CHN_LAYER_{name}; ch++){{\n"
+    func +=  "                #pragma HLS UROLL\n"
+    func += f"                for(int idx = 0; idx < {kernel_size-1}; idx++){{\n"
+    func +=  "                    #pragma HLS PIPELINE II=1\n"
+    
+    # First two or last two rows, pad with zeros
+    func += f"                    if((row < {padding}) || (row >= {in_width_pix + padding*1}) || (idx < {padding})) slider[ch][idx] = 0;\n"
+    func += f"                    else{{\n"
+    func += f"                        fixed_4_8_t next_data;\n"
+    func += f"						  if(pe_loop == 0) next_data = tile_in[ch].read();\n"
+    func += f"						  else             next_data = inbuf[ch].read();\n\n"
+    func += f"                        slider[ch][{kernel_size-1}] = next_data;\n"
+    func +=  "                        if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);\n"
+    func +=  "                    }\n" # else not middle
+    func +=  "                }\n" # idx loop
+    func +=  "            }\n\n" # ch loop
+    
+    func += f"            // Go across the row\n"
+    func += f"            for(int col = {kernel_size -1}; col < {in_width_pix + 2*padding}; col++){{\n"
+    func +=  "                #pragma HLS PIPELINE II=1\n"
+    func += f"                fixed_4_8_t final_sum[OUT_CHN_LAYER_{name}];\n"
+    func += f"                #pragma HLS array_partition variable=final_sum dim=0 type=complete\n"
+    func +=  "                for(int filter = low_filter; filter < high_filter; filter++){\n"
+    func +=  "                    #pragma HLS UNROLL\n"
+    func +=  "                    final_sum[filter] = 0.0;\n"
+    func +=  "                }\n" # Filter loop 1
+    
+    # Resume at line 297 from conv2d.cpp
+    
+    
+    func +=  "            }\n" # column loop
+    
+    func +=  "        }\n" # row loop
+    func +=  "    }\n" # pe loop
+    func +=  "}\n" # Function body
+    
+
 if __name__ == '__main__':
     
     image_tile = np.load('../comparisons/images/image_coin_tile.npy')
@@ -159,21 +224,21 @@ if __name__ == '__main__':
     # print(first_fmap[0])
     # exit()
     
-    print("Ideal convolution results after bias and prelu:")
-    ideal = np.zeros((28, 28))
-    for row in range(28):
-        for col in range(28):
-            ideal[row, col] = get_real_conv_result(col, row, channel)
-    print(ideal[0])
-    exit
+    # print("Ideal convolution results after bias and prelu:")
+    # ideal = np.zeros((28, 28))
+    # for row in range(28):
+    #     for col in range(28):
+    #         ideal[row, col] = get_real_conv_result(col, row, channel)
+    # print(ideal[0])
+    # exit
     
-    num_wrong = 0
-    for i in range(28):
-        for j in range(28):
-            if(not float_compare(ideal[i,j], fifod_conv[i,j])):
-                num_wrong+=1
-                print(f"Error at row {i}, col {j}: Ideal: {ideal[i,j]:9.6f}, FIFO: {fifod_conv[i,j]:9.6f}")
-    print("Num correct:     ", 28*28 - num_wrong)
-    print("Number of errors:", num_wrong)
+    # num_wrong = 0
+    # for i in range(28):
+    #     for j in range(28):
+    #         if(not float_compare(ideal[i,j], fifod_conv[i,j])):
+    #             num_wrong+=1
+    #             print(f"Error at row {i}, col {j}: Ideal: {ideal[i,j]:9.6f}, FIFO: {fifod_conv[i,j]:9.6f}")
+    # print("Num correct:     ", 28*28 - num_wrong)
+    # print("Number of errors:", num_wrong)
     
     # print(channel[2, 0:5]) # first five columns of the third row
