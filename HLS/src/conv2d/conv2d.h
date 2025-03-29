@@ -16,7 +16,8 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 #define IN_CHN_LAYER_1          3
-#define OUT_CHN_LAYER_1         22
+#define OUT_CHN_LAYER_1         44
+#define NUM_PE_LAYER_1          44
 #define IN_PADDED_SIZE          32
 
 #define FEAT_EXT_PADDING 2
