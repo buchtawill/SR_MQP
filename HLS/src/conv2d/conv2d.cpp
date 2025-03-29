@@ -248,9 +248,14 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 	int num_pe_loops = OUT_CHN_LAYER_1 / NUM_PE_LAYER_1;
 	if((OUT_CHN_LAYER_1 % NUM_PE_LAYER_1) != 0) num_pe_loops++;
 
-	printf("INFO [conv_extraction] Number of loops thru PE's: %d\n", num_pe_loops);
+	printf("INFO [conv_extraction] Number of PE loops: %d\n", num_pe_loops);
 	
 	for(int pe_loop = 0; pe_loop < num_pe_loops; pe_loop++){
+
+		int low_filter = (pe_loop*NUM_PE_LAYER_1);
+		int high_filter = ((pe_loop+1)*NUM_PE_LAYER_1) < OUT_CHN_LAYER_1 ? ((pe_loop+1)*NUM_PE_LAYER_1) : OUT_CHN_LAYER_1;
+		printf("INFO [conv_extraction] Processing filters %d to %d\n", low_filter, high_filter);
+
 		for(int row = 0; row < FEAT_EXT_PADDED_SIZE; row++){
 			// printf("Start of row: %3d, Red size: %d\n", row, tile_in[0].size());
 			// Since input is zero-padded, fill the first FEAT_EXT_PADDING rows with zeros
@@ -286,7 +291,7 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 				// Reset the final sum for each filter
 				fixed_4_8_t final_sum[OUT_CHN_LAYER_1];
 				#pragma HLS array_partition variable=final_sum dim=0 type=complete
-				for(int filter = 0; filter < OUT_CHN_LAYER_1; filter++){
+				for(int filter = low_filter; filter < high_filter; filter++){
 					#pragma HLS UNROLL
 					final_sum[filter] = 0.0;
 				}
@@ -301,10 +306,10 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 
 					// Else we need to read actual data
 					else{
-						// If it's the first time thru the loop, read from the actual tile in
 						if(col >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)) slider[ch][4] = 0;
 						else {
 							fixed_4_8_t next_data;
+							// If it's the first time thru the loop, read from the actual tile in
 							if(pe_loop == 0) next_data = tile_in[ch].read();
 							else             next_data = inbuf[ch].read();
 							
@@ -315,14 +320,10 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 				}
 
 				// Read the next slider value
-				// Feature maps:
-				// 00-10
-				// 11-21
-				// 22-31
-				// 32-43
 				// for(int ch = (pe_loop*NUM_PE_LAYER_1); ch < ((pe_loop+1)*NUM_PE_LAYER_1); ch++)
-				
-				for(int filter = (pe_loop*NUM_PE_LAYER_1); filter < ((pe_loop+1)*NUM_PE_LAYER_1); filter++){
+				// printf("INFO [conv_extraction] Processing filter %d to \n", filter);
+				for(int filter = low_filter; filter < high_filter; filter++){
+					// printf("INFO [conv_extraction] Processing filter %d\n", filter);
 					for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
 						#pragma HLS UNROLL
 						fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
@@ -372,8 +373,9 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 		} // For every row in the tile
 	} // For however many times we need to go thru the processing elements
 
-	printf("INFO [conv_extraction] Finished convolution for feature extraction. inbuf size: %d\n", inbuf[0].size());
-	printf("                                                                    fmap0 size: %d\n", map_out[0].size());
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. inbuf size:   %d\n", inbuf[0].size());
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. fmap0 size:   %d\n", map_out[0].size());
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. PE[0,0] size: %d\n", psum1[0][0].size());
 }
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream){
@@ -413,9 +415,9 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	// }
 	// std::cout<<"INFO [conv2d] Stream size: "<< map_extraction[0].size()<<std::endl;
 	for(int i = 0; i < 44; i++){
-		printf("INFO [conv2d] First row of feature map %d:\n", i);
-		for (int col = 0; col < 28; col++){
-			printf("%9.6f ", map_extraction[i].read().to_float());
+		printf("INFO [conv2d] Feature map %d:\n", i);
+		for (int col = 0; col < 28*28; col++){
+			printf("%.8f \n", map_extraction[i].read().to_float());
 		}
 		printf("\n");
 	}
