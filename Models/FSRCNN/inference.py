@@ -243,9 +243,12 @@ if __name__ == '__main__':
     # exit()
 
     inference = model.feature_extraction(low_res_coin.to(device))
-    print(inference.cpu().detach().numpy()[0,0,0])
-    print(inference.cpu().detach().numpy()[0,0,1])
-    print(inference.cpu().detach().numpy()[0,0,2])
+    # print(inference.cpu().detach().numpy()[0,0,0])
+    # print(inference.cpu().detach().numpy()[0,0,1])
+    # print(inference.cpu().detach().numpy()[0,0,2])
+    print("INFO [inference.py] Firsrt Feature map from feature extraction: ")
+    for value in inference.cpu().detach().numpy()[0,0,0]:
+        print(f'{value:9.6f}')
         
     # loss = criterion(inference, hi_res_truth)
 
