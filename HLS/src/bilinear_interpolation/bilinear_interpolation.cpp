@@ -338,37 +338,32 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
         &fifo_0, &fifo_1, &fifo_2, &fifo_3, &fifo_4,
         &fifo_5, &fifo_6, &fifo_7, &fifo_8};
 
-
-	/*Loop through height of slice*/
-	for (int row_idx = 0; row_idx < SLIDER_HEIGHT_IN + BUFFER * 2; row_idx++){
-
-		//if slider is in top section, fill from FIFOs 1-8
-		if(top_slider){
-			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-				for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
-					pixel_t data = fifo[i + 1]->read();
-					image_section[i][col_idx] = data;
-				}
+	//if slider is in top section, fill from FIFOs 1-8
+	if(top_slider){
+		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
+			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
+				pixel_t data = fifo[i + 1]->read();
+				image_section[i][col_idx] = data;
 			}
 		}
+	}
 
-		//if slider is in bottom section, fill from FIFOs 0-7
-		else if(bottom_slider){
-			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-				for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
-					pixel_t data = fifo[i]->read();
-					image_section[i][col_idx] = data;
-				}
+	//if slider is in bottom section, fill from FIFOs 0-7
+	else if(bottom_slider){
+		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
+			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
+				pixel_t data = fifo[i]->read();
+				image_section[i][col_idx] = data;
 			}
 		}
+	}
 
-		//if slider is not on top or bottom, fill from FIFOs 0-8
-		else if(!top_slider && !bottom_slider){
-			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-				for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER * 2; i++){
-					pixel_t data = fifo[i]->read();
-					image_section[i][col_idx] = data;
-				}
+	//if slider is not on top or bottom, fill from FIFOs 0-8
+	else if(!top_slider && !bottom_slider){
+		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
+			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER * 2; i++){
+				pixel_t data = fifo[i]->read();
+				image_section[i][col_idx] = data;
 			}
 		}
 	}
@@ -453,17 +448,6 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	//Create image subsections from FIFO values
 	bool first_fifos_filled = false, second_fifos_filled = false;
 
-	//if the second set of FIFOs has data then the first set is filled
-	if(!fifo_second_0.empty()){
-		first_fifos_filled = true;
-	}
-
-	//won't be immediately triggered because first fifo filled is fifo_first_1 not fifo_first_0
-	if(!fifo_first_0.empty()){
-		second_fifos_filled = true;
-	}
-
-
 	//combine FIFOs into slices and upscale slices
 	int row_sliced = 0;
 	pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER * 2][WIDTH_IN];
@@ -472,6 +456,17 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	int section_upscaled = 0;
 
 	while(row_sliced < NUM_SLIDERS_HEIGHT){
+
+		//if the second set of FIFOs has data then the first set is filled
+		if(!fifo_second_0.empty()){
+			first_fifos_filled = true;
+		}
+
+		//won't be immediately triggered because first fifo filled is fifo_first_1 not fifo_first_0
+		if(!fifo_first_0.empty()){
+			second_fifos_filled = true;
+		}
+
 		bool top_row = (row_sliced == 0);
 		bool bottom_row = (row_sliced == NUM_SLIDERS_HEIGHT - 1);
 
