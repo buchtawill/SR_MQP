@@ -228,7 +228,12 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 	#pragma HLS array_partition variable=slider dim=0 type=complete
 	#pragma array_partition variable=slider dim=1 type=complete
 
-	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum2[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum3[OUT_CHN_LAYER_1][IN_CHN_LAYER_1], psum4[OUT_CHN_LAYER_1][IN_CHN_LAYER_1];
+	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> inbuf[IN_CHN_LAYER_1];
+
+	hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[NUM_PE_LAYER_1][IN_CHN_LAYER_1], 
+											  psum2[NUM_PE_LAYER_1][IN_CHN_LAYER_1], 
+											  psum3[NUM_PE_LAYER_1][IN_CHN_LAYER_1], 
+											  psum4[NUM_PE_LAYER_1][IN_CHN_LAYER_1];
 	#pragma HLS STREAM variable=psum1 depth=28
 	#pragma HLS STREAM variable=psum2 depth=28
 	#pragma HLS STREAM variable=psum3 depth=28
@@ -239,104 +244,138 @@ void conv_extraction(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> 
 	#pragma HLS RESOURCE variable=psum4 core=FIFO_BRAM
 	// #pragma HLS array_partition variable=psum1 dim=0 type=complete
 
-	for(int row = 0; row < FEAT_EXT_PADDED_SIZE; row++){
-		printf("Start of row: %3d, Red size: %d\n", row, tile_in[0].size());
-		// Prep the slider
-		// Since input is zero-padded, fill the first FEAT_EXT_PADDING with zeros
-		
-		for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
-			#pragma HLS UNROLL
-			for(int idx = 0; idx < 4; idx++){
+	// Do this (N_FILTERS / NUM_PE_LAYER_1) + 1 times
+	int num_pe_loops = OUT_CHN_LAYER_1 / NUM_PE_LAYER_1;
+	if((OUT_CHN_LAYER_1 % NUM_PE_LAYER_1) != 0) num_pe_loops++;
+
+	printf("INFO [conv_extraction] Number of PE loops: %d\n", num_pe_loops);
+	
+	for(int pe_loop = 0; pe_loop < num_pe_loops; pe_loop++){
+
+		int low_filter = (pe_loop*NUM_PE_LAYER_1);
+		int high_filter = ((pe_loop+1)*NUM_PE_LAYER_1) < OUT_CHN_LAYER_1 ? ((pe_loop+1)*NUM_PE_LAYER_1) : OUT_CHN_LAYER_1;
+		printf("INFO [conv_extraction] Processing filters %d to %d\n", low_filter, high_filter);
+
+		for(int row = 0; row < FEAT_EXT_PADDED_SIZE; row++){
+			// printf("Start of row: %3d, Red size: %d\n", row, tile_in[0].size());
+			// Since input is zero-padded, fill the first FEAT_EXT_PADDING rows with zeros
+			// Prep the slider
+			for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
+				#pragma HLS UNROLL
+				for(int idx = 0; idx < 4; idx++){
+					#pragma HLS PIPELINE II=1
+					// First or last FEAT_EXT_PADDING rows, fill with zeros
+					if((row < FEAT_EXT_PADDING) || row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)){
+						slider[ch][idx] = 0;
+					}
+					// Not the first two or last two rows (0,1, 30,31)
+					else{
+						if(idx < FEAT_EXT_PADDING) slider[ch][idx] = 0;
+						else{
+							fixed_4_8_t next_data;
+							if(pe_loop == 0) next_data = tile_in[ch].read();
+							else             next_data = inbuf[ch].read();
+							
+							slider[ch][4] = next_data;
+							if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data); // write it back to save for later
+						}
+					}
+				}
+			}
+
+			// printf("Row %d\n", row);
+			// Go across the column
+			for(int col = 4; col < FEAT_EXT_PADDED_SIZE; col++){
 				#pragma HLS PIPELINE II=1
 				
-				// First or last FEAT_EXT_PADDING rows, fill with zeros
-				if((row < FEAT_EXT_PADDING) || row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)){
-					slider[ch][idx] = 0;
+				// Reset the final sum for each filter
+				fixed_4_8_t final_sum[OUT_CHN_LAYER_1];
+				#pragma HLS array_partition variable=final_sum dim=0 type=complete
+				for(int filter = low_filter; filter < high_filter; filter++){
+					#pragma HLS UNROLL
+					final_sum[filter] = 0.0;
 				}
 
-				// Not the first two or last two rows (0,1, 30,31)
-				else{
-					if(idx < FEAT_EXT_PADDING) slider[ch][idx] = 0;
-					else		               slider[ch][idx] = tile_in[ch].read();
-				}
-			}
-		}
-
-		// printf("Row %d\n", row);
-		// Go across the column
-		for(int col = 4; col < FEAT_EXT_PADDED_SIZE; col++){
-			#pragma HLS PIPELINE II=1
-			
-			// Reset the final sum for each filter
-			fixed_4_8_t final_sum[OUT_CHN_LAYER_1];
-			#pragma HLS array_partition variable=final_sum dim=0 type=complete
-			for(int filter = 0; filter < OUT_CHN_LAYER_1; filter++){
-				#pragma HLS UNROLL
-				final_sum[filter] = 0.0;
-			}
-
-			// Read the next slider value
-			for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
-				#pragma HLS UNROLL
-
-				// First or last FEAT_EXT_PADDING rows, fill with zeros
-				if((row < FEAT_EXT_PADDING) || row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)){
-					slider[ch][4] = 0;
-				}
-				else{
-					if(col >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)) slider[ch][4] = 0;
-					else    				                             slider[ch][4] = tile_in[ch].read();
-				}
-			}
-			for(int filter = 0; filter < 4; filter++){
-				
+				// Read the next slider value
 				for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
-	
-					fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
-					fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
-	
-					// print_slider5(slider); printf("\n");
-	
-					if(row < 28) {
-						mac0 = perform_mac5(extraction_weights[filter][ch][0], slider[ch]);
-						psum1[filter][ch].write(mac0);
+					#pragma HLS UNROLL
+					// First or last FEAT_EXT_PADDING rows, fill with zeros
+					if((row < FEAT_EXT_PADDING) || (row >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING))){
+						slider[ch][4] = 0;
 					}
-					if(row >= 1 && row < 29){
-						row1_psum = psum1[filter][ch].read();
-						mac1 = perform_mac5(extraction_weights[filter][ch][1], slider[ch]);
-						psum2[filter][ch].write(row1_psum  + mac1);
-					}
-					if(row >= 2 && row < 30){
-						row2_psum = psum2[filter][ch].read();
-						mac2 = perform_mac5(extraction_weights[filter][ch][2], slider[ch]);
-						psum3[filter][ch].write(row2_psum  + mac2);
-					}
-					if(row >= 3 && row < 31){
-						row3_psum = psum3[filter][ch].read();
-						mac3 = perform_mac5(extraction_weights[filter][ch][3], slider[ch]);
-						psum4[filter][ch].write(row3_psum  + mac3);
-					}
-					if(row >= 4){
-						row4_psum = psum4[filter][ch].read();
-						mac4 = perform_mac5(extraction_weights[filter][ch][4], slider[ch]);
-						fixed_4_8_t pre_activation = row4_psum + mac4;
-						final_sum[filter] += pre_activation;
+
+					// Else we need to read actual data
+					else{
+						if(col >= (FEAT_EXT_PADDED_SIZE - FEAT_EXT_PADDING)) slider[ch][4] = 0;
+						else {
+							fixed_4_8_t next_data;
+							// If it's the first time thru the loop, read from the actual tile in
+							if(pe_loop == 0) next_data = tile_in[ch].read();
+							else             next_data = inbuf[ch].read();
+							
+							slider[ch][4] = next_data;
+							if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data); // write it back to save for later
+						}
 					}
 				}
-				if(row >= 4) map_out[filter].write(prelu(conv_extraction_prelu[filter], final_sum[filter] + conv_bias_extraction[filter]));
-				// if(row >= 4) map_out[filter].write(final_sum[filter]);
-			} // For every filter in the layer
 
-			// Shift the slider
-			for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
-				#pragma HLS UNROLL
-				slider[ch][0] = slider[ch][1];
-				slider[ch][1] = slider[ch][2];
-				slider[ch][2] = slider[ch][3];
-				slider[ch][3] = slider[ch][4];
-			} 
-		} // For every column in the row
-	} // For every row in the tile
+				// Read the next slider value
+				// for(int ch = (pe_loop*NUM_PE_LAYER_1); ch < ((pe_loop+1)*NUM_PE_LAYER_1); ch++)
+				// printf("INFO [conv_extraction] Processing filter %d to \n", filter);
+				for(int filter = low_filter; filter < high_filter; filter++){
+					// printf("INFO [conv_extraction] Processing filter %d\n", filter);
+					for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
+						#pragma HLS UNROLL
+						fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
+						fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
+		
+						// print_slider5(slider); printf("\n");
+		
+						if(row < 28) {
+							mac0 = perform_mac5(extraction_weights[filter][ch][0], slider[ch]);
+							psum1[filter % NUM_PE_LAYER_1][ch].write(mac0);
+						}
+						if(row >= 1 && row < 29){
+							row1_psum = psum1[filter % NUM_PE_LAYER_1][ch].read();
+							mac1 = perform_mac5(extraction_weights[filter][ch][1], slider[ch]);
+							psum2[filter % NUM_PE_LAYER_1][ch].write(row1_psum  + mac1);
+						}
+						if(row >= 2 && row < 30){
+							row2_psum = psum2[filter % NUM_PE_LAYER_1][ch].read();
+							mac2 = perform_mac5(extraction_weights[filter][ch][2], slider[ch]);
+							psum3[filter % NUM_PE_LAYER_1][ch].write(row2_psum  + mac2);
+						}
+						if(row >= 3 && row < 31){
+							row3_psum = psum3[filter % NUM_PE_LAYER_1][ch].read();
+							mac3 = perform_mac5(extraction_weights[filter][ch][3], slider[ch]);
+							psum4[filter % NUM_PE_LAYER_1][ch].write(row3_psum  + mac3);
+						}
+						if(row >= 4){
+							row4_psum = psum4[filter % NUM_PE_LAYER_1][ch].read();
+							mac4 = perform_mac5(extraction_weights[filter][ch][4], slider[ch]);
+							fixed_4_8_t pre_activation = row4_psum + mac4;
+							final_sum[filter] += pre_activation;
+						}
+					}
+					if(row >= 4) map_out[filter].write(prelu(conv_extraction_prelu[filter], final_sum[filter] + conv_bias_extraction[filter]));
+					// if(row >= 4) map_out[filter].write(final_sum[filter]);
+				} // For every filter in the layer
+
+				// Shift the slider
+				for(int ch = 0; ch < IN_CHN_LAYER_1; ch++){
+					#pragma HLS UNROLL
+					slider[ch][0] = slider[ch][1];
+					slider[ch][1] = slider[ch][2];
+					slider[ch][2] = slider[ch][3];
+					slider[ch][3] = slider[ch][4];
+				} 
+			} // For every column in the row
+		} // For every row in the tile
+	} // For however many times we need to go thru the processing elements
+
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. inbuf size:   %d\n", inbuf[0].size());
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. fmap0 size:   %d\n", map_out[0].size());
+	printf("INFO [conv_extraction] Finished convolution for feature extraction. PE[0,0] size: %d\n", psum1[0][0].size());
 }
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream){
@@ -376,9 +415,9 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	// }
 	// std::cout<<"INFO [conv2d] Stream size: "<< map_extraction[0].size()<<std::endl;
 	for(int i = 0; i < 44; i++){
-		printf("INFO [conv2d] First row of feature map %d:\n", i);
-		for (int col = 0; col < 28; col++){
-			printf("%9.6f ", map_extraction[i].read().to_float());
+		printf("INFO [conv2d] Feature map %d:\n", i);
+		for (int col = 0; col < 28*28; col++){
+			printf("%.8f \n", map_extraction[i].read().to_float());
 		}
 		printf("\n");
 	}

@@ -16,7 +16,8 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 #define IN_CHN_LAYER_1          3
-#define OUT_CHN_LAYER_1         22
+#define OUT_CHN_LAYER_1         44
+#define NUM_PE_LAYER_1          44
 #define IN_PADDED_SIZE          32
 
 #define FEAT_EXT_PADDING 2
@@ -31,7 +32,7 @@ typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<32, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<18, 5, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;

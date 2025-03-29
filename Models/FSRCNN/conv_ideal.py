@@ -155,16 +155,17 @@ if __name__ == '__main__':
     # fifod_conv = fifo_psum_conv(channel, WEIGHTS[0], print_slider=False, add_bias_and_prelu=False)
     # print(fifod_conv[0])
     # exit()
-    first_fmap = emulate_pytorch(image_tile, bias_prelu=True)
-    print(first_fmap[0])
-    exit()
+    # first_fmap = emulate_pytorch(image_tile, bias_prelu=True)
+    # print(first_fmap[0])
+    # exit()
     
     print("Ideal convolution results after bias and prelu:")
     ideal = np.zeros((28, 28))
     for row in range(28):
         for col in range(28):
             ideal[row, col] = get_real_conv_result(col, row, channel)
-    # print(ideal)
+    print(ideal[0])
+    exit
     
     num_wrong = 0
     for i in range(28):
