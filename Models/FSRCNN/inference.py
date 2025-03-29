@@ -189,7 +189,65 @@ def plot_inference_times():
 
     plt.plot(batch_sizes, inference_times)
     plt.savefig('./inference_times.png')
+    
+def text_to_featuremaps(path:str)->np.ndarray:
+    """
+    Reads a text file containing feature maps and returns them as a numpy array.
+    Args:
+        path (str): Path to the text file containing the feature maps.
+    Returns:
+        np.ndarray: Feature maps as a numpy array of shape (44, 28, 28)
+    """
+    feature_maps = []
+    
+    with open(path, "r") as file:
+        lines = file.readlines()
+    
+    # Find the start of the feature maps
+    start_idx = None
+    for i, line in enumerate(lines):
+        if "INFO [conv2d] Feature map 0:" in line:
+            start_idx = i + 1  # Start from the next line
+            break
 
+    if start_idx is None:
+        raise ValueError("Feature map start not found in the file.")
+    
+    # Read 44 feature maps, each consisting of 28x28 lines
+    num_feature_maps = 44
+    feature_map_size = 28 * 28
+
+    for i in range(num_feature_maps):
+        # Skip the first two lines (header and empty line)
+        start = start_idx + i * (feature_map_size + 2)
+        end = start + feature_map_size
+        feature_map = np.array([float(x.strip()) for x in lines[start:end]]).reshape(28, 28)
+        feature_maps.append(feature_map)
+
+    return np.array(feature_maps)  # Shape: (44, 28, 28)
+
+
+def compare_results(dut_produced:np.ndarray, ideal:np.ndarray):
+    
+    worst_err = 0.0
+    total_error = 0.0
+    for map_idx in range(dut_produced.shape[0]):
+        for row in range(dut_produced.shape[1]):
+            for col in range(dut_produced.shape[2]):
+                
+                error = abs(dut_produced[map_idx][row][col] - ideal[map_idx][row][col])
+                total_error += error
+                
+                if(error > worst_err):
+                    worst_err = error
+                
+    avg_error = total_error / (dut_produced.shape[0] * dut_produced.shape[1] * dut_produced.shape[2])
+    # print(f"INFO [inference.py] Total error: {total_error:.6f}")
+    # print(f"INFO [inference.py] Average error per pixel: {avg_error:.6f} ({(avg_error*255):.6f})")
+    
+    return total_error, avg_error, worst_err
+    
+    
 if __name__ == '__main__':
     tstart = time.time()
     print(f"INFO [inference.py] Starting script at {tstart}")
@@ -230,7 +288,6 @@ if __name__ == '__main__':
     #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
 
     low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
-    # Ensure it's float type for compatibility with neural networks
     low_res_coin = low_res_coin.float()
     # print(low_res_coin)
 
@@ -241,19 +298,42 @@ if __name__ == '__main__':
     # print(low_res_coin.shape[0])
     # print(low_res_coin[0][0]) # Red color channel of image coin tile
     # exit()
+    
+    # Read the simulation log results
+    dut_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_1shot.log')
+    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/csim_pe_loops.log')
 
-    inference = model.feature_extraction(low_res_coin.to(device))
-    # print(inference.cpu().detach().numpy()[0,0,0])
-    # print(inference.cpu().detach().numpy()[0,0,1])
-    # print(inference.cpu().detach().numpy()[0,0,2])
-    print("INFO [inference.py] Firsrt Feature map from feature extraction: ")
-    for value in inference.cpu().detach().numpy()[0,0,0]:
-        print(f'{value:9.6f}')
+    inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
+    # for value in inference.cpu().detach().numpy()[0,0,0]:
+        # print(f'{value:9.6f}')
         
-    # loss = criterion(inference, hi_res_truth)
+    total_err, avg_err, worst_err = compare_results(dut_produced, inference)    
+    print("1-shot:")
+    print(f'INFO [inference.py] Total error from 1 shot:     {total_err:0.6f}')
+    print(f'INFO [inference.py] Average error from 1 shot:   {avg_err:0.6f} --> {avg_err * 255:0.6f}')
+    print(f'INFO [inference.py] Worst error from 1 shot:     {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    
+    total_err, avg_err, worst_err = compare_results(pe_loop_produced, inference)    
+    print("PE Loops:")
+    print(f'INFO [inference.py] Total error from PE loops:   {total_err:0.6f}')
+    print(f'INFO [inference.py] Average error from PE loops: {avg_err:0.6f} --> {avg_err * 255:0.6f}')
+    print(f'INFO [inference.py] Worst error from PE loops:   {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    
+    diffs_pe = np.abs(pe_loop_produced - inference).flatten() * 255
+    diffs_1shot = np.abs(dut_produced - inference).flatten() * 255
 
-    tEnd = time.time()
-    print(f"INFO [inference.py] Ending script. Took {tEnd-tstart:.2f} seconds.")
-    print(f"INFO [inference.py] HH:MM:SS --> {sec_to_human(tEnd-tstart)}")
+    # Plot histograms
+    plt.hist(diffs_pe, bins=50, alpha=0.5, label="PE Loop", edgecolor='black', color='cyan')
+    plt.hist(diffs_1shot, bins=50, alpha=0.5, label="1-Shot", edgecolor='black', color='red')
+
+    # Labels and title
+    plt.xlabel("Absolute Difference")
+    plt.ylabel("Frequency")
+    plt.title("Comparison of Absolute Differences - Extraction Layer")
+    plt.legend()  # Show the legend
+    plt.grid(True)
+
+    # Show plot
+    plt.show()
     
     
