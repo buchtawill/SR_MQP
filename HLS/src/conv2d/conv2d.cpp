@@ -112,7 +112,7 @@ void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, INPUT_WI
 
 		// Fill the meat and potatos 
 		for(int beat = 0; beat < BEATS_PER_ROW; beat++){
-		#pragma HLS PIPELINE II=3
+		#pragma HLS PIPELINE II=5
 			tmp_stream = in_stream.read();
 			
 			// 4 pixels per transfer from a 128-bit stream
@@ -1064,7 +1064,7 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 //	#pragma HLS BIND_STORAGE variable=tile_in type=bram
 	// #pragma HLS array_partition variable=tile_in dim=0 type=complete
 
-	// #pragma HLS DATAFLOW
+	 #pragma HLS DATAFLOW
 	prep_tile(in_stream, tile_in);
 
 	conv_feature_extraction0(tile_in, map_extraction);
@@ -1085,17 +1085,3 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	}
 }
 
-
-
-/*
-
-Pseudo code for convolution operation with FIFOs
- - Each input channel will be in its own FIFO
- - There will be (kernel_height - 1) FIFOs in each processing element
- - For a 28 x 28 input tile with a kernel of 5, there will be 2x2 padding to make a 32 x 32 tile
- - For design simplicity, even though zero padding is used, just pretend that it's a 32x32 tile and 
-   all convolution happens inside. i.e. no edge or corner cases
-
-   
-
- */
