@@ -11,6 +11,7 @@
 #define CHANNELS 3
 
 #define SCALE_FACTOR 2
+#define SCALE 2
 #define WIDTH_OUT (WIDTH_IN * SCALE_FACTOR)
 #define HEIGHT_OUT (HEIGHT_IN * SCALE_FACTOR)
 #define PIXELS_IN (WIDTH_IN * HEIGHT_IN)
@@ -23,6 +24,8 @@
 #define NUM_TRANSFERS_IN (WIDTH_IN*HEIGHT_IN/PIXELS_PER_TRANSFER)
 #define NUM_TRANSFERS_OUT (NUM_TRANSFERS_IN*SCALE_FACTOR*SCALE_FACTOR)
 
+#define BUFFER 1
+
 // Define pixel_t as an 8-bit unsigned integer
 typedef ap_uint<24> pixel_t; // 8-bit per channel for each pixel
 typedef ap_uint<8> channel_t;
@@ -34,13 +37,6 @@ typedef ap_uint<32> full_pixel;
 typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
 
 void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
-
-std::vector<uint8_t> bilinearInterpolation(
-    const std::vector<uint8_t>& image,
-    int width,
-    int height,
-    int channels,
-    float scale);
 
 #define SLIDER_WIDTH_IN 7
 #define SLIDER_HEIGHT_IN 7
