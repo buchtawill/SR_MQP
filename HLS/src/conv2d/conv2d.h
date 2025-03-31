@@ -25,23 +25,23 @@
 
 #define IN_CHN_LAYER_MAP0    12
 #define OUT_CHN_LAYER_MAP0   12
-#define NUM_PE_LAYER_MAP0    4
+#define NUM_PE_LAYER_MAP0    2
 
 #define IN_CHN_LAYER_MAP2    12
 #define OUT_CHN_LAYER_MAP2   12
-#define NUM_PE_LAYER_MAP2    4
+#define NUM_PE_LAYER_MAP2    2
 
 #define IN_CHN_LAYER_MAP4    12
 #define OUT_CHN_LAYER_MAP4   12
-#define NUM_PE_LAYER_MAP4    4
+#define NUM_PE_LAYER_MAP4    2
 
 #define IN_CHN_LAYER_MAP6    12
 #define OUT_CHN_LAYER_MAP6   12
-#define NUM_PE_LAYER_MAP6    4
+#define NUM_PE_LAYER_MAP6    2
 
 #define IN_CHN_LAYER_EXPAND0    12
 #define OUT_CHN_LAYER_EXPAND0   44
-#define NUM_PE_LAYER_EXPAND0    2
+#define NUM_PE_LAYER_EXPAND0    1
 
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
 
@@ -52,7 +52,7 @@ typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<36, 5, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;

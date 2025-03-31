@@ -272,7 +272,7 @@ def compare_5x5_conv(ideal_inference:np.ndarray):
     print(f'INFO [inference.py] Worst error from PE loops:   {worst_err:0.6f} --> {worst_err * 255:0.6f}')
     
     print("INFO [inference.py] Max difference between PE loop and python generated: ")
-    print(np.max(np.abs(pe_loop_produced - python_generated)))
+    # print(np.max(np.abs(pe_loop_produced - python_generated)))
     
     diffs_pe = np.abs(python_generated - ideal_inference).flatten() * 255
     diffs_1shot = np.abs(one_shot_conv - ideal_inference).flatten() * 255
@@ -334,19 +334,33 @@ if __name__ == '__main__':
     
     # Change shape from (28, 28, 3) → (1, 3, 28, 28) for pytorch
     low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
-    inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
+    # inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
     inference = model.feature_extraction(low_res_coin.to(device))
     inference = model.shrink(inference)
     inference = model.map(inference)
-    inference = model.expand(inference).squeeze(0).cpu().detach().numpy()
+    inference = model.expand(inference)
+    
+    inference = inference.squeeze(0).cpu().detach().numpy()
     # compare_5x5_conv(inference)
     # exit()
     
-    last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_deconv.log', 44)
-    errors = np.abs(inference - last_conv)
-    print(np.mean(errors))
-    print(np.max(errors))
+    last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_top_csim.log', 44)
+    errors = np.abs(inference - last_conv).flatten()
+    avg = np.mean(errors)
+    worst = np.max(errors)
+    print(f"Average error: {avg:9.6f} --> {avg*256:.6f}")
+    print(f"Worst error:   {worst:9.6f} --> {worst*256:.6f}")
     
+    plt.hist(errors*256, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
+    # Labels and title
+    plt.xlabel("Absolute Difference")
+    plt.ylabel("Frequency")
+    plt.title("Comparison of Absolute Differences - Before deconv")
+    plt.legend()  # Show the legend
+    plt.grid(True)
+
+    # Show plot
+    plt.show()
     # lower_bound = -1.0
     # upper_bound = 1.0
     # input_tensor = ((upper_bound - lower_bound) * torch.rand(1, 12, 28, 28)) + lower_bound
