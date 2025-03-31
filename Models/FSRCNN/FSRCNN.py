@@ -35,7 +35,7 @@ class FSRCNN(nn.Module):
         self.color_space = color_space
         self.input_channels = 3 if (color_space == 'rgb') else 1
         
-        print("INFO [FSRCNN.py::__init__()] Num input channels:", self.input_channels)
+        # print("INFO [FSRCNN.py::__init__()] Num input channels:", self.input_channels)
         
         # Feature extraction layer.
         self.feature_extraction = nn.Sequential(

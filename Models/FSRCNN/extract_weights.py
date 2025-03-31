@@ -25,22 +25,98 @@ def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weigh
     weights = weights.numpy()  # Convert to NumPy array
     shape = weights.shape
     
-    print(f"const fixed_4_8_t weights[{shape[0]}][{shape[1]}][{shape[2]}][{shape[3]}] = {{")
-    for i in range(shape[0]):
-    # for i in range(1):
-        print("    // Filter", i)
-        print("    {")
-        for j in range(shape[1]):
-            print("        {   // Channel", j)
-            for k in range(shape[2]):
-                row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
-                print(f"            {{ {row_values} }},")
-            print("        },")
-        print("    },")
-    print("};")
+    strsplit = tensor_name.split('.')
+    layer_num = int(strsplit[1])
+    layer_name = f"{strsplit[0]}"
+    
+    # Bias or prelu
+    if("bias" in tensor_name):
+        print(f"const fixed_4_8_t conv_{layer_name}{layer_num}_bias[{weights.shape[0]}] = {{")
+        for i in range(len(weights)):
+            if(i != len(weights) - 1):
+                print(f"    {weights[i]:11.8f}, ")
+            else:
+                print(f"    {weights[-1]:11.8f}")
+        
+        print("};\n")
+        
+    elif(len(shape) == 1):
+        print(f"const fixed_4_8_t conv_{layer_name}{layer_num-1}_prelu[{weights.shape[0]}] = {{")
+        for i in range(len(weights)):
+            if(i != len(weights) - 1):
+                print(f"    {weights[i]:11.8f}, ")
+            else:
+                print(f"    {weights[-1]:11.8f}")
+        print("};\n")
+    
+    # convolution layer
+    elif(len(shape) == 4):
+        
+        # 1x1 kernel
+        if(shape[2] == 1 and shape[3] == 1):
+            # 12 filters, each has 44 elements
+            print(f"const fixed_4_8_t weights_layer_{layer_name}{layer_num}[{shape[0]}][{shape[1]}] = {{")
+            for i in range(shape[0]):
+                print("    {", end='')
+                for j in range(shape[1]):                    
+                    if((j) % 10 == 0):
+                        print("\n        ", end='')                        
+                        
+                    # Input channel
+                    if(j != (shape[1] - 1)):
+                        print(f"{weights[i][j][0][0]:11.8f}, ", end='')
+                    else:
+                        print(f"{weights[i][j][0][0]:11.8f} ")
+                        
+                        
+                if(i != (shape[0] - 1)):
+                    print("    },")
+                else:
+                    print("    }")
+                    
+                    
+            print("};\n")
+            
+        # Not a 1x1 kernel
+        else:
+            print(f"const fixed_4_8_t weights_layer_{layer_name}{layer_num}[{shape[0]}][{shape[1]}][{shape[2]}][{shape[3]}] = {{")
+            for i in range(shape[0]):
+            # for i in range(1):
+                print("    // Filter", i)
+                print("    {")
+                for j in range(shape[1]):
+                    print("        {   // Channel", j)
+                    for k in range(shape[2]):
+                        row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
+                        print(f"            {{ {row_values} }},")
+                    print("        },")
+                print("    },")
+            print("};\n")
+    else:
+        print("ERROR")
     
 def print_model_summary(model, batch_size, in_channels, height, width):
     torchinfo.summary(model, input_size=(batch_size, in_channels, height, width))
+
+def find_extreme_weights(state_dict):
+    global_min = float('inf')
+    global_max = float('-inf')
+    
+    # Iterate over all parameters in the state_dict
+    for param_name, param_tensor in state_dict.items():
+        # if 'weight' in param_name:  # Ensure we're only looking at weight tensors
+        param_min = param_tensor.min().item()
+        param_max = param_tensor.max().item()
+        
+        if param_min < global_min:
+            global_min = param_min
+            min_param_name = param_name
+            
+        if param_max > global_max:
+            global_max = param_max
+            max_param_name = param_name
+
+    return global_min, min_param_name, global_max, max_param_name
     
 if __name__ == '__main__':
     tstart = time.time()
@@ -65,28 +141,46 @@ if __name__ == '__main__':
     # print(state_dict['feature_extraction.0.bias'])
     # print(state_dict['feature_extraction.0.weight'][0]) # Conv2D weights
 
-    global_min = float('inf')
-    global_max = float('-inf')
-    
     # print_weights_as_c_array(state_dict)
     # exit()
-
-    # Iterate over all parameters in the state_dict
     for param_name, param_tensor in state_dict.items():
-        
-        print(param_name)
-        # if 'weight' in param_name:  # Ensure we're only looking at weight tensors
-        param_min = param_tensor.min().item()
-        param_max = param_tensor.max().item()
-            
-        if param_min < global_min:
-            global_min = param_min
-            min_param_name = param_name
-            
-        if param_max > global_max:
-            global_max = param_max
-            max_param_name = param_name
+        if("deconv" not in param_name):
+            print_weights_as_c_array(state_dict, param_name)
+    """
+    feature_extraction.0.weight
+    feature_extraction.0.bias
+    feature_extraction.1.weight
+    shrink.0.weight
+    shrink.0.bias
+    shrink.1.weight
+    map.0.weight
+    map.0.bias
+    map.1.weight
+    map.2.weight
+    map.2.bias
+    map.3.weight
+    map.4.weight
+    map.4.bias
+    map.5.weight
+    map.6.weight
+    map.6.bias
+    map.7.weight
+    expand.0.weight
+    expand.0.bias
+    expand.1.weight
+    deconv.weight
+    deconv.bias
+    """
+    
+    # print(state_dict['shrink.0.weight'].shape) # Conv2D weights
+    # print_weights_as_c_array(state_dict, tensor_name="deconv.weight")
+    # print(state_dict['deconv.weight'].shape)
+    # print(state_dict['feature_extraction.0.weight'].shape) # Conv2D weights
+    
 
-    print(f"The smallest weight is {global_min:.6f} found in {min_param_name}")
-    print(f"The largest weight is  {global_max:.6f} found in {max_param_name}")
+    # global_min, min_param_name, global_max, max_param_name = find_extreme_weights(state_dict)
+    # print(f"Global min: {global_min}, Parameter: {min_param_name}")
+    # print(f"Global max: {global_max}, Parameter: {max_param_name}")
+
+    
     

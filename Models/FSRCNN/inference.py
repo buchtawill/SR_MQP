@@ -15,6 +15,8 @@ from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
+from torch.nn import functional as F
+
 NUM_EPOCHS = 100
 BATCH_SIZE = 16
 LEARN_RATE = 0.0005
@@ -190,11 +192,12 @@ def plot_inference_times():
     plt.plot(batch_sizes, inference_times)
     plt.savefig('./inference_times.png')
     
-def text_to_featuremaps(path:str)->np.ndarray:
+def text_to_featuremaps(path:str, num_feature_maps)->np.ndarray:
     """
     Reads a text file containing feature maps and returns them as a numpy array.
     Args:
         path (str): Path to the text file containing the feature maps.
+        num_feature_maps (int): Number of feature maps to read from the file.
     Returns:
         np.ndarray: Feature maps as a numpy array of shape (44, 28, 28)
     """
@@ -214,7 +217,6 @@ def text_to_featuremaps(path:str)->np.ndarray:
         raise ValueError("Feature map start not found in the file.")
     
     # Read 44 feature maps, each consisting of 28x28 lines
-    num_feature_maps = 44
     feature_map_size = 28 * 28
 
     for i in range(num_feature_maps):
@@ -224,11 +226,13 @@ def text_to_featuremaps(path:str)->np.ndarray:
         feature_map = np.array([float(x.strip()) for x in lines[start:end]]).reshape(28, 28)
         feature_maps.append(feature_map)
 
-    return np.array(feature_maps)  # Shape: (44, 28, 28)
+    return np.array(feature_maps)  # Shape: (num_feature_maps, 28, 28)
 
 
 def compare_results(dut_produced:np.ndarray, ideal:np.ndarray):
-    
+    """
+    TODO: Rewrite to use numpy functions instead of for loops
+    """
     worst_err = 0.0
     total_error = 0.0
     for map_idx in range(dut_produced.shape[0]):
@@ -247,6 +251,45 @@ def compare_results(dut_produced:np.ndarray, ideal:np.ndarray):
     
     return total_error, avg_error, worst_err
     
+
+def compare_5x5_conv(ideal_inference:np.ndarray):
+    # Read the simulation log results
+    one_shot_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_1shot.log', 44)
+    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_even.log', 44)
+    python_generated = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_python_5x5.log', 44)
+    
+    # 1 shot: Somewhat ideal case
+    total_err, avg_err, worst_err = compare_results(one_shot_conv, ideal_inference)    
+    print("1-shot:")
+    print(f'INFO [inference.py] Total error from 1 shot:     {total_err:0.6f}')
+    print(f'INFO [inference.py] Average error from 1 shot:   {avg_err:0.6f} --> {avg_err * 255:0.6f}')
+    print(f'INFO [inference.py] Worst error from 1 shot:     {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    
+    total_err, avg_err, worst_err = compare_results(python_generated, ideal_inference)    
+    print("PE Loops:")
+    print(f'INFO [inference.py] Total error from PE loops:   {total_err:0.6f}')
+    print(f'INFO [inference.py] Average error from PE loops: {avg_err:0.6f} --> {avg_err * 255:0.6f}')
+    print(f'INFO [inference.py] Worst error from PE loops:   {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    
+    print("INFO [inference.py] Max difference between PE loop and python generated: ")
+    print(np.max(np.abs(pe_loop_produced - python_generated)))
+    
+    diffs_pe = np.abs(python_generated - ideal_inference).flatten() * 255
+    diffs_1shot = np.abs(one_shot_conv - ideal_inference).flatten() * 255
+
+    # Plot histograms
+    plt.hist(diffs_pe, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
+    plt.hist(diffs_1shot, bins=50, alpha=0.5, label="1-Shot", edgecolor='black', color='red')
+
+    # Labels and title
+    plt.xlabel("Absolute Difference")
+    plt.ylabel("Frequency")
+    plt.title("Comparison of Absolute Differences - Extraction Layer")
+    plt.legend()  # Show the legend
+    plt.grid(True)
+
+    # Show plot
+    plt.show()
     
 if __name__ == '__main__':
     tstart = time.time()
@@ -285,56 +328,32 @@ if __name__ == '__main__':
     # valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=True)
     # test_dataloader  = torch.utils.data.DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=True)
     # print(f'INFO [inference.py] Num training batches: {len(train_dataloader)}')
-    #scheduler = StepLR(optimizer=optimizer, step_size=20, gamma=0.5)
 
     low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
     low_res_coin = low_res_coin.float()
-    # print(low_res_coin)
-
-    # Change shape from (28, 28, 3) → (1, 3, 28, 28)
+    
+    # Change shape from (28, 28, 3) → (1, 3, 28, 28) for pytorch
     low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
-    # print("Low res coin:")
-    # print(low_res_coin.shape)
-    # print(low_res_coin.shape[0])
-    # print(low_res_coin[0][0]) # Red color channel of image coin tile
+    inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
+    inference = model.feature_extraction(low_res_coin.to(device))
+    inference = model.shrink(inference)
+    inference = model.map(inference)
+    inference = model.expand(inference).squeeze(0).cpu().detach().numpy()
+    # compare_5x5_conv(inference)
     # exit()
     
-    # Read the simulation log results
-    dut_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_1shot.log')
-    # pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/csim_pe_loops.log')
-    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_even.log')
-
-    inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
-    # for value in inference.cpu().detach().numpy()[0,0,0]:
-        # print(f'{value:9.6f}')
-        
-    total_err, avg_err, worst_err = compare_results(dut_produced, inference)    
-    print("1-shot:")
-    print(f'INFO [inference.py] Total error from 1 shot:     {total_err:0.6f}')
-    print(f'INFO [inference.py] Average error from 1 shot:   {avg_err:0.6f} --> {avg_err * 255:0.6f}')
-    print(f'INFO [inference.py] Worst error from 1 shot:     {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_deconv.log', 44)
+    errors = np.abs(inference - last_conv)
+    print(np.mean(errors))
+    print(np.max(errors))
     
-    total_err, avg_err, worst_err = compare_results(pe_loop_produced, inference)    
-    print("PE Loops:")
-    print(f'INFO [inference.py] Total error from PE loops:   {total_err:0.6f}')
-    print(f'INFO [inference.py] Average error from PE loops: {avg_err:0.6f} --> {avg_err * 255:0.6f}')
-    print(f'INFO [inference.py] Worst error from PE loops:   {worst_err:0.6f} --> {worst_err * 255:0.6f}')
+    # lower_bound = -1.0
+    # upper_bound = 1.0
+    # input_tensor = ((upper_bound - lower_bound) * torch.rand(1, 12, 28, 28)) + lower_bound
+    # example_3x3_inference = model.map[:2](input_tensor.to(device)).squeeze(0).cpu().detach().numpy()
+    # print(example_3x3_inference.shape)
+    # print(example_3x3_inference[0][0])
+    # # print(input_tensor.squeeze(0).detach().numpy())
     
-    diffs_pe = np.abs(pe_loop_produced - inference).flatten() * 255
-    diffs_1shot = np.abs(dut_produced - inference).flatten() * 255
-
-    # Plot histograms
-    plt.hist(diffs_pe, bins=50, alpha=0.5, label="PE Loop", edgecolor='black', color='cyan')
-    plt.hist(diffs_1shot, bins=50, alpha=0.5, label="1-Shot", edgecolor='black', color='red')
-
-    # Labels and title
-    plt.xlabel("Absolute Difference")
-    plt.ylabel("Frequency")
-    plt.title("Comparison of Absolute Differences - Extraction Layer")
-    plt.legend()  # Show the legend
-    plt.grid(True)
-
-    # Show plot
-    plt.show()
-    
+    # deconv = F.conv_transpose2d()
     
