@@ -432,9 +432,14 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
+	in_stream.set_name("In Stream");
+
 	// Declare FIFOs for pixel values
 	hls::stream<pixel_t> fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
 	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
+
+	fifo_first_0.set_name("FF0");
+	fifo_second_0.set_name("FS0");
 
 
 	//Stream values in and store pixel values in FIFOs
@@ -477,10 +482,11 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
 			//RIGHT NOW HARDCODED, BUT IN LOOP TO MAKE VARIABLE
-			bilinear_interpolation_calculations(image_section, 0, 0, upscaled_sections[section_upscaled]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN, upscaled_sections[section_upscaled+1]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN*2, upscaled_sections[section_upscaled+2]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN*3, upscaled_sections[section_upscaled+3]);
+			//parameters: section to upscale, x_start, y_start, upscaled section
+			bilinear_interpolation_calculations(image_section, 0, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled]);
+			bilinear_interpolation_calculations(image_section, 7, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+1]);
+			bilinear_interpolation_calculations(image_section, 14, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+2]);
+			bilinear_interpolation_calculations(image_section, 21, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+3]);
 			section_upscaled = section_upscaled + 4;
 			row_sliced++;
 		}
@@ -491,10 +497,10 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
-			bilinear_interpolation_calculations(image_section, 0, 0, upscaled_sections[section_upscaled]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN, upscaled_sections[section_upscaled+1]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN*2, upscaled_sections[section_upscaled+2]);
-			bilinear_interpolation_calculations(image_section, 0, SLIDER_WIDTH_IN*3, upscaled_sections[section_upscaled+3]);
+			bilinear_interpolation_calculations(image_section, 0, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled]);
+			bilinear_interpolation_calculations(image_section, 7, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+1]);
+			bilinear_interpolation_calculations(image_section, 14, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+2]);
+			bilinear_interpolation_calculations(image_section, 21, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+3]);
 			section_upscaled = section_upscaled + 4;
 			row_sliced++;
 		}
