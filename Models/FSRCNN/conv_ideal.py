@@ -314,7 +314,7 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
     func += f"                        if(pe_loop == 0) next_data = tile_in[ch].read();\n"
     if(num_pe < out_ch):
         func += f"                        else             next_data = inbuf[ch].read();\n\n"
-    func += f"                        slider[ch][{kernel_size-1}] = next_data;\n"
+    func += f"                        slider[ch][idx] = next_data;\n"
     if(num_pe < out_ch):
         func +=  "                        if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);\n"
     func +=  "                    }\n" # else not middle
@@ -359,7 +359,7 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
     
     func += f"                        fixed_4_8_t "
 
-    for i in range(kernel_size-1):
+    for i in range(1,kernel_size-1):
         func += f"row{i}_psum, "
     func += f"row{kernel_size-1}_psum;\n"
     
@@ -493,13 +493,13 @@ if __name__ == '__main__':
     expand_body, expand_defines = make_hls_1x1('expand0', in_ch=12, out_ch=44, in_width_pix=28, num_pe=2)
     
     # The defines
-    print(extraction_defines[0])
-    print(shrink_defines[0])
-    print(map0_defines[0])
-    print(map2_defines[0])
-    print(map4_defines[0])
-    print(map6_defines[0])
-    print(expand_defines[0])
+    # print(extraction_defines[0])
+    # print(shrink_defines[0])
+    # print(map0_defines[0])
+    # print(map2_defines[0])
+    # print(map4_defines[0])
+    # print(map6_defines[0])
+    # print(expand_defines[0])
     
     # The weight array declarations
     # print(extraction_defines[1])
@@ -510,10 +510,10 @@ if __name__ == '__main__':
     # print(map6_defines[1])
     # print(expand_defines[1])
     
-    # print(extraction_func)
-    # print(shrink_body)
-    # print(map0_body)
-    # print(map2_body)
-    # print(map4_body)
-    # print(map6_body)
-    # print(expand_body)
+    print(extraction_func)
+    print(shrink_body)
+    print(map0_body)
+    print(map2_body)
+    print(map4_body)
+    print(map6_body)
+    print(expand_body)

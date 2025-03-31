@@ -489,7 +489,7 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
                         if(pe_loop == 0) next_data = tile_in[ch].read();
                         else             next_data = inbuf[ch].read();
 
-                        slider[ch][4] = next_data;
+                        slider[ch][idx] = next_data;
                         if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);
                     }
                 }
@@ -523,7 +523,7 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
                     for(int ch = 0; ch < IN_CHN_LAYER_FEATURE_EXTRACTION0; ch++){
                         #pragma HLS UNROLL
                         fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
-                        fixed_4_8_t row0_psum, row1_psum, row2_psum, row3_psum, row4_psum;
+                        fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
                         if(row < 28){
                             mac0 = perform_mac5(weights_layer_feature_extraction0[filter][ch][0], slider[ch]);
                             psum1[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].write(mac0);
@@ -641,7 +641,7 @@ void conv_map0(ch_stream_t tile_in[IN_CHN_LAYER_MAP0], ch_stream_t map_out[OUT_C
                         if(pe_loop == 0) next_data = tile_in[ch].read();
                         else             next_data = inbuf[ch].read();
 
-                        slider[ch][2] = next_data;
+                        slider[ch][idx] = next_data;
                         if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);
                     }
                 }
@@ -675,7 +675,7 @@ void conv_map0(ch_stream_t tile_in[IN_CHN_LAYER_MAP0], ch_stream_t map_out[OUT_C
                     for(int ch = 0; ch < IN_CHN_LAYER_MAP0; ch++){
                         #pragma HLS UNROLL
                         fixed_4_8_t mac0, mac1, mac2;
-                        fixed_4_8_t row0_psum, row1_psum, row2_psum;
+                        fixed_4_8_t row1_psum, row2_psum;
                         if(row < 28){
                             mac0 = perform_mac3(weights_layer_map0[filter][ch][0], slider[ch]);
                             psum1[filter % NUM_PE_LAYER_MAP0][ch].write(mac0);
@@ -739,7 +739,7 @@ void conv_map2(ch_stream_t tile_in[IN_CHN_LAYER_MAP2], ch_stream_t map_out[OUT_C
                         if(pe_loop == 0) next_data = tile_in[ch].read();
                         else             next_data = inbuf[ch].read();
 
-                        slider[ch][2] = next_data;
+                        slider[ch][idx] = next_data;
                         if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);
                     }
                 }
@@ -773,7 +773,7 @@ void conv_map2(ch_stream_t tile_in[IN_CHN_LAYER_MAP2], ch_stream_t map_out[OUT_C
                     for(int ch = 0; ch < IN_CHN_LAYER_MAP2; ch++){
                         #pragma HLS UNROLL
                         fixed_4_8_t mac0, mac1, mac2;
-                        fixed_4_8_t row0_psum, row1_psum, row2_psum;
+                        fixed_4_8_t row1_psum, row2_psum;
                         if(row < 28){
                             mac0 = perform_mac3(weights_layer_map2[filter][ch][0], slider[ch]);
                             psum1[filter % NUM_PE_LAYER_MAP2][ch].write(mac0);
@@ -837,7 +837,7 @@ void conv_map4(ch_stream_t tile_in[IN_CHN_LAYER_MAP4], ch_stream_t map_out[OUT_C
                         if(pe_loop == 0) next_data = tile_in[ch].read();
                         else             next_data = inbuf[ch].read();
 
-                        slider[ch][2] = next_data;
+                        slider[ch][idx] = next_data;
                         if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);
                     }
                 }
@@ -871,7 +871,7 @@ void conv_map4(ch_stream_t tile_in[IN_CHN_LAYER_MAP4], ch_stream_t map_out[OUT_C
                     for(int ch = 0; ch < IN_CHN_LAYER_MAP4; ch++){
                         #pragma HLS UNROLL
                         fixed_4_8_t mac0, mac1, mac2;
-                        fixed_4_8_t row0_psum, row1_psum, row2_psum;
+                        fixed_4_8_t row1_psum, row2_psum;
                         if(row < 28){
                             mac0 = perform_mac3(weights_layer_map4[filter][ch][0], slider[ch]);
                             psum1[filter % NUM_PE_LAYER_MAP4][ch].write(mac0);
@@ -935,7 +935,7 @@ void conv_map6(ch_stream_t tile_in[IN_CHN_LAYER_MAP6], ch_stream_t map_out[OUT_C
                         if(pe_loop == 0) next_data = tile_in[ch].read();
                         else             next_data = inbuf[ch].read();
 
-                        slider[ch][2] = next_data;
+                        slider[ch][idx] = next_data;
                         if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);
                     }
                 }
@@ -969,7 +969,7 @@ void conv_map6(ch_stream_t tile_in[IN_CHN_LAYER_MAP6], ch_stream_t map_out[OUT_C
                     for(int ch = 0; ch < IN_CHN_LAYER_MAP6; ch++){
                         #pragma HLS UNROLL
                         fixed_4_8_t mac0, mac1, mac2;
-                        fixed_4_8_t row0_psum, row1_psum, row2_psum;
+                        fixed_4_8_t row1_psum, row2_psum;
                         if(row < 28){
                             mac0 = perform_mac3(weights_layer_map6[filter][ch][0], slider[ch]);
                             psum1[filter % NUM_PE_LAYER_MAP6][ch].write(mac0);

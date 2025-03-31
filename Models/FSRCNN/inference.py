@@ -346,14 +346,22 @@ if __name__ == '__main__':
     
     last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_top_csim.log', 44)
     errors = np.abs(inference - last_conv).flatten()
-    avg = np.mean(errors)
-    worst = np.max(errors)
-    print(f"Average error: {avg:9.6f} --> {avg*256:.6f}")
-    print(f"Worst error:   {worst:9.6f} --> {worst*256:.6f}")
     
-    plt.hist(errors*256, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
+    pct_errors = np.abs((inference - last_conv) / inference).flatten() * 100
+    cutoff = 30
+    horrendously_wrong = pct_errors[pct_errors >= cutoff]
+    pct_errors = pct_errors[pct_errors < cutoff]
+    print(f"Percent of values < 5% error: {len(pct_errors[pct_errors < 5]) / len(pct_errors) * 100: 0.2f}")
+    avg = np.mean(pct_errors)
+    worst = np.max(pct_errors)
+    # print(f"Average error: {avg:9.6f} --> {avg*256:.6f}")
+    print(f"Average error: {avg:9.6f}")
+    # print(f"Worst error:   {worst:9.6f} --> {worst*256:.6f}")
+    print(f"Worst error:   {worst:9.6f}")
+    
+    plt.hist(pct_errors, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
     # Labels and title
-    plt.xlabel("Absolute Difference")
+    plt.xlabel("Percent Error")
     plt.ylabel("Frequency")
     plt.title("Comparison of Absolute Differences - Before deconv")
     plt.legend()  # Show the legend
