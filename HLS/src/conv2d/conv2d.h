@@ -52,7 +52,8 @@ typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+// typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef float fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;

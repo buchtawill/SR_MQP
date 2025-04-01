@@ -341,8 +341,6 @@ if __name__ == '__main__':
     # inference = model.expand(inference)
     
     inference = inference.squeeze(0).cpu().detach().numpy()
-    # print(inference[0][0])
-    # exit()
     # compare_5x5_conv(inference)
     # exit()
     
@@ -356,28 +354,26 @@ if __name__ == '__main__':
     print(f"Percent of values < 5% error: {len(pct_errors[pct_errors < 5]) / len(pct_errors) * 100: 0.2f}")
     avg = np.mean(pct_errors)
     worst = np.max(pct_errors)
-    # print(f"Average error: {avg:9.6f} --> {avg*256:.6f}")
     print(f"Average error: {avg:9.6f}")
-    # print(f"Worst error:   {worst:9.6f} --> {worst*256:.6f}")
     print(f"Worst error:   {worst:9.6f}")
     
-    plt.hist(pct_errors, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
-    # Labels and title
-    plt.xlabel("Percent Error")
-    plt.ylabel("Frequency")
-    plt.title("Comparison of Absolute Differences - Before deconv")
-    plt.legend()  # Show the legend
-    plt.grid(True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharey=True, figsize=(5, 8))
 
-    # Show plot
+    # First histogram (percent error)
+    ax1.hist(pct_errors, bins=50, alpha=0.5, label="Percent Error", edgecolor='black', color='cyan')
+    ax1.set_xlabel("Percent Error")
+    ax1.set_ylabel("Frequency")
+    ax1.set_title("Histogram of Percent Error")
+    ax1.legend()
+    ax1.grid(True)
+
+    # Second histogram (absolute errors)
+    ax2.hist(errors, bins=50, alpha=0.5, label="Absolute Error", edgecolor='black', color='red')
+    ax2.set_xlabel("Absolute Error")
+    ax2.set_ylabel("Frequency")
+    ax2.set_title("Histogram of Absolute Error")
+    ax2.legend()
+    ax2.grid(True)
+
+    plt.tight_layout()
     plt.show()
-    # lower_bound = -1.0
-    # upper_bound = 1.0
-    # input_tensor = ((upper_bound - lower_bound) * torch.rand(1, 12, 28, 28)) + lower_bound
-    # example_3x3_inference = model.map[:2](input_tensor.to(device)).squeeze(0).cpu().detach().numpy()
-    # print(example_3x3_inference.shape)
-    # print(example_3x3_inference[0][0])
-    # # print(input_tensor.squeeze(0).detach().numpy())
-    
-    # deconv = F.conv_transpose2d()
-    
