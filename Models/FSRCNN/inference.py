@@ -341,6 +341,7 @@ if __name__ == '__main__':
     # inference = model.expand(inference)
     
     inference = inference.squeeze(0).cpu().detach().numpy()
+    print(inference[0,0])
     # compare_5x5_conv(inference)
     # exit()
     
@@ -357,7 +358,7 @@ if __name__ == '__main__':
     print(f"Average error: {avg:9.6f}")
     print(f"Worst error:   {worst:9.6f}")
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharey=True, figsize=(5, 8))
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharey=True, figsize=(8, 5))
 
     # First histogram (percent error)
     ax1.hist(pct_errors, bins=50, alpha=0.5, label="Percent Error", edgecolor='black', color='cyan')
