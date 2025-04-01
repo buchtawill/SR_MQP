@@ -342,6 +342,7 @@ if __name__ == '__main__':
     
     inference = inference.squeeze(0).cpu().detach().numpy()
     print(inference[0,0])
+    exit()
     # compare_5x5_conv(inference)
     # exit()
     

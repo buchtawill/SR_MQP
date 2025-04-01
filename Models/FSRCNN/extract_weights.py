@@ -87,7 +87,7 @@ def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weigh
                 for j in range(shape[1]):
                     print("        {   // Channel", j)
                     for k in range(shape[2]):
-                        row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
+                        row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
                         print(f"            {{ {row_values} }},")
                     print("        },")
                 print("    },")
@@ -143,9 +143,9 @@ if __name__ == '__main__':
 
     # print_weights_as_c_array(state_dict)
     # exit()
-    for param_name, param_tensor in state_dict.items():
-        if("deconv" not in param_name):
-            print_weights_as_c_array(state_dict, param_name)
+    # for param_name, param_tensor in state_dict.items():
+        # if("deconv" not in param_name):
+            # print_weights_as_c_array(state_dict, param_name)
     """
     feature_extraction.0.weight
     feature_extraction.0.bias
@@ -172,6 +172,17 @@ if __name__ == '__main__':
     deconv.bias
     """
     
+    print_weights_as_c_array(state_dict, 'feature_extraction.0.weight')
+    
+    exit()
+    conv_weights = state_dict['feature_extraction.0.weight'].detach().numpy()
+    conv_bias    = state_dict['feature_extraction.0.bias'].detach().numpy()
+    prelu_weight = state_dict['feature_extraction.1.weight'].detach().numpy()
+    
+    np.save('./saved_weights/extraction_conv_44w', conv_weights)
+    np.save('./saved_weights/extraction_conv_44b', conv_bias)
+    np.save('./saved_weights/extraction_conv_44pre', prelu_weight)
+       
     # print(state_dict['shrink.0.weight'].shape) # Conv2D weights
     # print_weights_as_c_array(state_dict, tensor_name="deconv.weight")
     # print(state_dict['deconv.weight'].shape)

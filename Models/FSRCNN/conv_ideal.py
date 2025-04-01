@@ -1,34 +1,6 @@
 import torch
 import numpy as np
 
-WEIGHTS = np.array(
-    [
-        [
-        [-0.11433014, -0.06428213,  0.04952151, -0.02263108,  0.02250793],
-        [-0.03798941, -0.00633621, -0.07827316,  0.03095409,  0.01443817],
-        [ 0.03689848, -0.09081642,  0.05860689,  0.06232064,  0.00874583],
-        [ 0.00830404, -0.09028250,  0.04836075,  0.01574024, -0.05474688],
-        [ 0.03897108, -0.06225232,  0.01753724,  0.02418811, -0.03822224]
-        ],
-        [
-        [ 0.00477085, -0.05933009, -0.04227761,  0.01911220, -0.06199792 ],
-        [-0.04209856, -0.06560600, -0.05108242,  0.08851463, -0.02541809 ],
-        [ 0.03671201, -0.03489959, -0.01189760, -0.06215083,  0.01050324 ],
-        [-0.00799513,  0.00076000,  0.01511470, -0.10405967,  0.01873976 ],
-        [-0.04879151,  0.01140088,  0.04946414,  0.01681182, -0.00011618 ]
-        ],
-    [
-        [-0.03623180,  0.02557710, -0.01484760, -0.01260940,  0.00872839 ],
-        [-0.00589560,  0.02435622, -0.06638044,  0.00577510,  0.00808473 ],
-        [ 0.01797765, -0.00885874,  0.16383554,  0.02077497,  0.00002132 ],
-        [-0.00601372, -0.02807183,  0.08771470, -0.03528251,  0.05220633 ],
-        [ 0.01051262,  0.00916464, -0.05010103,  0.00487509,  0.01671523 ]
-    ]
-])
-
-BIAS_1 = 0.0146
-PRELU_1 = 0.3086
-NUM_PE = 8
 
 WEIGHTS_DECONV = np.array([
     [ -0.01144055, -0.00907180,  0.01926787,  0.02713044,  0.02557711,  0.02497433,  0.01976402, -0.00352580, -0.00125133 ],
@@ -42,13 +14,118 @@ WEIGHTS_DECONV = np.array([
     [ -0.01988062, -0.00953092,  0.01441447,  0.01116130, -0.00873910, -0.01072958, -0.00984131, -0.00831538,  0.00630383 ]
 ])
 
-def get_real_conv_result(start_x, start_y, channel_arr):
-    result = np.sum(channel_arr[start_y:start_y+5, start_x:start_x+5] * WEIGHTS[0]) + BIAS_1
-    result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
-    return result
+# def get_real_conv_result(start_x, start_y, channel_arr):
+#     result = np.sum(channel_arr[start_y:start_y+5, start_x:start_x+5] * WEIGHTS[0]) + BIAS_1
+#     result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
+#     return result
 
+def prelu(value:float, weight:float):
+    if(value >= 0.0):
+        return value
+    
+    else:
+        return weight * value
 
-# def conv_5x5_fixed_pe()
+def low_level_extraction(input_streams, weight_matrix:np.ndarray, biases:np.ndarray, prelus:np.ndarray):
+    
+    in_ch  = 3
+    out_ch = 44
+    # Input: a list of 3 FIFOs (lists), each FIFO has 28*28 values (range 0-1)
+    # Output: a list of 44 FIFOs (lists), each FIFO has 28*28 values
+    output_streams = []
+    for i in range(out_ch):
+        output_streams.append([])
+    
+    # input_buffer = []
+    # for i in range(in_ch):
+    #     input_buffer.append([])
+    
+    # Each processing element will be 44 x 5
+    # psumx[channel, idx]
+    slider = np.zeros((in_ch, 5))
+    
+    psum1 = []
+    psum2 = []
+    psum3 = []
+    psum4 = []
+    
+    for i in range(out_ch):
+        psum1.append([])
+        psum2.append([])
+        psum3.append([])
+        psum4.append([])
+    
+    for row in range(32):
+        # 1. Prepare the slider
+        for ch in range(in_ch):
+            for idx in range(4):
+                if((row < 2) or (row >= 30) or (idx < 2)):
+                    slider[ch][idx] = 0.0
+                else:
+                    slider[ch][idx] = input_streams[ch].pop(0)
+        
+        # 2. Go across the row cols 4-31
+        for col in range(4, 32): 
+            # Read the next value into the slider
+            for ch in range(in_ch):
+                if((row < 2) or (row >= 30) or (col >= 30)):
+                    slider[ch][4] = 0.0
+                else:
+                    slider[ch][4] = input_streams[ch].pop(0)
+            
+            for map in range(out_ch):
+                
+                row1_psum, row2_psum, row3_psum, row4_psum = 0.0, 0.0, 0.0, 0.0
+                mac0, mac1, mac2, mac3, mac4 = 0.0, 0.0, 0.0, 0.0, 0.0
+                
+                # MAC across all input channels to compute the partial sum
+                for ch in range(in_ch):
+                    if(row < 28):
+                        # mac and save it for later
+                        mac0 += np.dot(weight_matrix[map][ch][0], slider[ch])
+                        
+                    if(row >=1 and row < 29):
+                        mac1 += np.dot(weight_matrix[map][ch][1], slider[ch])
+
+                    if(row >=2 and row < 30):
+                        mac2 += np.dot(weight_matrix[map][ch][2], slider[ch])
+                    
+                    if(row >=3 and row < 31):
+                        mac3 += np.dot(weight_matrix[map][ch][3], slider[ch])
+                    
+                    if(row >= 4):
+                        mac4 += np.dot(weight_matrix[map][ch][4], slider[ch])
+                
+                if(row < 28):
+                    psum1[map].append(mac0)
+                    
+                if(row >=1 and row < 29):
+                    row1_psum = psum1[map].pop(0)
+                    psum2[map].append(row1_psum + mac1)
+                    
+                if(row >=2 and row < 30):
+                    row2_psum = psum2[map].pop(0)
+                    psum3[map].append(row2_psum + mac2)
+                    
+                if(row >=3 and row < 31):
+                    row3_psum = psum3[map].pop(0)
+                    psum4[map].append(row3_psum + mac3)
+                    
+                if(row >= 4):
+                    row4_psum = psum4[map].pop(0)
+                    final_sum = row4_psum + mac4
+                    final_sum += biases[map]
+                    final_value = prelu(final_sum, prelus[map])
+                    output_streams[map].append(final_value)
+                
+            for ch in range(in_ch):
+                slider[ch][0] = slider[ch][1]
+                slider[ch][1] = slider[ch][2]
+                slider[ch][2] = slider[ch][3]
+                slider[ch][3] = slider[ch][4]
+                    
+    return output_streams
+
 
 def fifo_psum_conv(channel_arr, weight_mat, add_bias_and_prelu=True, print_slider=False):
     
@@ -149,7 +226,6 @@ def emulate_pytorch(tile, bias_prelu=True):
         result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
     return result
 
-
 def manual_2d_convolution(input_array: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
     Perform 2D convolution manually using two for loops and np.dot().
@@ -208,206 +284,6 @@ def transposed_convolution_9x9(input_array: np.ndarray, kernel: np.ndarray) -> n
     
     return output
 
-def make_hls_1x1(name:str, in_ch:int, out_ch:int, in_width_pix:int, num_pe:int):
-    func =  f"void conv_{name}(ch_stream_t tile_in[IN_CHN_LAYER_{name.upper()}], ch_stream_t map_out[OUT_CHN_LAYER_{name.upper()}]){{\n"
-    func += f"    // NOTE: This function was auto generated. Do not edit here, edit FSRCNN/conv_ideal.py\n"
-    func += f"    fixed_4_8_t slider[IN_CHN_LAYER_{name.upper()}];\n"
-    func +=  "    #pragma HLS ARRAY_PARTITION variable=slider dim=0 type=complete\n"
-    if(num_pe < out_ch):
-        func += f"    ch_stream_t inbuf[IN_CHN_LAYER_{name.upper()}];\n\n"
-    
-    # Calculate how many times need to go thru PE's
-    func += f"    int num_pe_loops = OUT_CHN_LAYER_{name.upper()} / NUM_PE_LAYER_{name.upper()};\n"
-    func += f"    if((OUT_CHN_LAYER_{name.upper()} % NUM_PE_LAYER_{name.upper()}) != 0) num_pe_loops++;\n\n"
-    
-    func +=  "    for(int pe_loop = 0; pe_loop < num_pe_loops; pe_loop++){\n"
-    func += f"        // WARNING: if number fmap % num_pe != 0, utilization explodes!!\n"
-    func += f"        int low_filter = (pe_loop*NUM_PE_LAYER_{name.upper()});\n"
-    func += f"        int high_filter = ((pe_loop+1)*NUM_PE_LAYER_{name.upper()}) < OUT_CHN_LAYER_{name.upper()} ? ((pe_loop+1)*NUM_PE_LAYER_{name.upper()}) : OUT_CHN_LAYER_{name.upper()};\n"
-    func += f"        for(int row = 0; row < {in_width_pix}; row++){{\n\n" # Calculate size of padding
-    
-    
-    func += f"            // Go across the row\n"
-    func += f"            for(int col = 0; col < {in_width_pix}; col++){{\n"
-    func +=  "                #pragma HLS PIPELINE II=1\n"
-    # Read next slider value
-    func +=  "                // Read the next value into the slider\n"
-    func += f"                for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func +=  "                    #pragma HLS UNROLL\n"
-    func += f"                    fixed_4_8_t next_data;\n"
-    func += f"                    if(pe_loop == 0) next_data = tile_in[ch].read();\n"
-    if(num_pe < out_ch):
-        func += f"                    else             next_data = inbuf[ch].read();\n\n"
-    func += f"                    slider[ch] = next_data;\n"
-    if(num_pe < out_ch):
-        func +=  "                    if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);\n"
-    func += f"                }}\n\n" # channel loop (line 202)
-    
-    func += f"                for(int filter = low_filter; filter < high_filter; filter++){{\n"
-    func += f"                    fixed_4_8_t mac = 0.0;\n"
-    func += f"                    for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func += f"                        #pragma HLS UNROLL\n"
-    func += f"                        mac += slider[ch] * weights_layer_{name}[filter][ch];\n"
-    func += f"                    }}\n" # Channel loop 
-    func += f"                    map_out[filter].write(prelu(conv_{name}_prelu[filter], (mac + conv_{name}_bias[filter])));\n"
-    func += f"                }} // For every filter \n " # Filter loop 2 (line 214)    
-    func +=  "            } // For every column \n" # column loop (line 190)    
-    func +=  "        } // For every row\n" # row loop (line 170)
-    func +=  "    } // For number of times thru PE\n" # pe loop (line 166)
-    func +=  "}\n" # Function body
-    
-    defines  = f"#define IN_CHN_LAYER_{name.upper()}    {in_ch}\n"
-    defines += f"#define OUT_CHN_LAYER_{name.upper()}   {out_ch}\n"
-    defines += f"#define NUM_PE_LAYER_{name.upper()}    {num_pe}\n"
-    weight_arr  = f"const fixed_4_8_t conv_{name}_prelu[{out_ch}];\n"
-    weight_arr += f"const fixed_4_8_t conv_{name}_bias[{out_ch}];\n"
-    weight_arr += f"const fixed_4_8_t weights_layer_{name}[{out_ch}][{in_ch}];\n"
-    
-    return func, (defines, weight_arr)
-
-def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_width_pix:int, num_pe:int):
-    
-    # Note: Number of PE's, input channels, and output channels has to be defined at compile time 
-    # and thus must use macros
-    
-    padding = kernel_size // 2
-    if(kernel_size == 1):
-        padding = 0
-        
-    in_padded_size = in_width_pix + 2*padding
-    
-    func =  f"void conv_{name}(ch_stream_t tile_in[IN_CHN_LAYER_{name.upper()}], ch_stream_t map_out[OUT_CHN_LAYER_{name.upper()}]){{\n"
-    func += f"    // NOTE: This function was auto generated. Do not edit here, edit FSRCNN/conv_ideal.py\n"
-    func += f"    fixed_4_8_t slider[IN_CHN_LAYER_{name.upper()}][{kernel_size}];\n"
-    func +=  "    #pragma HLS ARRAY_PARTITION variable=slider dim=0 type=complete\n"
-    if(num_pe < out_ch):
-        func += f"    ch_stream_t inbuf[IN_CHN_LAYER_{name.upper()}];\n\n"
-    # Declare PE's
-    for i in range(kernel_size-1):
-        func += f"    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum{i+1}[NUM_PE_LAYER_{name.upper()}][IN_CHN_LAYER_{name.upper()}];\n"
-
-    # Partition and assign to BRAM
-    for i in range(kernel_size-1):
-        func += f"    #pragma HLS STREAM variable=psum{i+1} depth={in_width_pix}\n"
-        func += f"    #pragma HLS RESOURCE variable=psum{i+1} core=FIFO_BRAM\n"
-    
-    func +='\n'
-    # Calculate how many times need to go thru PE's
-    func += f"    int num_pe_loops = OUT_CHN_LAYER_{name.upper()} / NUM_PE_LAYER_{name.upper()};\n"
-    func += f"    if((OUT_CHN_LAYER_{name.upper()} % NUM_PE_LAYER_{name.upper()}) != 0) num_pe_loops++;\n\n"
-    
-    func +=  "    for(int pe_loop = 0; pe_loop < num_pe_loops; pe_loop++){\n"
-    func += f"        // WARNING: if number fmap % num_pe != 0, utilization explodes!!\n"
-    func += f"        int low_filter = (pe_loop*NUM_PE_LAYER_{name.upper()});\n"
-    func += f"        int high_filter = ((pe_loop+1)*NUM_PE_LAYER_{name.upper()}) < OUT_CHN_LAYER_{name.upper()} ? ((pe_loop+1)*NUM_PE_LAYER_{name.upper()}) : OUT_CHN_LAYER_{name.upper()};\n"
-    func += f"        for(int row = 0; row < {in_width_pix + 2*padding}; row++){{\n\n" # Calculate size of padding
-    func +=  "            // Prep the slider\n"
-    func += f"            for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func +=  "                #pragma HLS UROLL\n"
-    func += f"                for(int idx = 0; idx < {kernel_size-1}; idx++){{\n"
-    func +=  "                    #pragma HLS PIPELINE II=1\n"
-    
-    # First two or last two rows, pad with zeros
-    func += f"                    if((row < {padding}) || (row >= {in_width_pix + padding*1}) || (idx < {padding})) slider[ch][idx] = 0;\n"
-    func += f"                    else{{\n"
-    func += f"                        fixed_4_8_t next_data;\n"
-    func += f"                        if(pe_loop == 0) next_data = tile_in[ch].read();\n"
-    if(num_pe < out_ch):
-        func += f"                        else             next_data = inbuf[ch].read();\n\n"
-    func += f"                        slider[ch][idx] = next_data;\n"
-    if(num_pe < out_ch):
-        func +=  "                        if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);\n"
-    func +=  "                    }\n" # else not middle
-    func +=  "                }\n" # idx loop
-    func +=  "            }\n\n" # ch loop
-    
-    func += f"            // Go across the row\n"
-    func += f"            for(int col = {kernel_size -1}; col < {in_width_pix + 2*padding}; col++){{\n"
-    func +=  "                #pragma HLS PIPELINE II=1\n"
-    func += f"                fixed_4_8_t final_sum[OUT_CHN_LAYER_{name.upper()}];\n"
-    func += f"                #pragma HLS array_partition variable=final_sum dim=0 type=complete\n"
-    func +=  "                for(int filter = low_filter; filter < high_filter; filter++){\n"
-    func +=  "                    #pragma HLS UNROLL\n"
-    func +=  "                    final_sum[filter] = 0.0;\n"
-    func +=  "                }\n\n" # Filter loop 1
-    
-    # Resume at line 297 from conv2d.cpp
-    # Read next slider value
-    func +=  "                // Read the next value into the slider\n"
-    func += f"                for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func +=  "                    #pragma HLS UNROLL\n"
-    func += f"                    if((row < {padding}) || (row >= {in_width_pix + padding*1}) || (col >= {in_width_pix + padding*1})) slider[ch][{kernel_size-1}] = 0;\n"
-    func += f"                    else{{\n"
-    func += f"                        fixed_4_8_t next_data;\n"
-    func += f"                        if(pe_loop == 0) next_data = tile_in[ch].read();\n"
-    if(num_pe < out_ch):
-        func += f"                        else             next_data = inbuf[ch].read();\n\n"
-    func += f"                        slider[ch][{kernel_size-1}] = next_data;\n"
-    if(num_pe < out_ch):
-        func +=  "                        if(pe_loop != (num_pe_loops - 1)) inbuf[ch].write(next_data);\n"
-    func += f"                    }}\n" # else read data (line 205)
-    func += f"                }}\n\n" # channel loop (line 202)
-    
-    func += f"                for(int filter = low_filter; filter < high_filter; filter++){{\n"
-    func += f"                    for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func += f"                        #pragma HLS UNROLL\n"
-    func += f"                        fixed_4_8_t "
-
-    for i in range(kernel_size-1):
-        func += f"mac{i}, "
-    func += f"mac{kernel_size-1};\n"
-    
-    func += f"                        fixed_4_8_t "
-
-    for i in range(1,kernel_size-1):
-        func += f"row{i}_psum, "
-    func += f"row{kernel_size-1}_psum;\n"
-    
-    last_row_conv = in_padded_size - (kernel_size - 1)
-    func += f"                        if(row < {last_row_conv}){{\n"
-    func += f"                            mac0 = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][0], slider[ch]);\n"
-    func += f"                            psum1[filter % NUM_PE_LAYER_{name.upper()}][ch].write(mac0);\n"
-    func += f"                        }}\n"
-    for i in range(1, kernel_size-1):
-        func += f"                        if(row >= {i} && row < {last_row_conv + i}) {{\n"
-        func += f"                            row{i}_psum = psum{i}[filter % NUM_PE_LAYER_{name.upper()}][ch].read();\n"
-        func += f"                            mac{i} = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{i}], slider[ch]);\n"
-        func += f"                            psum{i+1}[filter % NUM_PE_LAYER_{name.upper()}][ch].write(row{i}_psum + mac{i});\n"
-        func += f"                        }}\n"
-        
-    func += f"                        if(row >= {kernel_size - 1}){{\n"
-    func += f"                            row{kernel_size-1}_psum = psum{kernel_size-1}[filter % NUM_PE_LAYER_{name.upper()}][ch].read();\n"
-    func += f"                            mac{kernel_size-1} = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{kernel_size-1}], slider[ch]);\n"
-    func += f"                            fixed_4_8_t pre_activation = row{kernel_size-1}_psum + mac{kernel_size-1};\n"
-    func += f"                            final_sum[filter] += pre_activation;\n"
-    func += f"                        }}\n"
-    func += f"                    }}\n" # Channel loop 
-    func += f"\n"
-    func += f"                    if(row >= {kernel_size-1}) map_out[filter].write(prelu(conv_{name}_prelu[filter], \\\n"
-    func += f"                                                            (final_sum[filter] + conv_{name}_bias[filter])));\n"
-    func += f"                }} // For every filter \n " # Filter loop 2 (line 214)
-    
-    func += f"               for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func += f"                   #pragma HLS_UNROLL\n"
-    for i in range(kernel_size-1):
-        func += f"                   slider[ch][{i}] = slider[ch][{i+1}];\n"
-    func += f"                }}\n"
-    
-    func +=  "            } // For every column \n" # column loop (line 190)
-    
-    func +=  "        } // For every row\n" # row loop (line 170)
-    func +=  "    } // For number of times thru PE\n" # pe loop (line 166)
-    func +=  "}\n" # Function body
-    
-    defines  = f"#define IN_CHN_LAYER_{name.upper()}    {in_ch}\n"
-    defines += f"#define OUT_CHN_LAYER_{name.upper()}   {out_ch}\n"
-    defines += f"#define NUM_PE_LAYER_{name.upper()}    {num_pe}\n"
-    
-    weight_arr  = f"const fixed_4_8_t conv_{name}_prelu[{out_ch}];\n"
-    weight_arr += f"const fixed_4_8_t conv_{name}_bias[{out_ch}];\n"
-    weight_arr += f"const fixed_4_8_t weights_layer_{name}[{out_ch}][{in_ch}][{kernel_size}][{kernel_size}];\n"
-    return func, (defines, weight_arr)
-
 def compare_transposed(image_tile_2828):
     weight_tensor = torch.tensor(WEIGHTS_DECONV).unsqueeze(0).unsqueeze(0)
 
@@ -443,30 +319,32 @@ if __name__ == '__main__':
     image_tile = np.load('../comparisons/images/image_coin_tile.npy')
     image_tile_2828 = image_tile.astype(np.float32) / 256.
     
-    image_tile_2828 = np.transpose(image_tile_2828, (2, 0, 1))
-    image_tile = np.pad(image_tile_2828, ((0, 0), (2, 2), (2, 2)), mode='constant', constant_values=0)
+    image_tile_2828 = np.transpose(image_tile_2828, (2, 0, 1)) # 3, 28, 28
+    # image_tile = np.pad(image_tile_2828, ((0, 0), (2, 2), (2, 2)), mode='constant', constant_values=0)
     # print(image_tile.shape) # (3, 32, 32)
     # print(image_tile[0,0])  # Red channel, first row
     
-    channel = image_tile[0]
+    conv_weights = np.load('./saved_weights/extraction_conv_44w.npy')   # 44, 3, 5, 5
+    conv_bias    = np.load('./saved_weights/extraction_conv_44b.npy')   # 44
+    prelu_weight = np.load('./saved_weights/extraction_conv_44pre.npy') # 44
     
-    # print("\nComputed via FIFOs and partial sums:")
-    # channel[row, col]
-    # fifod_conv = fifo_psum_conv(channel, WEIGHTS[0], print_slider=False, add_bias_and_prelu=False)
-    # print(fifod_conv[0])
-    # exit()
-    # first_fmap = emulate_pytorch(image_tile, bias_prelu=True)
-    # print(first_fmap[0])
-    # exit()
+    input_channels = [[], [], []]
     
-    # print("Ideal convolution results after bias and prelu:")
-    # ideal = np.zeros((28, 28))
-    # for row in range(28):
-    #     for col in range(28):
-    #         ideal[row, col] = get_real_conv_result(col, row, channel)
-    # print(ideal[0])
-    # exit
+    for ch in range(3):
+        for row in range(28):
+            for col in range(28):
+                input_channels[ch].append(image_tile_2828[ch][row][col])
+              
+    # To check that the input is stored correctly:     
+    # for ch in range(3):
+    #     print(f"Channel {ch}: ", end='')
+    #     print(input_channels[ch][:5])
+
+    resulting_maps = low_level_extraction(input_channels, conv_weights, conv_bias, prelu_weight)
     
+    # print(len(resulting_maps[0]))
+    for i in range(28):
+        print(resulting_maps[0].pop(0))
     # num_wrong = 0
     # for i in range(28):
     #     for j in range(28):
@@ -478,42 +356,6 @@ if __name__ == '__main__':
     
     # print(channel[2, 0:5]) # first five columns of the third row
     
-    extraction_func, extraction_defines = make_hls_conv_func('feature_extraction0', in_ch=3, out_ch=44, kernel_size=5, in_width_pix=28, num_pe=4)
-    # print(extraction_func)
-    # print(extraction_defines)
-    # exit()
     
-    shrink_body, shrink_defines = make_hls_1x1('shrink0', in_ch=44, out_ch=12, in_width_pix=28, num_pe=2)
     
-    map0_body, map0_defines = make_hls_conv_func('map0', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map2_body, map2_defines = make_hls_conv_func('map2', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map4_body, map4_defines = make_hls_conv_func('map4', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map6_body, map6_defines = make_hls_conv_func('map6', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
     
-    expand_body, expand_defines = make_hls_1x1('expand0', in_ch=12, out_ch=44, in_width_pix=28, num_pe=2)
-    
-    # The defines
-    # print(extraction_defines[0])
-    # print(shrink_defines[0])
-    # print(map0_defines[0])
-    # print(map2_defines[0])
-    # print(map4_defines[0])
-    # print(map6_defines[0])
-    # print(expand_defines[0])
-    
-    # The weight array declarations
-    # print(extraction_defines[1])
-    # print(shrink_defines[1])
-    # print(map0_defines[1])
-    # print(map2_defines[1])
-    # print(map4_defines[1])
-    # print(map6_defines[1])
-    # print(expand_defines[1])
-    
-    print(extraction_func)
-    print(shrink_body)
-    print(map0_body)
-    print(map2_body)
-    print(map4_body)
-    print(map6_body)
-    print(expand_body)
