@@ -336,11 +336,13 @@ if __name__ == '__main__':
     low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
     # inference = model.feature_extraction(low_res_coin.to(device)).squeeze(0).cpu().detach().numpy()
     inference = model.feature_extraction(low_res_coin.to(device))
-    inference = model.shrink(inference)
-    inference = model.map(inference)
-    inference = model.expand(inference)
+    # inference = model.shrink(inference)
+    # inference = model.map(inference)
+    # inference = model.expand(inference)
     
     inference = inference.squeeze(0).cpu().detach().numpy()
+    # print(inference[0][0])
+    # exit()
     # compare_5x5_conv(inference)
     # exit()
     

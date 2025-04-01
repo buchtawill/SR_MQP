@@ -1068,18 +1068,18 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 	prep_tile(in_stream, tile_in);
 
 	conv_feature_extraction0(tile_in, map_extraction);
-	conv_shrink0(map_extraction, map_shrink);
-	conv_map0(map_shrink, map_map0);
-	conv_map2(map_map0, map_map2);
-	conv_map4(map_map2, map_map4);
-	conv_map6(map_map4, map_map6);
-	conv_expand0(map_map6, map_expand0);
+	// conv_shrink0(map_extraction, map_shrink);
+	// conv_map0(map_shrink, map_map0);
+	// conv_map2(map_map0, map_map2);
+	// conv_map4(map_map2, map_map4);
+	// conv_map6(map_map4, map_map6);
+	// conv_expand0(map_map6, map_expand0);
 
-	for(int i = 0; i < OUT_CHN_LAYER_EXPAND0; i++){
+	for(int i = 0; i < OUT_CHN_LAYER_FEATURE_EXTRACTION0; i++){
 		printf("INFO [conv2d] Feature map %d:\n", i);
 		for (int col = 0; col < 28*28; col++){
-			// printf("%.8f \n", map_extraction[i].read().to_float());
-			printf("%.8f \n", map_expand0[i].read().to_float());
+			printf("%.8f \n", map_extraction[i].read().to_float());
+			// printf("%.8f \n", map_expand0[i].read().to_float());
 		}
 		printf("\n");
 	}
