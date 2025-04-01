@@ -159,24 +159,12 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
     #pragma HLS INTERFACE axis register both port=fifo_second_7
     #pragma HLS INTERFACE axis register both port=fifo_second_8
 
-    // FIFOs for both sets
-    hls::stream<pixel_t>* fifo_first[9] = {
-        &fifo_first_0, &fifo_first_1, &fifo_first_2, &fifo_first_3, &fifo_first_4,
-        &fifo_first_5, &fifo_first_6, &fifo_first_7, &fifo_first_8};
-
-    hls::stream<pixel_t>* fifo_second[9] = {
-        &fifo_second_0, &fifo_second_1, &fifo_second_2, &fifo_second_3, &fifo_second_4,
-        &fifo_second_5, &fifo_second_6, &fifo_second_7, &fifo_second_8};
-
 
     // Internal overlap FIFOs
     hls::stream<pixel_t> fifo_first_overlap_0;
     hls::stream<pixel_t> fifo_first_overlap_1;
     hls::stream<pixel_t> fifo_second_overlap_0;
     hls::stream<pixel_t> fifo_second_overlap_1;
-
-    hls::stream<pixel_t>* fifo_first_overlap[2] = { &fifo_first_overlap_0, &fifo_first_overlap_1};
-    hls::stream<pixel_t>* fifo_second_overlap[2] = { &fifo_second_overlap_0, &fifo_second_overlap_1};
 
 
     /*STREAM IN VALUES*/
@@ -235,39 +223,44 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
 			pixel_t data = input_data_stored[row_idx][col_idx];
 
-			if(fill_first_set){
-				fifo_first[fifo_idx]->write(data);
-			}
-			else if(!fill_first_set){
-				fifo_second[fifo_idx]->write(data);
-			}
+            switch(fifo_idx) {
+                case 0: (fill_first_set ? fifo_first_0 : fifo_second_0).write(data); break;
+                case 1: (fill_first_set ? fifo_first_1 : fifo_second_1).write(data); break;
+                case 2: (fill_first_set ? fifo_first_2 : fifo_second_2).write(data); break;
+                case 3: (fill_first_set ? fifo_first_3 : fifo_second_3).write(data); break;
+                case 4: (fill_first_set ? fifo_first_4 : fifo_second_4).write(data); break;
+                case 5: (fill_first_set ? fifo_first_5 : fifo_second_5).write(data); break;
+                case 6: (fill_first_set ? fifo_first_6 : fifo_second_6).write(data); break;
+                case 7: (fill_first_set ? fifo_first_7 : fifo_second_7).write(data); break;
+                case 8: (fill_first_set ? fifo_first_8 : fifo_second_8).write(data); break;
+            }
 
 
 
 			//if if at the bottom two rows of the top image section, fill first FIFO overflow buffer
 			if(row_idx == SLIDER_HEIGHT_IN - 1){
-				fifo_first_overlap[0]->write(data);
+				fifo_first_overlap_0.write(data);
 			}
 			else if(row_idx == SLIDER_HEIGHT_IN){
-				fifo_first_overlap[1]->write(data);
+				fifo_first_overlap_1.write(data);
 			}
 
 
 			//otherwise if FIFOs at the bottom of the middle image sections are being filled, alternate which FIFO overflow buffer is filled
 			else if(fifo_idx == 7){
 				if(fill_first_set){
-					fifo_first_overlap[0]->write(data);
+					fifo_first_overlap_0.write(data);
 				}
 				else if(!fill_first_set){
-					fifo_second_overlap[0]->write(data);
+					fifo_second_overlap_0.write(data);
 				}
 			}
 			else if(fifo_idx == 8){
 				if(fill_first_set){
-					fifo_first_overlap[1]->write(data);
+					fifo_first_overlap_1.write(data);
 				}
 				else if(!fill_first_set){
-					fifo_second_overlap[1]->write(data);
+					fifo_second_overlap_1.write(data);
 				}
 			}
 
@@ -276,19 +269,19 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 			else if(row_idx == HEIGHT_IN - 2){
 
 				if(fill_first_set){
-					fifo_first_overlap[0]->write(data);
+					fifo_first_overlap_0.write(data);
 				}
 				else if(!fill_first_set){
-					fifo_second_overlap[0]->write(data);
+					fifo_second_overlap_0.write(data);
 				}
 			}
 			else if(row_idx == HEIGHT_IN - 1){
 
 				if(fill_first_set){
-					fifo_first_overlap[1]->write(data);
+					fifo_first_overlap_1.write(data);
 				}
 				else if(!fill_first_set){
-					fifo_second_overlap[1]->write(data);
+					fifo_second_overlap_1.write(data);
 				}
 			}
 
@@ -304,12 +297,12 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 
 				//NOTE: Add checks to confirm overlap has values and handle if they don't
 				if(fill_first_set){
-					fifo_first[0]->write(fifo_second_overlap[0]->read());
-					fifo_first[1]->write(fifo_second_overlap[1]->read());
+					fifo_first_0.write(fifo_second_overlap_0.read());
+					fifo_first_1.write(fifo_second_overlap_1.read());
 				}
 				else if(!fill_first_set){
-					fifo_second[0]->write(fifo_first_overlap[0]->read());
-					fifo_second[1]->write(fifo_first_overlap[1]->read());
+					fifo_second_0.write(fifo_first_overlap_0.read());
+					fifo_second_1.write(fifo_first_overlap_1.read());
 				}
 			}
 
@@ -319,7 +312,6 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 	}
 
 }
-
 
 void create_image_section(hls::stream<pixel_t> &fifo_0,
                           hls::stream<pixel_t> &fifo_1,
@@ -330,45 +322,60 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
                           hls::stream<pixel_t> &fifo_6,
                           hls::stream<pixel_t> &fifo_7,
                           hls::stream<pixel_t> &fifo_8,
-						  bool top_slider, bool bottom_slider,
+                          bool top_slider, bool bottom_slider,
                           pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER * 2][WIDTH_IN]) {
 
-    // Array of FIFO pointers
-    hls::stream<pixel_t>* fifo[9] = {
-        &fifo_0, &fifo_1, &fifo_2, &fifo_3, &fifo_4,
-        &fifo_5, &fifo_6, &fifo_7, &fifo_8};
-
-	//if slider is in top section, fill from FIFOs 1-8
-	if(top_slider){
-		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
-				pixel_t data = fifo[i + 1]->read();
-				image_section[i][col_idx] = data;
-			}
-		}
-	}
-
-	//if slider is in bottom section, fill from FIFOs 0-7
-	else if(bottom_slider){
-		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++){
-				pixel_t data = fifo[i]->read();
-				image_section[i][col_idx] = data;
-			}
-		}
-	}
-
-	//if slider is not on top or bottom, fill from FIFOs 0-8
-	else if(!top_slider && !bottom_slider){
-		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
-			for(int i = 0; i < SLIDER_HEIGHT_IN + BUFFER * 2; i++){
-				pixel_t data = fifo[i]->read();
-				image_section[i][col_idx] = data;
-			}
-		}
-	}
-
+    // If slider is in top section, fill from FIFOs 1-8
+    if (top_slider) {
+        for (int col_idx = 0; col_idx < WIDTH_IN; col_idx++) {
+            for (int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++) {
+                pixel_t data = (i == 0) ? fifo_1.read() :
+                               (i == 1) ? fifo_2.read() :
+                               (i == 2) ? fifo_3.read() :
+                               (i == 3) ? fifo_4.read() :
+                               (i == 4) ? fifo_5.read() :
+                               (i == 5) ? fifo_6.read() :
+                               (i == 6) ? fifo_7.read() :
+                               fifo_8.read();
+                image_section[i][col_idx] = data;
+            }
+        }
+    }
+    // If slider is in bottom section, fill from FIFOs 0-7
+    else if (bottom_slider) {
+        for (int col_idx = 0; col_idx < WIDTH_IN; col_idx++) {
+            for (int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++) {
+                pixel_t data = (i == 0) ? fifo_0.read() :
+                               (i == 1) ? fifo_1.read() :
+                               (i == 2) ? fifo_2.read() :
+                               (i == 3) ? fifo_3.read() :
+                               (i == 4) ? fifo_4.read() :
+                               (i == 5) ? fifo_5.read() :
+                               (i == 6) ? fifo_6.read() :
+                               fifo_7.read();
+                image_section[i][col_idx] = data;
+            }
+        }
+    }
+    // If slider is not on top or bottom, fill from FIFOs 0-8
+    else {
+        for (int col_idx = 0; col_idx < WIDTH_IN; col_idx++) {
+            for (int i = 0; i < SLIDER_HEIGHT_IN + BUFFER * 2; i++) {
+                pixel_t data = (i == 0) ? fifo_0.read() :
+                               (i == 1) ? fifo_1.read() :
+                               (i == 2) ? fifo_2.read() :
+                               (i == 3) ? fifo_3.read() :
+                               (i == 4) ? fifo_4.read() :
+                               (i == 5) ? fifo_5.read() :
+                               (i == 6) ? fifo_6.read() :
+                               (i == 7) ? fifo_7.read() :
+                               fifo_8.read();
+                image_section[i][col_idx] = data;
+            }
+        }
+    }
 }
+
 
 
 void combine_upscaled_sections(pixel_t upscaled_sections[NUM_SLIDERS][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT],
@@ -432,14 +439,9 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
-	in_stream.set_name("In Stream");
-
 	// Declare FIFOs for pixel values
 	hls::stream<pixel_t> fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
 	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
-
-	fifo_first_0.set_name("FF0");
-	fifo_second_0.set_name("FS0");
 
 
 	//Stream values in and store pixel values in FIFOs
