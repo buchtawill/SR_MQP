@@ -191,43 +191,6 @@ def plot_inference_times():
 
     plt.plot(batch_sizes, inference_times)
     plt.savefig('./inference_times.png')
-    
-def text_to_featuremaps(path:str, num_feature_maps)->np.ndarray:
-    """
-    Reads a text file containing feature maps and returns them as a numpy array.
-    Args:
-        path (str): Path to the text file containing the feature maps.
-        num_feature_maps (int): Number of feature maps to read from the file.
-    Returns:
-        np.ndarray: Feature maps as a numpy array of shape (44, 28, 28)
-    """
-    feature_maps = []
-    
-    with open(path, "r") as file:
-        lines = file.readlines()
-    
-    # Find the start of the feature maps
-    start_idx = None
-    for i, line in enumerate(lines):
-        if "INFO [conv2d] Feature map 0:" in line:
-            start_idx = i + 1  # Start from the next line
-            break
-
-    if start_idx is None:
-        raise ValueError("Feature map start not found in the file.")
-    
-    # Read 44 feature maps, each consisting of 28x28 lines
-    feature_map_size = 28 * 28
-
-    for i in range(num_feature_maps):
-        # Skip the first two lines (header and empty line)
-        start = start_idx + i * (feature_map_size + 2)
-        end = start + feature_map_size
-        feature_map = np.array([float(x.strip()) for x in lines[start:end]]).reshape(28, 28)
-        feature_maps.append(feature_map)
-
-    return np.array(feature_maps)  # Shape: (num_feature_maps, 28, 28)
-
 
 def compare_results(dut_produced:np.ndarray, ideal:np.ndarray):
     """
@@ -250,46 +213,6 @@ def compare_results(dut_produced:np.ndarray, ideal:np.ndarray):
     # print(f"INFO [inference.py] Average error per pixel: {avg_error:.6f} ({(avg_error*255):.6f})")
     
     return total_error, avg_error, worst_err
-    
-
-def compare_5x5_conv(ideal_inference:np.ndarray):
-    # Read the simulation log results
-    one_shot_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_1shot.log', 44)
-    pe_loop_produced = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_not_even.log', 44)
-    python_generated = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_python_5x5.log', 44)
-    
-    # 1 shot: Somewhat ideal case
-    total_err, avg_err, worst_err = compare_results(one_shot_conv, ideal_inference)    
-    print("1-shot:")
-    print(f'INFO [inference.py] Total error from 1 shot:     {total_err:0.6f}')
-    print(f'INFO [inference.py] Average error from 1 shot:   {avg_err:0.6f} --> {avg_err * 255:0.6f}')
-    print(f'INFO [inference.py] Worst error from 1 shot:     {worst_err:0.6f} --> {worst_err * 255:0.6f}')
-    
-    total_err, avg_err, worst_err = compare_results(python_generated, ideal_inference)    
-    print("PE Loops:")
-    print(f'INFO [inference.py] Total error from PE loops:   {total_err:0.6f}')
-    print(f'INFO [inference.py] Average error from PE loops: {avg_err:0.6f} --> {avg_err * 255:0.6f}')
-    print(f'INFO [inference.py] Worst error from PE loops:   {worst_err:0.6f} --> {worst_err * 255:0.6f}')
-    
-    print("INFO [inference.py] Max difference between PE loop and python generated: ")
-    # print(np.max(np.abs(pe_loop_produced - python_generated)))
-    
-    diffs_pe = np.abs(python_generated - ideal_inference).flatten() * 255
-    diffs_1shot = np.abs(one_shot_conv - ideal_inference).flatten() * 255
-
-    # Plot histograms
-    plt.hist(diffs_pe, bins=50, alpha=0.5, label="Python Generated", edgecolor='black', color='cyan')
-    plt.hist(diffs_1shot, bins=50, alpha=0.5, label="1-Shot", edgecolor='black', color='red')
-
-    # Labels and title
-    plt.xlabel("Absolute Difference")
-    plt.ylabel("Frequency")
-    plt.title("Comparison of Absolute Differences - Extraction Layer")
-    plt.legend()  # Show the legend
-    plt.grid(True)
-
-    # Show plot
-    plt.show()
     
 if __name__ == '__main__':
     tstart = time.time()
@@ -346,36 +269,6 @@ if __name__ == '__main__':
     # compare_5x5_conv(inference)
     # exit()
     
-    last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_top_csim.log', 44)
-    errors = np.abs(inference - last_conv).flatten()
     
-    pct_errors = np.abs((inference - last_conv) / inference).flatten() * 100
-    cutoff = 30
-    horrendously_wrong = pct_errors[pct_errors >= cutoff]
-    pct_errors = pct_errors[pct_errors < cutoff]
-    print(f"Percent of values < 5% error: {len(pct_errors[pct_errors < 5]) / len(pct_errors) * 100: 0.2f}")
-    avg = np.mean(pct_errors)
-    worst = np.max(pct_errors)
-    print(f"Average error: {avg:9.6f}")
-    print(f"Worst error:   {worst:9.6f}")
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharey=True, figsize=(8, 5))
-
-    # First histogram (percent error)
-    ax1.hist(pct_errors, bins=50, alpha=0.5, label="Percent Error", edgecolor='black', color='cyan')
-    ax1.set_xlabel("Percent Error")
-    ax1.set_ylabel("Frequency")
-    ax1.set_title("Histogram of Percent Error")
-    ax1.legend()
-    ax1.grid(True)
-
-    # Second histogram (absolute errors)
-    ax2.hist(errors, bins=50, alpha=0.5, label="Absolute Error", edgecolor='black', color='red')
-    ax2.set_xlabel("Absolute Error")
-    ax2.set_ylabel("Frequency")
-    ax2.set_title("Histogram of Absolute Error")
-    ax2.legend()
-    ax2.grid(True)
-
-    plt.tight_layout()
-    plt.show()
+    
