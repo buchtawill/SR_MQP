@@ -120,44 +120,44 @@ void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, INPUT_WI
 			stream_data_t tmp_data = tmp_stream.data;
 
 			// Pixel 0
-			fixed_9_8_t r0 = tmp_data.range(7, 0);
-			fixed_9_8_t g0 = tmp_data.range(15, 8);
-			fixed_9_8_t b0 = tmp_data.range(23, 16);
+			float r0 = tmp_data.range(7, 0);
+			float g0 = tmp_data.range(15, 8);
+			float b0 = tmp_data.range(23, 16);
 			// Discard tmp_data.range(31, 24)
 	
 			// Pixel 1
-			fixed_9_8_t r1 = tmp_data.range(39, 32);
-			fixed_9_8_t g1 = tmp_data.range(47, 40);
-			fixed_9_8_t b1 = tmp_data.range(55, 48);
+			float r1 = tmp_data.range(39, 32);
+			float g1 = tmp_data.range(47, 40);
+			float b1 = tmp_data.range(55, 48);
 			// Discard tmp_data.range(63, 56)
 	
 			// Pixel 2
-			fixed_9_8_t r2 = tmp_data.range(71, 64);
-			fixed_9_8_t g2 = tmp_data.range(79, 72);
-			fixed_9_8_t b2 = tmp_data.range(87, 80);
+			float r2 = tmp_data.range(71, 64);
+			float g2 = tmp_data.range(79, 72);
+			float b2 = tmp_data.range(87, 80);
 			// Discard tmp_data.range(95, 88)
 	
 			// Pixel 3
-			fixed_9_8_t r3 = tmp_data.range(103, 96);
-			fixed_9_8_t g3 = tmp_data.range(111, 104);
-			fixed_9_8_t b3 = tmp_data.range(119, 112);
+			float r3 = tmp_data.range(103, 96);
+			float g3 = tmp_data.range(111, 104);
+			float b3 = tmp_data.range(119, 112);
 			// Discard tmp_data.range(127, 120)
 
 			// Divide by 256, cast to 12 bit fixed, write to FIFO
-			tile_in[0].write((fixed_4_8_t)(r0 >> 8)); 
-			tile_in[0].write((fixed_4_8_t)(r1 >> 8)); 
-			tile_in[0].write((fixed_4_8_t)(r2 >> 8)); 
-			tile_in[0].write((fixed_4_8_t)(r3 >> 8));
+			tile_in[0].write((fixed_4_8_t)(r0 / 256.0f)); 
+			tile_in[0].write((fixed_4_8_t)(r1 / 256.0f)); 
+			tile_in[0].write((fixed_4_8_t)(r2 / 256.0f)); 
+			tile_in[0].write((fixed_4_8_t)(r3 / 256.0f));
 
-			tile_in[1].write((fixed_4_8_t)(g0 >> 8)); 
-			tile_in[1].write((fixed_4_8_t)(g1 >> 8)); 
-			tile_in[1].write((fixed_4_8_t)(g2 >> 8)); 
-			tile_in[1].write((fixed_4_8_t)(g3 >> 8));
+			tile_in[1].write((fixed_4_8_t)(g0 / 256.0f)); 
+			tile_in[1].write((fixed_4_8_t)(g1 / 256.0f)); 
+			tile_in[1].write((fixed_4_8_t)(g2 / 256.0f)); 
+			tile_in[1].write((fixed_4_8_t)(g3 / 256.0f));
 
-			tile_in[2].write((fixed_4_8_t)(b2 >> 8)); 
-			tile_in[2].write((fixed_4_8_t)(b1 >> 8)); 
-			tile_in[2].write((fixed_4_8_t)(b2 >> 8)); 
-			tile_in[2].write((fixed_4_8_t)(b3 >> 8));
+			tile_in[2].write((fixed_4_8_t)(b2 / 256.0f)); 
+			tile_in[2].write((fixed_4_8_t)(b1 / 256.0f)); 
+			tile_in[2].write((fixed_4_8_t)(b2 / 256.0f)); 
+			tile_in[2].write((fixed_4_8_t)(b3 / 256.0f));
 		}
 	}
 }
@@ -257,24 +257,28 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
                 }
 
                 for(int filter = low_filter; filter < high_filter; filter++){
-                    fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
+                    fixed_4_8_t mac0 = 0.0;
+                    fixed_4_8_t mac1 = 0.0;
+                    fixed_4_8_t mac2 = 0.0;
+                    fixed_4_8_t mac3 = 0.0;
+                    fixed_4_8_t mac4 = 0.0;
                     fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
                     for(int ch = 0; ch < IN_CHN_LAYER_FEATURE_EXTRACTION0; ch++){
                         #pragma HLS UNROLL
                         if(row < 28){
-                            mac0 = perform_mac5(weights_layer_feature_extraction0[filter][ch][0], slider[ch]);
+                            mac0 += perform_mac5(weights_layer_feature_extraction0[filter][ch][0], slider[ch]);
                         }
                         if(row >= 1 && row < 29) {
-                            mac1 = perform_mac5(weights_layer_feature_extraction0[filter][ch][1], slider[ch]);
+                            mac1 += perform_mac5(weights_layer_feature_extraction0[filter][ch][1], slider[ch]);
                         }
                         if(row >= 2 && row < 30) {
-                            mac2 = perform_mac5(weights_layer_feature_extraction0[filter][ch][2], slider[ch]);
+                            mac2 += perform_mac5(weights_layer_feature_extraction0[filter][ch][2], slider[ch]);
                         }
                         if(row >= 3 && row < 31) {
-                            mac3 = perform_mac5(weights_layer_feature_extraction0[filter][ch][3], slider[ch]);
+                            mac3 += perform_mac5(weights_layer_feature_extraction0[filter][ch][3], slider[ch]);
                         }
                         if(row >= 4){
-                            mac4 = perform_mac5(weights_layer_feature_extraction0[filter][ch][4], slider[ch]);
+                            mac4 += perform_mac5(weights_layer_feature_extraction0[filter][ch][4], slider[ch]);
                         }
                     }
                     
