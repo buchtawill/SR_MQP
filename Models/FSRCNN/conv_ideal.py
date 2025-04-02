@@ -394,7 +394,7 @@ if __name__ == '__main__':
     # First histogram (percent error)
     # plt.hist(errors, bins=50, alpha=0.5, label="Error", edgecolor='black', color='cyan')
     plt.hist(errors*256, bins=50, alpha=0.5, label="Error", edgecolor='black', color='cyan')
-    plt.xlabel("Error")
+    plt.xlabel("Error (Pixel scale)")
     plt.ylabel("Frequency")
     plt.title("Histogram of Error")
     plt.legend()
