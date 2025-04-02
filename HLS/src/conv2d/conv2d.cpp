@@ -199,10 +199,10 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
     #pragma HLS ARRAY_PARTITION variable=slider dim=0 type=complete
     ch_stream_t inbuf[IN_CHN_LAYER_FEATURE_EXTRACTION0];
 
-    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[NUM_PE_LAYER_FEATURE_EXTRACTION0][IN_CHN_LAYER_FEATURE_EXTRACTION0];
-    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum2[NUM_PE_LAYER_FEATURE_EXTRACTION0][IN_CHN_LAYER_FEATURE_EXTRACTION0];
-    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum3[NUM_PE_LAYER_FEATURE_EXTRACTION0][IN_CHN_LAYER_FEATURE_EXTRACTION0];
-    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum4[NUM_PE_LAYER_FEATURE_EXTRACTION0][IN_CHN_LAYER_FEATURE_EXTRACTION0];
+    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum1[NUM_PE_LAYER_FEATURE_EXTRACTION0];
+    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum2[NUM_PE_LAYER_FEATURE_EXTRACTION0];
+    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum3[NUM_PE_LAYER_FEATURE_EXTRACTION0];
+    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum4[NUM_PE_LAYER_FEATURE_EXTRACTION0];
     #pragma HLS STREAM variable=psum1 depth=28
     #pragma HLS RESOURCE variable=psum1 core=FIFO_BRAM
     #pragma HLS STREAM variable=psum2 depth=28
@@ -241,12 +241,6 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
             // Go across the row
             for(int col = 4; col < 32; col++){
                 #pragma HLS PIPELINE II=1
-                fixed_4_8_t final_sum[OUT_CHN_LAYER_FEATURE_EXTRACTION0];
-                #pragma HLS array_partition variable=final_sum dim=0 type=complete
-                for(int filter = low_filter; filter < high_filter; filter++){
-                    #pragma HLS UNROLL
-                    final_sum[filter] = 0.0;
-                }
 
                 // Read the next value into the slider
                 for(int ch = 0; ch < IN_CHN_LAYER_FEATURE_EXTRACTION0; ch++){
@@ -263,39 +257,48 @@ void conv_feature_extraction0(ch_stream_t tile_in[IN_CHN_LAYER_FEATURE_EXTRACTIO
                 }
 
                 for(int filter = low_filter; filter < high_filter; filter++){
+                    fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
+                    fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
                     for(int ch = 0; ch < IN_CHN_LAYER_FEATURE_EXTRACTION0; ch++){
                         #pragma HLS UNROLL
-                        fixed_4_8_t mac0, mac1, mac2, mac3, mac4;
-                        fixed_4_8_t row1_psum, row2_psum, row3_psum, row4_psum;
                         if(row < 28){
                             mac0 = perform_mac5(weights_layer_feature_extraction0[filter][ch][0], slider[ch]);
-                            psum1[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].write(mac0);
                         }
                         if(row >= 1 && row < 29) {
-                            row1_psum = psum1[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].read();
                             mac1 = perform_mac5(weights_layer_feature_extraction0[filter][ch][1], slider[ch]);
-                            psum2[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].write(row1_psum + mac1);
                         }
                         if(row >= 2 && row < 30) {
-                            row2_psum = psum2[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].read();
                             mac2 = perform_mac5(weights_layer_feature_extraction0[filter][ch][2], slider[ch]);
-                            psum3[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].write(row2_psum + mac2);
                         }
                         if(row >= 3 && row < 31) {
-                            row3_psum = psum3[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].read();
                             mac3 = perform_mac5(weights_layer_feature_extraction0[filter][ch][3], slider[ch]);
-                            psum4[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].write(row3_psum + mac3);
                         }
                         if(row >= 4){
-                            row4_psum = psum4[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0][ch].read();
                             mac4 = perform_mac5(weights_layer_feature_extraction0[filter][ch][4], slider[ch]);
-                            fixed_4_8_t pre_activation = row4_psum + mac4;
-                            final_sum[filter] += pre_activation;
                         }
                     }
+                    
+                    if(row < 28){
+                        psum1[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].write(mac0);
+                    }
+                    if(row >= 1 && row < 29) {
+                        row1_psum = psum1[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].read();
+                        psum2[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].write(row1_psum + mac1);
+                    }
+                    if(row >= 2 && row < 30) {
+                        row2_psum = psum2[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].read();
+                        psum3[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].write(row2_psum + mac2);
+                    }
+                    if(row >= 3 && row < 31) {
+                        row3_psum = psum3[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].read();
+                        psum4[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].write(row3_psum + mac3);
+                    }
+                    if(row >= 4){
+                        row4_psum = psum4[filter % NUM_PE_LAYER_FEATURE_EXTRACTION0].read();
+                        fixed_4_8_t pre_activation = row4_psum + mac4 + conv_feature_extraction0_bias[filter];
+                        map_out[filter].write(prelu(conv_feature_extraction0_prelu[filter], pre_activation));
+                    }
 
-                    if(row >= 4) map_out[filter].write(prelu(conv_feature_extraction0_prelu[filter], \
-                                                            (final_sum[filter] + conv_feature_extraction0_bias[filter])));
                 } // For every filter 
                 for(int ch = 0; ch < IN_CHN_LAYER_FEATURE_EXTRACTION0; ch++){
                    #pragma HLS_UNROLL
