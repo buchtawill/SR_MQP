@@ -76,7 +76,7 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
         func += f"    ch_stream_t inbuf[IN_CHN_LAYER_{name.upper()}];\n\n"
     # Declare PE's
     for i in range(kernel_size-1):
-        func += f"    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum{i+1}[NUM_PE_LAYER_{name.upper()}][IN_CHN_LAYER_{name.upper()}];\n"
+        func += f"    hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX> psum{i+1}[NUM_PE_LAYER_{name.upper()}];\n"
 
     # Partition and assign to BRAM
     for i in range(kernel_size-1):
@@ -116,18 +116,11 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
     func += f"            // Go across the row\n"
     func += f"            for(int col = {kernel_size -1}; col < {in_width_pix + 2*padding}; col++){{\n"
     func +=  "                #pragma HLS PIPELINE II=1\n"
-    func += f"                fixed_4_8_t final_sum[OUT_CHN_LAYER_{name.upper()}];\n"
-    func += f"                #pragma HLS array_partition variable=final_sum dim=0 type=complete\n"
-    func +=  "                for(int filter = low_filter; filter < high_filter; filter++){\n"
-    func +=  "                    #pragma HLS UNROLL\n"
-    func +=  "                    final_sum[filter] = 0.0;\n"
-    func +=  "                }\n\n" # Filter loop 1
     
-    # Resume at line 297 from conv2d.cpp
     # Read next slider value
     func +=  "                // Read the next value into the slider\n"
     func += f"                for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func +=  "                    #pragma HLS UNROLL\n"
+    func +=  "                    #pragma HLS UNROLL\n\n"
     func += f"                    if((row < {padding}) || (row >= {in_width_pix + padding*1}) || (col >= {in_width_pix + padding*1})) slider[ch][{kernel_size-1}] = 0;\n"
     func += f"                    else{{\n"
     func += f"                        fixed_4_8_t next_data;\n"
@@ -141,43 +134,47 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
     func += f"                }}\n\n" # channel loop (line 202)
     
     func += f"                for(int filter = low_filter; filter < high_filter; filter++){{\n"
-    func += f"                    for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func += f"                        #pragma HLS UNROLL\n"
-    func += f"                        fixed_4_8_t "
-
-    for i in range(kernel_size-1):
-        func += f"mac{i}, "
-    func += f"mac{kernel_size-1};\n"
+    func += f"                    #pragma HLS UNROLL\n"
+    func += f"                    int pe_idx = filter % NUM_PE_LAYER_{name.upper()};\n"
     
-    func += f"                        fixed_4_8_t "
-
+    for i in range(kernel_size):
+        func += f"                    fixed_4_8_t mac{i} = 0.0;\n"
+        
+    func += f"                    fixed_4_8_t "
     for i in range(1,kernel_size-1):
         func += f"row{i}_psum, "
-    func += f"row{kernel_size-1}_psum;\n"
+    func += f"row{kernel_size-1}_psum;\n\n"
     
+    func += f"                    for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
+    func += f"                        #pragma HLS UNROLL\n"
     last_row_conv = in_padded_size - (kernel_size - 1)
-    func += f"                        if(row < {last_row_conv}){{\n"
-    func += f"                            mac0 = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][0], slider[ch]);\n"
-    func += f"                            psum1[filter % NUM_PE_LAYER_{name.upper()}][ch].write(mac0);\n"
-    func += f"                        }}\n"
+    
+    func += f"                        if(row < {last_row_conv})             "
+    func += f"mac0 += perform_mac{kernel_size}(weights_layer_{name}[filter][ch][0], slider[ch]);\n"
     for i in range(1, kernel_size-1):
-        func += f"                        if(row >= {i} && row < {last_row_conv + i}) {{\n"
-        func += f"                            row{i}_psum = psum{i}[filter % NUM_PE_LAYER_{name.upper()}][ch].read();\n"
-        func += f"                            mac{i} = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{i}], slider[ch]);\n"
-        func += f"                            psum{i+1}[filter % NUM_PE_LAYER_{name.upper()}][ch].write(row{i}_psum + mac{i});\n"
-        func += f"                        }}\n"
-        
-    func += f"                        if(row >= {kernel_size - 1}){{\n"
-    func += f"                            row{kernel_size-1}_psum = psum{kernel_size-1}[filter % NUM_PE_LAYER_{name.upper()}][ch].read();\n"
-    func += f"                            mac{kernel_size-1} = perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{kernel_size-1}], slider[ch]);\n"
-    func += f"                            fixed_4_8_t pre_activation = row{kernel_size-1}_psum + mac{kernel_size-1};\n"
-    func += f"                            final_sum[filter] += pre_activation;\n"
-    func += f"                        }}\n"
+        func += f"                        if(row >= {i} && row < {last_row_conv + i}) "
+        func += f"mac{i} += perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{i}], slider[ch]);\n"
+    func += f"                        if(row >= {kernel_size - 1})             "
+    func += f"mac{kernel_size-1} += perform_mac{kernel_size}(weights_layer_{name}[filter][ch][{kernel_size-1}], slider[ch]);\n"
     func += f"                    }}\n" # Channel loop 
     func += f"\n"
-    func += f"                    if(row >= {kernel_size-1}) map_out[filter].write(prelu(conv_{name}_prelu[filter], \\\n"
-    func += f"                                                            (final_sum[filter] + conv_{name}_bias[filter])));\n"
-    func += f"                }} // For every filter \n " # Filter loop 2 (line 214)
+    
+    func += f"                    if(row < {last_row_conv}){{\n"
+    func += f"                        psum1[pe_idx].write(mac0);\n"
+    func += f"                    }}\n"
+    for i in range(1, kernel_size-1):
+        func += f"                    if(row >= {i} && row < {last_row_conv + i}) {{\n"
+        func += f"                        row{i}_psum = psum{i}[pe_idx].read();\n"
+        func += f"                        psum{i+1}[pe_idx].write(row{i}_psum + mac{i});\n"
+        func += f"                    }}\n"
+    func += f"                    if(row >= {kernel_size - 1}) {{\n"
+    func += f"                        row{kernel_size - 1}_psum = psum{kernel_size - 1}[pe_idx].read();\n"
+    func += f"                        fixed_4_8_t pre_activation = row{kernel_size - 1}_psum + mac{kernel_size-1} + conv_{name}_bias[filter];\n"
+    func += f"                        map_out[filter].write(prelu(conv_{name}_prelu[filter], pre_activation));\n"
+    func += f"                    }}\n"
+    
+        
+    func += f"                }} // For every filter \n\n" # Filter loop 2 (line 214)
     
     func += f"               for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
     func += f"                   #pragma HLS_UNROLL\n"
@@ -186,7 +183,6 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
     func += f"                }}\n"
     
     func +=  "            } // For every column \n" # column loop (line 190)
-    
     func +=  "        } // For every row\n" # row loop (line 170)
     func +=  "    } // For number of times thru PE\n" # pe loop (line 166)
     func +=  "}\n" # Function body
@@ -214,25 +210,25 @@ if __name__ == '__main__':
     map6_body, map6_defines = make_hls_conv_func('map6', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
     expand_body, expand_defines = make_hls_1x1('expand0', in_ch=12, out_ch=44, in_width_pix=28, num_pe=2)
     
-    # The defines
-    print(extraction_defines[0])
-    print(shrink_defines[0])
-    print(map0_defines[0])
-    print(map2_defines[0])
-    print(map4_defines[0])
-    print(map6_defines[0])
-    print(expand_defines[0])
+    # # The defines
+    # print(extraction_defines[0])
+    # print(shrink_defines[0])
+    # print(map0_defines[0])
+    # print(map2_defines[0])
+    # print(map4_defines[0])
+    # print(map6_defines[0])
+    # print(expand_defines[0])
     
-    # The weight array declarations
-    print(extraction_defines[1])
-    print(shrink_defines[1])
-    print(map0_defines[1])
-    print(map2_defines[1])
-    print(map4_defines[1])
-    print(map6_defines[1])
-    print(expand_defines[1])
+    # # The weight array declarations
+    # print(extraction_defines[1])
+    # print(shrink_defines[1])
+    # print(map0_defines[1])
+    # print(map2_defines[1])
+    # print(map4_defines[1])
+    # print(map6_defines[1])
+    # print(expand_defines[1])
     
-    # print(extraction_func)
+    print(extraction_func)
     print(shrink_body)
     print(map0_body)
     print(map2_body)

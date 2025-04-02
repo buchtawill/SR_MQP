@@ -1,23 +1,8 @@
 import torch
 import numpy as np
+from matplotlib import pyplot as plt
 
-
-WEIGHTS_DECONV = np.array([
-    [ -0.01144055, -0.00907180,  0.01926787,  0.02713044,  0.02557711,  0.02497433,  0.01976402, -0.00352580, -0.00125133 ],
-    [ -0.01206590, -0.00707813,  0.02569121,  0.03151914,  0.01713638,  0.00322280,  0.00132756, -0.01895992, -0.00421952 ],
-    [ -0.00299183,  0.00488416,  0.01854593,  0.00715575, -0.03299165, -0.05967715, -0.03442585, -0.02584003,  0.00703535 ],
-    [  0.00526780,  0.00766025,  0.01146465,  0.00246327, -0.03731396, -0.06639615, -0.05517766, -0.04686022, -0.00171279 ],
-    [ -0.00257094, -0.02277388, -0.00893931, -0.01222208,  0.00469413, -0.01561134, -0.04827255, -0.06521229, -0.03007165 ],
-    [  0.00624669, -0.01110133, -0.00856166, -0.00355367,  0.03721085,  0.03906970, -0.03614255, -0.06374004, -0.02648782 ],
-    [  0.01704879,  0.01068135,  0.00061458,  0.00252205,  0.02824421,  0.02898084, -0.02600434, -0.04214757, -0.00802519 ],
-    [ -0.00696383,  0.00114733,  0.01185839,  0.00629945, -0.00332416, -0.00192898, -0.02506248, -0.03565328, -0.00143645 ],
-    [ -0.01988062, -0.00953092,  0.01441447,  0.01116130, -0.00873910, -0.01072958, -0.00984131, -0.00831538,  0.00630383 ]
-])
-
-# def get_real_conv_result(start_x, start_y, channel_arr):
-#     result = np.sum(channel_arr[start_y:start_y+5, start_x:start_x+5] * WEIGHTS[0]) + BIAS_1
-#     result = np.maximum(0, result) + PRELU_1 * np.minimum(0, result)
-#     return result
+from FSRCNN import *
 
 def prelu(value:float, weight:float):
     if(value >= 0.0):
@@ -25,6 +10,42 @@ def prelu(value:float, weight:float):
     
     else:
         return weight * value
+
+def text_to_featuremaps(path:str, num_feature_maps)->np.ndarray:
+    """
+    Reads a text file containing feature maps and returns them as a numpy array.
+    Args:
+        path (str): Path to the text file containing the feature maps.
+        num_feature_maps (int): Number of feature maps to read from the file.
+    Returns:
+        np.ndarray: Feature maps as a numpy array of shape (44, 28, 28)
+    """
+    feature_maps = []
+    
+    with open(path, "r") as file:
+        lines = file.readlines()
+    
+    # Find the start of the feature maps
+    start_idx = None
+    for i, line in enumerate(lines):
+        if "INFO [conv2d] Feature map 0:" in line:
+            start_idx = i + 1  # Start from the next line
+            break
+
+    if start_idx is None:
+        raise ValueError("Feature map start not found in the file.")
+    
+    # Read 44 feature maps, each consisting of 28x28 lines
+    feature_map_size = 28 * 28
+
+    for i in range(num_feature_maps):
+        # Skip the first two lines (header and empty line)
+        start = start_idx + i * (feature_map_size + 2)
+        end = start + feature_map_size
+        feature_map = np.array([float(x.strip()) for x in lines[start:end]]).reshape(28, 28)
+        feature_maps.append(feature_map)
+
+    return np.array(feature_maps)  # Shape: (num_feature_maps, 28, 28)
 
 def low_level_extraction(input_streams, weight_matrix:np.ndarray, biases:np.ndarray, prelus:np.ndarray):
     
@@ -308,7 +329,7 @@ def compare_transposed(image_tile_2828):
     pytorch_deconv = pytorch_deconv.squeeze(0).detach().numpy()
 
     # input ch is shape (28x28)
-    manual_deconv = transposed_convolution_9x9(input_ch, WEIGHTS_DECONV)
+    # manual_deconv = transposed_convolution_9x9(input_ch, WEIGHTS_DECONV)
     
     diff = np.abs(pytorch_deconv - manual_deconv)
 
@@ -316,17 +337,26 @@ def compare_transposed(image_tile_2828):
 
 if __name__ == '__main__':
     
-    image_tile = np.load('../comparisons/images/image_coin_tile.npy')
-    image_tile_2828 = image_tile.astype(np.float32) / 256.
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = FSRCNN(upscale_factor=2, color_space='rgb').to(device)
+    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
     
-    image_tile_2828 = np.transpose(image_tile_2828, (2, 0, 1)) # 3, 28, 28
-    # image_tile = np.pad(image_tile_2828, ((0, 0), (2, 2), (2, 2)), mode='constant', constant_values=0)
-    # print(image_tile.shape) # (3, 32, 32)
-    # print(image_tile[0,0])  # Red channel, first row
+    low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
+    low_res_coin = low_res_coin.float()
+    
+    # Change shape from (28, 28, 3) → (1, 3, 28, 28) for pytorch
+    low_res_coin = low_res_coin.permute(2, 0, 1).unsqueeze(0) / 256.
+    image_tile_2828 = low_res_coin.squeeze(0).detach().cpu().numpy()
     
     conv_weights = np.load('./saved_weights/extraction_conv_44w.npy')   # 44, 3, 5, 5
     conv_bias    = np.load('./saved_weights/extraction_conv_44b.npy')   # 44
     prelu_weight = np.load('./saved_weights/extraction_conv_44pre.npy') # 44
+    
+    inference = model.feature_extraction(low_res_coin.to(device))
+    inference = model.shrink(inference)
+    inference = model.map(inference)
+    inference = model.expand(inference)
+    inference = inference.squeeze(0).cpu().detach().numpy()
     
     input_channels = [[], [], []]
     
@@ -334,7 +364,7 @@ if __name__ == '__main__':
         for row in range(28):
             for col in range(28):
                 input_channels[ch].append(image_tile_2828[ch][row][col])
-              
+             
     # To check that the input is stored correctly:     
     # for ch in range(3):
     #     print(f"Channel {ch}: ", end='')
@@ -343,19 +373,37 @@ if __name__ == '__main__':
     resulting_maps = low_level_extraction(input_channels, conv_weights, conv_bias, prelu_weight)
     
     # print(len(resulting_maps[0]))
-    for i in range(28):
-        print(resulting_maps[0].pop(0))
-    # num_wrong = 0
     # for i in range(28):
-    #     for j in range(28):
-    #         if(not float_compare(ideal[i,j], fifod_conv[i,j])):
-    #             num_wrong+=1
-    #             print(f"Error at row {i}, col {j}: Ideal: {ideal[i,j]:9.6f}, FIFO: {fifod_conv[i,j]:9.6f}")
-    # print("Num correct:     ", 28*28 - num_wrong)
-    # print("Number of errors:", num_wrong)
+    #     result = resulting_maps[0].pop(0)
+    #     print(result - inference[0,0,i])
+        
+    last_conv = text_to_featuremaps('../../HLS/build/conv2d_proj/solution1/csim/report/conv2d_top_csim.log', 44)
+    errors = np.abs(inference - last_conv).flatten()
     
-    # print(channel[2, 0:5]) # first five columns of the third row
+    pct_err = np.abs((last_conv - inference) / inference).flatten()
+    pct_err[pct_err > 20] = np.nan # divide by 0
     
+    avg = np.mean(errors)
+    worst = np.max(errors)
+    print(f"Average error: {avg:9.6f} ({np.mean(pct_err):2.2f}%)")
+    print(f"Worst error:   {worst:9.6f} ({np.max(pct_err):2.2f}%)")
+    
+    print(f"Average error * 256: {avg*256:9.6f}")
+    print(f"Worst error * 256:   {worst*256:9.6f}")
+    
+    # First histogram (percent error)
+    # plt.hist(errors, bins=50, alpha=0.5, label="Error", edgecolor='black', color='cyan')
+    plt.hist(errors*256, bins=50, alpha=0.5, label="Error", edgecolor='black', color='cyan')
+    plt.xlabel("Error")
+    plt.ylabel("Frequency")
+    plt.title("Histogram of Error")
+    plt.legend()
+    plt.grid(True)
+
+
+    plt.tight_layout()
+    plt.show()
+
     
     
     
