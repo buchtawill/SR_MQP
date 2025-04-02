@@ -143,6 +143,11 @@ void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, INPUT_WI
 			float b3 = tmp_data.range(119, 112);
 			// Discard tmp_data.range(127, 120)
 
+            // printf("Got RGB %3d, %3d, %3d\n", (int)r0, (int)g0, (int)b0);
+            // printf("Got RGB %3d, %3d, %3d\n", (int)r1, (int)g1, (int)b1);
+            // printf("Got RGB %3d, %3d, %3d\n", (int)r2, (int)g2, (int)b2);
+            // printf("Got RGB %3d, %3d, %3d\n", (int)r3, (int)g3, (int)b3);
+
 			// Divide by 256, cast to 12 bit fixed, write to FIFO
 			tile_in[0].write((fixed_4_8_t)(r0 / 256.0f)); 
 			tile_in[0].write((fixed_4_8_t)(r1 / 256.0f)); 
@@ -154,7 +159,7 @@ void prep_tile(hls::stream<axis_t> &in_stream, hls::stream<fixed_4_8_t, INPUT_WI
 			tile_in[1].write((fixed_4_8_t)(g2 / 256.0f)); 
 			tile_in[1].write((fixed_4_8_t)(g3 / 256.0f));
 
-			tile_in[2].write((fixed_4_8_t)(b2 / 256.0f)); 
+			tile_in[2].write((fixed_4_8_t)(b0 / 256.0f)); 
 			tile_in[2].write((fixed_4_8_t)(b1 / 256.0f)); 
 			tile_in[2].write((fixed_4_8_t)(b2 / 256.0f)); 
 			tile_in[2].write((fixed_4_8_t)(b3 / 256.0f));
@@ -814,8 +819,12 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
 //	#pragma HLS BIND_STORAGE variable=tile_in type=bram
 	// #pragma HLS array_partition variable=tile_in dim=0 type=complete
 
-	 #pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW
 	prep_tile(in_stream, tile_in);
+    // for(int i = 0; i < 784; i++){
+    //     printf("%f,\n", tile_in[2].read());
+    // }
+    // return;
 
 	conv_feature_extraction0(tile_in, map_extraction);
 	// conv_shrink0(map_extraction, map_shrink);
