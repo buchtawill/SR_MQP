@@ -1,6 +1,7 @@
 #include "bilinear_interpolation.h"
 #include <ap_fixed.h>
 #include <algorithm>
+#include "hls_print.h"
 
 
 int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
@@ -53,8 +54,8 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	int x_location = 0;
 	int y_location = 0;
 
-    fixed widthRatio  = fixed(WIDTH_IN - 1) / fixed(WIDTH_OUT - 1);
-    fixed heightRatio = fixed(HEIGHT_IN - 1) / fixed(HEIGHT_OUT - 1);
+    fixed_t widthRatio  = fixed_t(WIDTH_IN - 1) / fixed_t(WIDTH_OUT - 1);
+    fixed_t heightRatio = fixed_t(HEIGHT_IN - 1) / fixed_t(HEIGHT_OUT - 1);
 
     for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
 
@@ -65,8 +66,8 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
             #pragma HLS UNROLL factor=2
 
             // Compute the corresponding input coordinates in fixed point
-            fixed x_in = x_out * widthRatio;
-            fixed y_in = y_out * heightRatio;
+            fixed_t x_in = x_out * widthRatio;
+            fixed_t y_in = y_out * heightRatio;
 
             // Determine the four nearest neighbors
             int x0 = static_cast<int>(x_in);
@@ -75,13 +76,13 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
             int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
 
             // Calculate interpolation weights
-            fixed dx = x_in - fixed(x0);
-            fixed dy = y_in - fixed(y0);
+            fixed_t dx = x_in - fixed_t(x0);
+            fixed_t dy = y_in - fixed_t(y0);
 
-            fixed w00 = (fixed(1) - dx) * (fixed(1) - dy);
-            fixed w10 = dx * (fixed(1) - dy);
-            fixed w01 = (fixed(1) - dx) * dy;
-            fixed w11 = dx * dy;
+            fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
+            fixed_t w10 = dx * (fixed_t(1) - dy);
+            fixed_t w01 = (fixed_t(1) - dx) * dy;
+            fixed_t w11 = dx * dy;
 
             // Read pixel data from input (packed format 0xRRGGBB)
             pixel_t pixel00 = image_for_calcs[y0][x0];
@@ -96,9 +97,9 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
             channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
 
             // Compute interpolated values for each channel
-            fixed r_interp = w00 * fixed(r00) + w10 * fixed(r10) + w01 * fixed(r01) + w11 * fixed(r11);
-            fixed g_interp = w00 * fixed(g00) + w10 * fixed(g10) + w01 * fixed(g01) + w11 * fixed(g11);
-            fixed b_interp = w00 * fixed(b00) + w10 * fixed(b10) + w01 * fixed(b01) + w11 * fixed(b11);
+            fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
+            fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
+            fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
 
             // Store interpolated values in `image_out` (rounded)
             pixel_t temp_pixel;
@@ -141,6 +142,7 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 
     #pragma HLS INTERFACE axis register both port=in_stream
     #pragma HLS INTERFACE axis register both port=fifo_first_0
+//#pragma HLS RESOURCE variable=psum1 core=FIFO_BRAM
     #pragma HLS INTERFACE axis register both port=fifo_first_1
     #pragma HLS INTERFACE axis register both port=fifo_first_2
     #pragma HLS INTERFACE axis register both port=fifo_first_3
@@ -159,12 +161,41 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
     #pragma HLS INTERFACE axis register both port=fifo_second_7
     #pragma HLS INTERFACE axis register both port=fifo_second_8
 
+	#pragma HLS STREAM variable=fifo_first_0 depth=784
+	#pragma HLS STREAM variable=fifo_first_1 depth=784
+	#pragma HLS STREAM variable=fifo_first_2 depth=784
+	#pragma HLS STREAM variable=fifo_first_3 depth=784
+	#pragma HLS STREAM variable=fifo_first_4 depth=784
+	#pragma HLS STREAM variable=fifo_first_5 depth=784
+	#pragma HLS STREAM variable=fifo_first_6 depth=784
+	#pragma HLS STREAM variable=fifo_first_7 depth=784
+	#pragma HLS STREAM variable=fifo_first_8 depth=784
+	#pragma HLS STREAM variable=fifo_second_0 depth=784
+	#pragma HLS STREAM variable=fifo_second_1 depth=784
+	#pragma HLS STREAM variable=fifo_second_2 depth=784
+	#pragma HLS STREAM variable=fifo_second_3 depth=784
+	#pragma HLS STREAM variable=fifo_second_4 depth=784
+	#pragma HLS STREAM variable=fifo_second_5 depth=784
+	#pragma HLS STREAM variable=fifo_second_6 depth=784
+	#pragma HLS STREAM variable=fifo_second_7 depth=784
+	#pragma HLS STREAM variable=fifo_second_8 depth=784
+
 
     // Internal overlap FIFOs
-    hls::stream<pixel_t> fifo_first_overlap_0;
-    hls::stream<pixel_t> fifo_first_overlap_1;
-    hls::stream<pixel_t> fifo_second_overlap_0;
-    hls::stream<pixel_t> fifo_second_overlap_1;
+    hls::stream<pixel_t> fifo_first_overlap_0 ("overlap 1 0");
+    hls::stream<pixel_t> fifo_first_overlap_1 ("overlap 1 1");
+    hls::stream<pixel_t> fifo_second_overlap_0 ("overlap 2 0");
+    hls::stream<pixel_t> fifo_second_overlap_1 ("overlap 2 1");
+
+	#pragma HLS INTERFACE axis register both port=fifo_first_overlap_0
+	#pragma HLS INTERFACE axis register both port=fifo_first_overlap_1
+	#pragma HLS INTERFACE axis register both port=fifo_second_overlap_0
+	#pragma HLS INTERFACE axis register both port=fifo_second_overlap_1
+
+	#pragma HLS STREAM variable=fifo_first_overlap_0 depth=56
+	#pragma HLS STREAM variable=fifo_first_overlap_1 depth=56
+	#pragma HLS STREAM variable=fifo_second_overlap_0 depth=56
+	#pragma HLS STREAM variable=fifo_second_overlap_1 depth=56
 
 
     /*STREAM IN VALUES*/
@@ -223,67 +254,97 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 		for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
 			pixel_t data = input_data_stored[row_idx][col_idx];
 
-            switch(fifo_idx) {
-                case 0: (fill_first_set ? fifo_first_0 : fifo_second_0).write(data); break;
-                case 1: (fill_first_set ? fifo_first_1 : fifo_second_1).write(data); break;
-                case 2: (fill_first_set ? fifo_first_2 : fifo_second_2).write(data); break;
-                case 3: (fill_first_set ? fifo_first_3 : fifo_second_3).write(data); break;
-                case 4: (fill_first_set ? fifo_first_4 : fifo_second_4).write(data); break;
-                case 5: (fill_first_set ? fifo_first_5 : fifo_second_5).write(data); break;
-                case 6: (fill_first_set ? fifo_first_6 : fifo_second_6).write(data); break;
-                case 7: (fill_first_set ? fifo_first_7 : fifo_second_7).write(data); break;
-                case 8: (fill_first_set ? fifo_first_8 : fifo_second_8).write(data); break;
-            }
-
-
-
-			//if if at the bottom two rows of the top image section, fill first FIFO overflow buffer
-			if(row_idx == SLIDER_HEIGHT_IN - 1){
-				fifo_first_overlap_0.write(data);
+			switch (fifo_idx) {
+			    case 0:
+			        if (fill_first_set) fifo_first_0.write(data);
+			        else fifo_second_0.write(data);
+			        break;
+			    case 1:
+			        if (fill_first_set) fifo_first_1.write(data);
+			        else fifo_second_1.write(data);
+			        break;
+			    case 2:
+			        if (fill_first_set) fifo_first_2.write(data);
+			        else fifo_second_2.write(data);
+			        break;
+			    case 3:
+			        if (fill_first_set) fifo_first_3.write(data);
+			        else fifo_second_3.write(data);
+			        break;
+			    case 4:
+			        if (fill_first_set) fifo_first_4.write(data);
+			        else fifo_second_4.write(data);
+			        break;
+			    case 5:
+			        if (fill_first_set) fifo_first_5.write(data);
+			        else fifo_second_5.write(data);
+			        break;
+			    case 6:
+			        if (fill_first_set) fifo_first_6.write(data);
+			        else fifo_second_6.write(data);
+			        break;
+			    case 7:
+			        if (fill_first_set) fifo_first_7.write(data);
+			        else fifo_second_7.write(data);
+			        break;
+			    case 8:
+			        if (fill_first_set) fifo_first_8.write(data);
+			        else fifo_second_8.write(data);
+			        break;
 			}
-			else if(row_idx == SLIDER_HEIGHT_IN){
-				fifo_first_overlap_1.write(data);
-			}
 
 
-			//otherwise if FIFOs at the bottom of the middle image sections are being filled, alternate which FIFO overflow buffer is filled
-			else if(fifo_idx == 7){
-				if(fill_first_set){
+
+			//if not at bottom of image
+			if(row_idx != HEIGHT_IN - 1){
+				//if if at the bottom two rows of the top image section, fill first FIFO overflow buffer
+				if(row_idx == SLIDER_HEIGHT_IN - 1){
 					fifo_first_overlap_0.write(data);
 				}
-				else if(!fill_first_set){
-					fifo_second_overlap_0.write(data);
-				}
-			}
-			else if(fifo_idx == 8){
-				if(fill_first_set){
+				else if(row_idx == SLIDER_HEIGHT_IN){
 					fifo_first_overlap_1.write(data);
 				}
-				else if(!fill_first_set){
-					fifo_second_overlap_1.write(data);
+
+
+				//otherwise if FIFOs at the bottom of the middle image sections are being filled, alternate which FIFO overflow buffer is filled
+				else if(fifo_idx == 7 ){
+					if(fill_first_set){
+						fifo_first_overlap_0.write(data);
+					}
+					else if(!fill_first_set){
+						fifo_second_overlap_0.write(data);
+					}
+				}
+				else if(fifo_idx == 8){
+					if(fill_first_set){
+						fifo_first_overlap_1.write(data);
+					}
+					else if(!fill_first_set){
+						fifo_second_overlap_1.write(data);
+					}
 				}
 			}
 
 
-			//otherwise if at the bottom of the bottom sections
-			else if(row_idx == HEIGHT_IN - 2){
-
-				if(fill_first_set){
-					fifo_first_overlap_0.write(data);
-				}
-				else if(!fill_first_set){
-					fifo_second_overlap_0.write(data);
-				}
-			}
-			else if(row_idx == HEIGHT_IN - 1){
-
-				if(fill_first_set){
-					fifo_first_overlap_1.write(data);
-				}
-				else if(!fill_first_set){
-					fifo_second_overlap_1.write(data);
-				}
-			}
+//			//otherwise if at the bottom of the bottom sections
+//			else if(row_idx == HEIGHT_IN - 2){
+//
+//				if(fill_first_set){
+//					fifo_first_overlap_0.write(data);
+//				}
+//				else if(!fill_first_set){
+//					fifo_second_overlap_0.write(data);
+//				}
+//			}
+//			else if(row_idx == HEIGHT_IN - 1){
+//
+//				if(fill_first_set){
+//					fifo_first_overlap_1.write(data);
+//				}
+//				else if(!fill_first_set){
+//					fifo_second_overlap_1.write(data);
+//				}
+//			}
 
 
 		}
@@ -293,20 +354,48 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 		if(fifo_idx == 8){
 			fill_first_set = !fill_first_set;
 
-			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
 
+//			int fifo_size = fifo_second_overlap_0.size();
+//			hls::print("Row idx: %d ", row_idx);
+//			hls::print("fifo size: %d\n", fifo_size);
+
+			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
 				//NOTE: Add checks to confirm overlap has values and handle if they don't
-				if(fill_first_set){
+				if(fill_first_set && !fifo_second_overlap_0.empty() && !fifo_second_overlap_1.empty()){
+
+//					int fifo_size = fifo_first_overlap_0.size();
+//					hls::print("Filling first set of overlap/n");
+//					hls::print("Before fill first overlap size is: %d\n", fifo_size);
+
+
 					fifo_first_0.write(fifo_second_overlap_0.read());
 					fifo_first_1.write(fifo_second_overlap_1.read());
+
+//					fifo_size = fifo_first_overlap_0.size();
+//					hls::print("After fill first overlap size is: %d\n", fifo_size);
 				}
-				else if(!fill_first_set){
+				else if(!fill_first_set && !fifo_first_overlap_0.empty() && !fifo_first_overlap_1.empty()){
+
+//					int fifo_size = fifo_second_overlap_0.size();
+//					hls::print("Filling second set of overlap/n");
+//					hls::print("Before fill second overlap size is: %d\n", fifo_size);
+
 					fifo_second_0.write(fifo_first_overlap_0.read());
 					fifo_second_1.write(fifo_first_overlap_1.read());
+
+//					fifo_size = fifo_second_overlap_0.size();
+//					hls::print("After fill second overlap size is: %d\n", fifo_size);
 				}
 			}
 
+//			fifo_size = fifo_second_overlap_0.size();
+//			hls::print("After fills fifo size is: %d\n", fifo_size);
+
 		}
+
+//		int fifo_size = fifo_second_overlap_0.size();
+//		hls::print("At row index: %d ", row_idx);
+//		hls::print("Size of second overlap fifo is: %d\n", fifo_size);
 
 
 	}
@@ -329,15 +418,15 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
     if (top_slider) {
         for (int col_idx = 0; col_idx < WIDTH_IN; col_idx++) {
             for (int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++) {
-                pixel_t data = (i == 0) ? fifo_1.read() :
-                               (i == 1) ? fifo_2.read() :
-                               (i == 2) ? fifo_3.read() :
-                               (i == 3) ? fifo_4.read() :
-                               (i == 4) ? fifo_5.read() :
-                               (i == 5) ? fifo_6.read() :
-                               (i == 6) ? fifo_7.read() :
-                               fifo_8.read();
-                image_section[i][col_idx] = data;
+				pixel_t data = (i == 0) ? fifo_1.read() :
+							   (i == 1) ? fifo_2.read() :
+							   (i == 2) ? fifo_3.read() :
+							   (i == 3) ? fifo_4.read() :
+							   (i == 4) ? fifo_5.read() :
+							   (i == 5) ? fifo_6.read() :
+							   (i == 6) ? fifo_7.read() :
+							   fifo_8.read();
+				image_section[i][col_idx] = data;
             }
         }
     }
@@ -345,15 +434,15 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
     else if (bottom_slider) {
         for (int col_idx = 0; col_idx < WIDTH_IN; col_idx++) {
             for (int i = 0; i < SLIDER_HEIGHT_IN + BUFFER; i++) {
-                pixel_t data = (i == 0) ? fifo_0.read() :
-                               (i == 1) ? fifo_1.read() :
-                               (i == 2) ? fifo_2.read() :
-                               (i == 3) ? fifo_3.read() :
-                               (i == 4) ? fifo_4.read() :
-                               (i == 5) ? fifo_5.read() :
-                               (i == 6) ? fifo_6.read() :
-                               fifo_7.read();
-                image_section[i][col_idx] = data;
+				pixel_t data = (i == 0) ? fifo_0.read() :
+							   (i == 1) ? fifo_1.read() :
+							   (i == 2) ? fifo_2.read() :
+							   (i == 3) ? fifo_3.read() :
+							   (i == 4) ? fifo_4.read() :
+							   (i == 5) ? fifo_5.read() :
+							   (i == 6) ? fifo_6.read() :
+							   fifo_7.read();
+				image_section[i][col_idx] = data;
             }
         }
     }
@@ -440,7 +529,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
 	// Declare FIFOs for pixel values
-	hls::stream<pixel_t> fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
+	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
 	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
 
 
