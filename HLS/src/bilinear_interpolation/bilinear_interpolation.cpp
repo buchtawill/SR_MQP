@@ -307,7 +307,7 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 
 
 				//otherwise if FIFOs at the bottom of the middle image sections are being filled, alternate which FIFO overflow buffer is filled
-				else if(fifo_idx == 7 ){
+				else if(fifo_idx == SLIDER_HEIGHT_IN){
 					if(fill_first_set){
 						fifo_first_overlap_0.write(data);
 					}
@@ -315,7 +315,7 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 						fifo_second_overlap_0.write(data);
 					}
 				}
-				else if(fifo_idx == 8){
+				else if(fifo_idx == (SLIDER_HEIGHT_IN + 1)){
 					if(fill_first_set){
 						fifo_first_overlap_1.write(data);
 					}
@@ -326,76 +326,34 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 			}
 
 
-//			//otherwise if at the bottom of the bottom sections
-//			else if(row_idx == HEIGHT_IN - 2){
-//
-//				if(fill_first_set){
-//					fifo_first_overlap_0.write(data);
-//				}
-//				else if(!fill_first_set){
-//					fifo_second_overlap_0.write(data);
-//				}
-//			}
-//			else if(row_idx == HEIGHT_IN - 1){
-//
-//				if(fill_first_set){
-//					fifo_first_overlap_1.write(data);
-//				}
-//				else if(!fill_first_set){
-//					fifo_second_overlap_1.write(data);
-//				}
-//			}
-
 
 		}
 
 
 		/*SWITCH WHICH FIFOS BEING FILLED AND TRANSFER OVERLAP*/
-		if(fifo_idx == 8){
+		if(fifo_idx == (SLIDER_HEIGHT_IN + 1)){
 			fill_first_set = !fill_first_set;
-
-
-//			int fifo_size = fifo_second_overlap_0.size();
-//			hls::print("Row idx: %d ", row_idx);
-//			hls::print("fifo size: %d\n", fifo_size);
 
 			for(int col_idx = 0; col_idx < WIDTH_IN; col_idx++){
 				//NOTE: Add checks to confirm overlap has values and handle if they don't
 				if(fill_first_set && !fifo_second_overlap_0.empty() && !fifo_second_overlap_1.empty()){
 
-//					int fifo_size = fifo_first_overlap_0.size();
-//					hls::print("Filling first set of overlap/n");
-//					hls::print("Before fill first overlap size is: %d\n", fifo_size);
-
-
 					fifo_first_0.write(fifo_second_overlap_0.read());
 					fifo_first_1.write(fifo_second_overlap_1.read());
 
-//					fifo_size = fifo_first_overlap_0.size();
-//					hls::print("After fill first overlap size is: %d\n", fifo_size);
 				}
 				else if(!fill_first_set && !fifo_first_overlap_0.empty() && !fifo_first_overlap_1.empty()){
 
-//					int fifo_size = fifo_second_overlap_0.size();
-//					hls::print("Filling second set of overlap/n");
-//					hls::print("Before fill second overlap size is: %d\n", fifo_size);
 
 					fifo_second_0.write(fifo_first_overlap_0.read());
 					fifo_second_1.write(fifo_first_overlap_1.read());
 
-//					fifo_size = fifo_second_overlap_0.size();
-//					hls::print("After fill second overlap size is: %d\n", fifo_size);
 				}
 			}
 
-//			fifo_size = fifo_second_overlap_0.size();
-//			hls::print("After fills fifo size is: %d\n", fifo_size);
 
 		}
 
-//		int fifo_size = fifo_second_overlap_0.size();
-//		hls::print("At row index: %d ", row_idx);
-//		hls::print("Size of second overlap fifo is: %d\n", fifo_size);
 
 
 	}
@@ -568,31 +526,30 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
 		//if row_sliced number is even then pulling from second set of FIFOs
 		if(row_sliced % 2 == 0 && first_fifos_filled){
+
+#pragma HLS DATAFLOW
 			create_image_section(fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8,
 								top_row, bottom_row, image_section);
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
-			//RIGHT NOW HARDCODED, BUT IN LOOP TO MAKE VARIABLE
-			//parameters: section to upscale, x_start, y_start, upscaled section
-			bilinear_interpolation_calculations(image_section, 0, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled]);
-			bilinear_interpolation_calculations(image_section, 7, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+1]);
-			bilinear_interpolation_calculations(image_section, 14, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+2]);
-			bilinear_interpolation_calculations(image_section, 21, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+3]);
-			section_upscaled = section_upscaled + 4;
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+			}
+			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
 
 		//if the row_sliced number is odd, then pulling from second set of FIFOs
 		else if(row_sliced % 2 == 1 && second_fifos_filled){
+#pragma HLS DATAFLOW
 			create_image_section(fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8,
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
-			bilinear_interpolation_calculations(image_section, 0, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled]);
-			bilinear_interpolation_calculations(image_section, 7, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+1]);
-			bilinear_interpolation_calculations(image_section, 14, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+2]);
-			bilinear_interpolation_calculations(image_section, 21, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled+3]);
-			section_upscaled = section_upscaled + 4;
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+			}
+			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
 	}
