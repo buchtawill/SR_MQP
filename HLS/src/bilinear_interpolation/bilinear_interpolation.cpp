@@ -5,8 +5,8 @@
 
 
 int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
-									   int x_start, int y_start,
-									   pixel_t image_section_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
+									   int y_start,
+									   pixel_t image_section_out[4][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
 
 
 	pixel_t image_for_calcs[HEIGHT_IN][WIDTH_IN];
@@ -54,66 +54,88 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	int x_location = 0;
 	int y_location = 0;
 
+	int x_start = 0;
+
     fixed_t widthRatio  = fixed_t(WIDTH_IN - 1) / fixed_t(WIDTH_OUT - 1);
     fixed_t heightRatio = fixed_t(HEIGHT_IN - 1) / fixed_t(HEIGHT_OUT - 1);
 
-    for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
+    for(int section = 0; section < NUM_SLIDERS_WIDTH; section++){
 
-        #pragma HLS PIPELINE II=11
+    	x_location = 0;
+    	y_location = 0;
+    	x_start = section * SLIDER_WIDTH_IN;
 
-        for (int x_out = x_start * SCALE; x_out < x_start * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
+		for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
 
-            #pragma HLS UNROLL factor=2
+			#pragma HLS PIPELINE II=11
 
-            // Compute the corresponding input coordinates in fixed point
-            fixed_t x_in = x_out * widthRatio;
-            fixed_t y_in = y_out * heightRatio;
+			for (int x_out = x_start * SCALE; x_out < x_start * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
 
-            // Determine the four nearest neighbors
-            int x0 = static_cast<int>(x_in);
-            int y0 = static_cast<int>(y_in);
-            int x1 = std::min(x0 + 1, WIDTH_IN - 1);
-            int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
+				#pragma HLS UNROLL factor=2
 
-            // Calculate interpolation weights
-            fixed_t dx = x_in - fixed_t(x0);
-            fixed_t dy = y_in - fixed_t(y0);
+				// Compute the corresponding input coordinates in fixed point
+				fixed_t x_in = x_out * widthRatio;
+				fixed_t y_in = y_out * heightRatio;
 
-            fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
-            fixed_t w10 = dx * (fixed_t(1) - dy);
-            fixed_t w01 = (fixed_t(1) - dx) * dy;
-            fixed_t w11 = dx * dy;
+				// Determine the four nearest neighbors
+				int x0 = static_cast<int>(x_in);
+				int y0 = static_cast<int>(y_in);
+				int x1 = std::min(x0 + 1, WIDTH_IN - 1);
+				int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
 
-            // Read pixel data from input (packed format 0xRRGGBB)
-            pixel_t pixel00 = image_for_calcs[y0][x0];
-            pixel_t pixel10 = image_for_calcs[y0][x1];
-            pixel_t pixel01 = image_for_calcs[y1][x0];
-            pixel_t pixel11 = image_for_calcs[y1][x1];
+				// Calculate interpolation weights
+				fixed_t dx = x_in - fixed_t(x0);
+				fixed_t dy = y_in - fixed_t(y0);
 
-            // Extract RGB channels
-            channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
-            channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
-            channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
-            channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
+				fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
+				fixed_t w10 = dx * (fixed_t(1) - dy);
+				fixed_t w01 = (fixed_t(1) - dx) * dy;
+				fixed_t w11 = dx * dy;
 
-            // Compute interpolated values for each channel
-            fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
-            fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
-            fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
+				// Read pixel data from input (packed format 0xRRGGBB)
+				pixel_t pixel00 = image_for_calcs[y0][x0];
+				pixel_t pixel10 = image_for_calcs[y0][x1];
+				pixel_t pixel01 = image_for_calcs[y1][x0];
+				pixel_t pixel11 = image_for_calcs[y1][x1];
 
-            // Store interpolated values in `image_out` (rounded)
-            pixel_t temp_pixel;
-            temp_pixel.range(7, 0) = r_interp;
-            temp_pixel.range(15, 8) = g_interp;
-            temp_pixel.range(23, 16) = b_interp;
+				// Extract RGB channels
+				channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
+				channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
+				channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
+				channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
 
-            image_section_out[y_location][x_location] = temp_pixel;
+				// Compute interpolated values for each channel
+				fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
+				fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
+				fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
 
-            x_location++;
-        }
+				// Store interpolated values in `image_out` (rounded)
+				pixel_t temp_pixel;
+				temp_pixel.range(7, 0) = r_interp;
+				temp_pixel.range(15, 8) = g_interp;
+				temp_pixel.range(23, 16) = b_interp;
 
-        x_location = 0;
-        y_location++;
+				//image_section_out[y_location][x_location] = temp_pixel;
+				if(section == 0){
+					image_section_out[0][y_location][x_location] = temp_pixel;
+				}
+				else if(section == 1){
+					image_section_out[1][y_location][x_location] = temp_pixel;
+				}
+				else if(section == 2){
+					image_section_out[2][y_location][x_location] = temp_pixel;
+				}
+				else if(section == 3){
+					image_section_out[3][y_location][x_location] = temp_pixel;
+				}
+
+				x_location++;
+			}
+
+			x_location = 0;
+			y_location++;
+		}
+
     }
 
     return 1;
@@ -507,6 +529,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER * 2][WIDTH_IN];
 
 	pixel_t upscaled_sections[NUM_SLIDERS][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
+	pixel_t upscaled_sections_subset[4][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
 	int section_upscaled = 0;
 
 	while(row_sliced < NUM_SLIDERS_HEIGHT){
@@ -532,9 +555,19 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
-			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+//			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+//			}
+			bilinear_interpolation_calculations(image_section, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections_subset);
+
+			for(int section = 0; section < 4; section++){
+				for (int i = 0; i < SLIDER_HEIGHT_OUT; i++) {
+					for (int j = 0; j < SLIDER_WIDTH_OUT; j++) {
+						upscaled_sections[section_upscaled + section][i][j] = upscaled_sections_subset[section][i][j];
+					}
+				}
 			}
+
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
@@ -546,9 +579,19 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
-			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+//			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
+//			}
+			bilinear_interpolation_calculations(image_section, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections_subset);
+
+			for(int section = 0; section < 4; section++){
+				for (int i = 0; i < SLIDER_HEIGHT_OUT; i++) {
+					for (int j = 0; j < SLIDER_WIDTH_OUT; j++) {
+						upscaled_sections[section_upscaled + section][i][j] = upscaled_sections_subset[section][i][j];
+					}
+				}
 			}
+
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
