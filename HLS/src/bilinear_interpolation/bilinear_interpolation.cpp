@@ -4,9 +4,56 @@
 #include "hls_print.h"
 
 
+//int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
+//									   int x_start, int y_start,
+//									   pixel_t image_section_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
 int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
-									   int y_start,
-									   pixel_t image_section_out[4][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
+									   int x_start, int y_start,
+									   hls::stream<pixel_t> &fifo_bilin_0,
+									   hls::stream<pixel_t> &fifo_bilin_1,
+									   hls::stream<pixel_t> &fifo_bilin_2,
+									   hls::stream<pixel_t> &fifo_bilin_3,
+									   hls::stream<pixel_t> &fifo_bilin_4,
+									   hls::stream<pixel_t> &fifo_bilin_5,
+									   hls::stream<pixel_t> &fifo_bilin_6,
+									   hls::stream<pixel_t> &fifo_bilin_7,
+									   hls::stream<pixel_t> &fifo_bilin_8,
+									   hls::stream<pixel_t> &fifo_bilin_9,
+									   hls::stream<pixel_t> &fifo_bilin_10,
+									   hls::stream<pixel_t> &fifo_bilin_11,
+									   hls::stream<pixel_t> &fifo_bilin_12,
+									   hls::stream<pixel_t> &fifo_bilin_13){
+
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_0
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_1
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_2
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_3
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_4
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_5
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_6
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_7
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_8
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_9
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_10
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_11
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_12
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_13
+
+	#pragma HLS STREAM variable=fifo_bilin_0 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_1 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_2 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_3 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_4 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_5 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_6 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_7 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_8 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_9 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_10 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_11 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_12 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_13 depth=784
+
 
 
 	pixel_t image_for_calcs[HEIGHT_IN][WIDTH_IN];
@@ -54,88 +101,82 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	int x_location = 0;
 	int y_location = 0;
 
-	int x_start = 0;
-
     fixed_t widthRatio  = fixed_t(WIDTH_IN - 1) / fixed_t(WIDTH_OUT - 1);
     fixed_t heightRatio = fixed_t(HEIGHT_IN - 1) / fixed_t(HEIGHT_OUT - 1);
 
-    for(int section = 0; section < NUM_SLIDERS_WIDTH; section++){
+    for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
 
-    	x_location = 0;
-    	y_location = 0;
-    	x_start = section * SLIDER_WIDTH_IN;
+        #pragma HLS PIPELINE II=11
 
-		for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
+        for (int x_out = x_start * SCALE; x_out < x_start * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
 
-			#pragma HLS PIPELINE II=11
+            #pragma HLS UNROLL factor=2
 
-			for (int x_out = x_start * SCALE; x_out < x_start * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
+            // Compute the corresponding input coordinates in fixed point
+            fixed_t x_in = x_out * widthRatio;
+            fixed_t y_in = y_out * heightRatio;
 
-				#pragma HLS UNROLL factor=2
+            // Determine the four nearest neighbors
+            int x0 = static_cast<int>(x_in);
+            int y0 = static_cast<int>(y_in);
+            int x1 = std::min(x0 + 1, WIDTH_IN - 1);
+            int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
 
-				// Compute the corresponding input coordinates in fixed point
-				fixed_t x_in = x_out * widthRatio;
-				fixed_t y_in = y_out * heightRatio;
+            // Calculate interpolation weights
+            fixed_t dx = x_in - fixed_t(x0);
+            fixed_t dy = y_in - fixed_t(y0);
 
-				// Determine the four nearest neighbors
-				int x0 = static_cast<int>(x_in);
-				int y0 = static_cast<int>(y_in);
-				int x1 = std::min(x0 + 1, WIDTH_IN - 1);
-				int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
+            fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
+            fixed_t w10 = dx * (fixed_t(1) - dy);
+            fixed_t w01 = (fixed_t(1) - dx) * dy;
+            fixed_t w11 = dx * dy;
 
-				// Calculate interpolation weights
-				fixed_t dx = x_in - fixed_t(x0);
-				fixed_t dy = y_in - fixed_t(y0);
+            // Read pixel data from input (packed format 0xRRGGBB)
+            pixel_t pixel00 = image_for_calcs[y0][x0];
+            pixel_t pixel10 = image_for_calcs[y0][x1];
+            pixel_t pixel01 = image_for_calcs[y1][x0];
+            pixel_t pixel11 = image_for_calcs[y1][x1];
 
-				fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
-				fixed_t w10 = dx * (fixed_t(1) - dy);
-				fixed_t w01 = (fixed_t(1) - dx) * dy;
-				fixed_t w11 = dx * dy;
+            // Extract RGB channels
+            channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
+            channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
+            channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
+            channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
 
-				// Read pixel data from input (packed format 0xRRGGBB)
-				pixel_t pixel00 = image_for_calcs[y0][x0];
-				pixel_t pixel10 = image_for_calcs[y0][x1];
-				pixel_t pixel01 = image_for_calcs[y1][x0];
-				pixel_t pixel11 = image_for_calcs[y1][x1];
+            // Compute interpolated values for each channel
+            fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
+            fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
+            fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
 
-				// Extract RGB channels
-				channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
-				channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
-				channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
-				channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
+            // Store interpolated values in `image_out` (rounded)
+            pixel_t temp_pixel;
+            temp_pixel.range(7, 0) = r_interp;
+            temp_pixel.range(15, 8) = g_interp;
+            temp_pixel.range(23, 16) = b_interp;
 
-				// Compute interpolated values for each channel
-				fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
-				fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
-				fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
+            //image_section_out[y_location][x_location] = temp_pixel;
+            switch (y_location) {
+                case 0:  fifo_bilin_0.write(temp_pixel);  break;
+                case 1:  fifo_bilin_1.write(temp_pixel);  break;
+                case 2:  fifo_bilin_2.write(temp_pixel);  break;
+                case 3:  fifo_bilin_3.write(temp_pixel);  break;
+                case 4:  fifo_bilin_4.write(temp_pixel);  break;
+                case 5:  fifo_bilin_5.write(temp_pixel);  break;
+                case 6:  fifo_bilin_6.write(temp_pixel);  break;
+                case 7:  fifo_bilin_7.write(temp_pixel);  break;
+                case 8:  fifo_bilin_8.write(temp_pixel);  break;
+                case 9:  fifo_bilin_9.write(temp_pixel);  break;
+                case 10: fifo_bilin_10.write(temp_pixel); break;
+                case 11: fifo_bilin_11.write(temp_pixel); break;
+                case 12: fifo_bilin_12.write(temp_pixel); break;
+                case 13: fifo_bilin_13.write(temp_pixel); break;
+            }
 
-				// Store interpolated values in `image_out` (rounded)
-				pixel_t temp_pixel;
-				temp_pixel.range(7, 0) = r_interp;
-				temp_pixel.range(15, 8) = g_interp;
-				temp_pixel.range(23, 16) = b_interp;
+            x_location++;
+        }
 
-				//image_section_out[y_location][x_location] = temp_pixel;
-				if(section == 0){
-					image_section_out[0][y_location][x_location] = temp_pixel;
-				}
-				else if(section == 1){
-					image_section_out[1][y_location][x_location] = temp_pixel;
-				}
-				else if(section == 2){
-					image_section_out[2][y_location][x_location] = temp_pixel;
-				}
-				else if(section == 3){
-					image_section_out[3][y_location][x_location] = temp_pixel;
-				}
-
-				x_location++;
-			}
-
-			x_location = 0;
-			y_location++;
-		}
-
+        x_location = 0;
+        y_location++;
     }
 
     return 1;
@@ -447,6 +488,43 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
 
 
 
+void create_upscaled_image_section(hls::stream<pixel_t> &fifo_0,
+									hls::stream<pixel_t> &fifo_1,
+									hls::stream<pixel_t> &fifo_2,
+									hls::stream<pixel_t> &fifo_3,
+									hls::stream<pixel_t> &fifo_4,
+									hls::stream<pixel_t> &fifo_5,
+									hls::stream<pixel_t> &fifo_6,
+									hls::stream<pixel_t> &fifo_7,
+									hls::stream<pixel_t> &fifo_8,
+									hls::stream<pixel_t> &fifo_9,
+									hls::stream<pixel_t> &fifo_10,
+									hls::stream<pixel_t> &fifo_11,
+									hls::stream<pixel_t> &fifo_12,
+									hls::stream<pixel_t> &fifo_13,
+									pixel_t image_section[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
+
+    for (int col_idx = 0; col_idx < SLIDER_WIDTH_OUT; col_idx++) {
+    	image_section[0][col_idx] = fifo_0.read();
+    	image_section[1][col_idx] = fifo_1.read();
+    	image_section[2][col_idx] = fifo_2.read();
+    	image_section[3][col_idx] = fifo_3.read();
+    	image_section[4][col_idx] = fifo_4.read();
+    	image_section[5][col_idx] = fifo_5.read();
+    	image_section[6][col_idx] = fifo_6.read();
+    	image_section[7][col_idx] = fifo_7.read();
+    	image_section[8][col_idx] = fifo_8.read();
+    	image_section[9][col_idx] = fifo_9.read();
+    	image_section[10][col_idx] = fifo_10.read();
+    	image_section[11][col_idx] = fifo_11.read();
+    	image_section[12][col_idx] = fifo_12.read();
+    	image_section[13][col_idx] = fifo_13.read();
+    }
+
+}
+
+
+
 void combine_upscaled_sections(pixel_t upscaled_sections[NUM_SLIDERS][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT],
 							   pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT]) {
 
@@ -512,6 +590,10 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
 	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
 
+	hls::stream<pixel_t> fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+	                      fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+	                      fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+	                      fifo_bilin_12, fifo_bilin_13;
 
 	//Stream values in and store pixel values in FIFOs
 #pragma HLS DATAFLOW
@@ -529,7 +611,6 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER * 2][WIDTH_IN];
 
 	pixel_t upscaled_sections[NUM_SLIDERS][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
-	pixel_t upscaled_sections_subset[4][SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT];
 	int section_upscaled = 0;
 
 	while(row_sliced < NUM_SLIDERS_HEIGHT){
@@ -555,19 +636,24 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
-//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-//			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
-//			}
-			bilinear_interpolation_calculations(image_section, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections_subset);
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
 
-			for(int section = 0; section < 4; section++){
-				for (int i = 0; i < SLIDER_HEIGHT_OUT; i++) {
-					for (int j = 0; j < SLIDER_WIDTH_OUT; j++) {
-						upscaled_sections[section_upscaled + section][i][j] = upscaled_sections_subset[section][i][j];
-					}
-				}
+				bilinear_interpolation_calculations(
+				    image_section,
+				    SLIDER_WIDTH_IN * i,
+				    row_sliced * SLIDER_HEIGHT_IN,
+				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+				    fifo_bilin_12, fifo_bilin_13);
+
+				create_upscaled_image_section(
+						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
+
 			}
-
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
@@ -579,19 +665,25 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
-//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-//			    bilinear_interpolation_calculations(image_section, SLIDER_WIDTH_IN * i, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections[section_upscaled + i]);
-//			}
-			bilinear_interpolation_calculations(image_section, row_sliced * SLIDER_HEIGHT_IN, upscaled_sections_subset);
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
 
-			for(int section = 0; section < 4; section++){
-				for (int i = 0; i < SLIDER_HEIGHT_OUT; i++) {
-					for (int j = 0; j < SLIDER_WIDTH_OUT; j++) {
-						upscaled_sections[section_upscaled + section][i][j] = upscaled_sections_subset[section][i][j];
-					}
-				}
+				bilinear_interpolation_calculations(
+				    image_section,
+				    SLIDER_WIDTH_IN * i,
+				    row_sliced * SLIDER_HEIGHT_IN,
+				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+				    fifo_bilin_12, fifo_bilin_13);
+
+				create_upscaled_image_section(
+						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
+
+
 			}
-
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
