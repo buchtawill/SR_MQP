@@ -531,8 +531,8 @@ if __name__ == '__main__':
     inference = model.deconv(pre_deconv)
     inference = inference.squeeze(0).cpu().detach().numpy()
     
-    # compare_hls_pytorch(inference, 56*56)
+    compare_hls_pytorch(inference, 56*56, nmaps=3)
     
-    print(inference[0,0])
+    # print(inference[0,0])
     # compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
     
