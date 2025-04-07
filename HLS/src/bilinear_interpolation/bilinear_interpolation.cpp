@@ -3,6 +3,10 @@
 #include <algorithm>
 #include "hls_print.h"
 
+
+//int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
+//									   int x_start, int y_start,
+//									   pixel_t image_section_out[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
 int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER*2][WIDTH_IN],
 									   int x_start, int y_start,
 									   hls::stream<pixel_t> &fifo_bilin_0,
@@ -19,6 +23,37 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 									   hls::stream<pixel_t> &fifo_bilin_11,
 									   hls::stream<pixel_t> &fifo_bilin_12,
 									   hls::stream<pixel_t> &fifo_bilin_13){
+
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_0
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_1
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_2
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_3
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_4
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_5
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_6
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_7
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_8
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_9
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_10
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_11
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_12
+	#pragma HLS INTERFACE axis register both port=fifo_bilin_13
+
+	#pragma HLS STREAM variable=fifo_bilin_0 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_1 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_2 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_3 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_4 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_5 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_6 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_7 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_8 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_9 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_10 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_11 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_12 depth=784
+	#pragma HLS STREAM variable=fifo_bilin_13 depth=784
+
 
 
 	pixel_t image_for_calcs[HEIGHT_IN][WIDTH_IN];
@@ -63,94 +98,85 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	}
 
 
-
+	int x_location = 0;
+	int y_location = 0;
 
     fixed_t widthRatio  = fixed_t(WIDTH_IN - 1) / fixed_t(WIDTH_OUT - 1);
     fixed_t heightRatio = fixed_t(HEIGHT_IN - 1) / fixed_t(HEIGHT_OUT - 1);
 
+    for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
 
-    for(int i = 0; i < NUM_SLIDERS_WIDTH; i++){
+        #pragma HLS PIPELINE II=11
 
-    	int x_location = 0;
-    	int y_location = 0;
+        for (int x_out = x_start * SCALE; x_out < x_start * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
 
-    	int x_start_temp = i * SLIDER_WIDTH_IN;
+            #pragma HLS UNROLL factor=2
 
-		for (int y_out = y_start * SCALE; y_out < y_start * SCALE + SLIDER_HEIGHT_OUT; ++y_out) {
+            // Compute the corresponding input coordinates in fixed point
+            fixed_t x_in = x_out * widthRatio;
+            fixed_t y_in = y_out * heightRatio;
 
-			#pragma HLS PIPELINE II=11
+            // Determine the four nearest neighbors
+            int x0 = static_cast<int>(x_in);
+            int y0 = static_cast<int>(y_in);
+            int x1 = std::min(x0 + 1, WIDTH_IN - 1);
+            int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
 
-			for (int x_out = x_start_temp * SCALE; x_out < x_start_temp * SCALE + SLIDER_WIDTH_OUT; ++x_out) {
+            // Calculate interpolation weights
+            fixed_t dx = x_in - fixed_t(x0);
+            fixed_t dy = y_in - fixed_t(y0);
 
-				#pragma HLS UNROLL factor=2
+            fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
+            fixed_t w10 = dx * (fixed_t(1) - dy);
+            fixed_t w01 = (fixed_t(1) - dx) * dy;
+            fixed_t w11 = dx * dy;
 
-				// Compute the corresponding input coordinates in fixed point
-				fixed_t x_in = x_out * widthRatio;
-				fixed_t y_in = y_out * heightRatio;
+            // Read pixel data from input (packed format 0xRRGGBB)
+            pixel_t pixel00 = image_for_calcs[y0][x0];
+            pixel_t pixel10 = image_for_calcs[y0][x1];
+            pixel_t pixel01 = image_for_calcs[y1][x0];
+            pixel_t pixel11 = image_for_calcs[y1][x1];
 
-				// Determine the four nearest neighbors
-				int x0 = static_cast<int>(x_in);
-				int y0 = static_cast<int>(y_in);
-				int x1 = std::min(x0 + 1, WIDTH_IN - 1);
-				int y1 = std::min(y0 + 1, HEIGHT_IN - 1);
+            // Extract RGB channels
+            channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
+            channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
+            channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
+            channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
 
-				// Calculate interpolation weights
-				fixed_t dx = x_in - fixed_t(x0);
-				fixed_t dy = y_in - fixed_t(y0);
+            // Compute interpolated values for each channel
+            fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
+            fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
+            fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
 
-				fixed_t w00 = (fixed_t(1) - dx) * (fixed_t(1) - dy);
-				fixed_t w10 = dx * (fixed_t(1) - dy);
-				fixed_t w01 = (fixed_t(1) - dx) * dy;
-				fixed_t w11 = dx * dy;
+            // Store interpolated values in `image_out` (rounded)
+            pixel_t temp_pixel;
+            temp_pixel.range(7, 0) = r_interp;
+            temp_pixel.range(15, 8) = g_interp;
+            temp_pixel.range(23, 16) = b_interp;
 
-				// Read pixel data from input (packed format 0xRRGGBB)
-				pixel_t pixel00 = image_for_calcs[y0][x0];
-				pixel_t pixel10 = image_for_calcs[y0][x1];
-				pixel_t pixel01 = image_for_calcs[y1][x0];
-				pixel_t pixel11 = image_for_calcs[y1][x1];
+            //image_section_out[y_location][x_location] = temp_pixel;
+            switch (y_location) {
+                case 0:  fifo_bilin_0.write(temp_pixel);  break;
+                case 1:  fifo_bilin_1.write(temp_pixel);  break;
+                case 2:  fifo_bilin_2.write(temp_pixel);  break;
+                case 3:  fifo_bilin_3.write(temp_pixel);  break;
+                case 4:  fifo_bilin_4.write(temp_pixel);  break;
+                case 5:  fifo_bilin_5.write(temp_pixel);  break;
+                case 6:  fifo_bilin_6.write(temp_pixel);  break;
+                case 7:  fifo_bilin_7.write(temp_pixel);  break;
+                case 8:  fifo_bilin_8.write(temp_pixel);  break;
+                case 9:  fifo_bilin_9.write(temp_pixel);  break;
+                case 10: fifo_bilin_10.write(temp_pixel); break;
+                case 11: fifo_bilin_11.write(temp_pixel); break;
+                case 12: fifo_bilin_12.write(temp_pixel); break;
+                case 13: fifo_bilin_13.write(temp_pixel); break;
+            }
 
-				// Extract RGB channels
-				channel_t b00 = (pixel00 >> 16) & 0xFF, g00 = (pixel00 >> 8) & 0xFF, r00 = pixel00 & 0xFF;
-				channel_t b10 = (pixel10 >> 16) & 0xFF, g10 = (pixel10 >> 8) & 0xFF, r10 = pixel10 & 0xFF;
-				channel_t b01 = (pixel01 >> 16) & 0xFF, g01 = (pixel01 >> 8) & 0xFF, r01 = pixel01 & 0xFF;
-				channel_t b11 = (pixel11 >> 16) & 0xFF, g11 = (pixel11 >> 8) & 0xFF, r11 = pixel11 & 0xFF;
+            x_location++;
+        }
 
-				// Compute interpolated values for each channel
-				fixed_t r_interp = w00 * fixed_t(r00) + w10 * fixed_t(r10) + w01 * fixed_t(r01) + w11 * fixed_t(r11);
-				fixed_t g_interp = w00 * fixed_t(g00) + w10 * fixed_t(g10) + w01 * fixed_t(g01) + w11 * fixed_t(g11);
-				fixed_t b_interp = w00 * fixed_t(b00) + w10 * fixed_t(b10) + w01 * fixed_t(b01) + w11 * fixed_t(b11);
-
-				// Store interpolated values in `image_out` (rounded)
-				pixel_t temp_pixel;
-				temp_pixel.range(7, 0) = r_interp;
-				temp_pixel.range(15, 8) = g_interp;
-				temp_pixel.range(23, 16) = b_interp;
-
-				//image_section_out[y_location][x_location] = temp_pixel;
-				switch (y_location) {
-					case 0:  fifo_bilin_0.write(temp_pixel);  break;
-					case 1:  fifo_bilin_1.write(temp_pixel);  break;
-					case 2:  fifo_bilin_2.write(temp_pixel);  break;
-					case 3:  fifo_bilin_3.write(temp_pixel);  break;
-					case 4:  fifo_bilin_4.write(temp_pixel);  break;
-					case 5:  fifo_bilin_5.write(temp_pixel);  break;
-					case 6:  fifo_bilin_6.write(temp_pixel);  break;
-					case 7:  fifo_bilin_7.write(temp_pixel);  break;
-					case 8:  fifo_bilin_8.write(temp_pixel);  break;
-					case 9:  fifo_bilin_9.write(temp_pixel);  break;
-					case 10: fifo_bilin_10.write(temp_pixel); break;
-					case 11: fifo_bilin_11.write(temp_pixel); break;
-					case 12: fifo_bilin_12.write(temp_pixel); break;
-					case 13: fifo_bilin_13.write(temp_pixel); break;
-				}
-
-				x_location++;
-			}
-
-			x_location = 0;
-			y_location++;
-		}
-
+        x_location = 0;
+        y_location++;
     }
 
     return 1;
@@ -525,420 +551,33 @@ void combine_upscaled_sections(pixel_t upscaled_sections[NUM_SLIDERS][SLIDER_HEI
 }
 
 // Function to stream output samples from 2D array
-void stream_samples_out(hls::stream<pixel_t> &fifo_0,
-						hls::stream<pixel_t> &fifo_1,
-						hls::stream<pixel_t> &fifo_2,
-						hls::stream<pixel_t> &fifo_3,
-						hls::stream<pixel_t> &fifo_4,
-						hls::stream<pixel_t> &fifo_5,
-						hls::stream<pixel_t> &fifo_6,
-						hls::stream<pixel_t> &fifo_7,
-						hls::stream<pixel_t> &fifo_8,
-						hls::stream<pixel_t> &fifo_9,
-						hls::stream<pixel_t> &fifo_10,
-						hls::stream<pixel_t> &fifo_11,
-						hls::stream<pixel_t> &fifo_12,
-						hls::stream<pixel_t> &fifo_13,
-						bool bottom_section,
-						hls::stream<axis_t> &out_stream){
+void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::stream<axis_t> &out_stream) {
+    data_streamed loaded[NUM_TRANSFERS_OUT];
 
-    //keep a counter to track which FIFO is being read from
-    //check if FIFO that is being read from has data
-    //if it does start load
-    //have variable that tracks how many transfers out have happened->used to signal "last" control signal
-    //each row has 56 pixels, each transfer has 4 pixels, 14 transfers per row/FIFO
+    for (int load = 0; load < NUM_TRANSFERS_OUT; load++) {
 
-    data_streamed loaded_stream;
-    axis_t output_stream;
-    int fifo_idx = 0;
-    int num_transfers = 0;
-    int transfers_from_fifo = 0;
+        data_streamed temp_load = 0;
 
-    while(num_transfers < (NUM_TRANSFERS_OUT_ROW * SLIDER_HEIGHT_OUT)){
+        for (int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++) {
+            int index = load * PIXELS_PER_TRANSFER + pixel_transfer;
+            int y = index / WIDTH_OUT;
+            int x = index % WIDTH_OUT;
 
-		if(fifo_idx % SLIDER_HEIGHT_OUT == 0 && !fifo_0.empty()){
+            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = output_data_stored[y][x];
+        }
 
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_0.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 1 && !fifo_1.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_1.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 2 && !fifo_2.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_2.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 3 && !fifo_3.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_3.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 4 && !fifo_4.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_4.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 5 && !fifo_5.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_5.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 6 && !fifo_6.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_6.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 7 && !fifo_7.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_7.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 8 && !fifo_8.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_8.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 9 && !fifo_9.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_9.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 10 && !fifo_10.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_10.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 11 && !fifo_11.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_11.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 12 && !fifo_12.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_12.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
-
-		else if(fifo_idx % SLIDER_HEIGHT_OUT == 13 && !fifo_13.empty()){
-
-			//load stream with values from FIFO -> currently 4
-			for(int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++){
-				loaded_stream.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = fifo_13.read();
-				transfers_from_fifo++;
-			}
-
-			//transfer out stream
-			output_stream.data = loaded_stream;
-			//output_stream.last = (num_transfers == NUM_TRANSFERS_OUT - 1);
-			output_stream.last = (bottom_section && num_transfers == (NUM_TRANSFERS_OUT_ROW * SLIDER_HEIGHT_OUT - 1));
-			output_stream.keep = 0xFFFF;
-			output_stream.strb = 0xFFFF;
-			out_stream.write(output_stream);
-
-			//tracks how many total transfers there have been
-			num_transfers++;
-
-			//if last transfer from the row has happened, increment which fifo should be pulled from and reset count
-			if(transfers_from_fifo == WIDTH_OUT){
-				fifo_idx++;
-				transfers_from_fifo = 0;
-			}
-		}
+        loaded[load] = temp_load;
     }
 
-
+    for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
+        axis_t output_stream;
+        output_stream.data = loaded[i];
+        output_stream.last = (i == NUM_TRANSFERS_OUT - 1);
+        output_stream.keep = 0xFFFF;
+        output_stream.strb = 0xFFFF;
+        out_stream.write(output_stream);
+    }
 }
-
-//// Function to stream output samples from 2D array
-//void stream_samples_out(pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT], hls::stream<axis_t> &out_stream) {
-//    data_streamed loaded[NUM_TRANSFERS_OUT];
-//
-//    for (int load = 0; load < NUM_TRANSFERS_OUT; load++) {
-//
-//        data_streamed temp_load = 0;
-//
-//        for (int pixel_transfer = 0; pixel_transfer < PIXELS_PER_TRANSFER; pixel_transfer++) {
-//            int index = load * PIXELS_PER_TRANSFER + pixel_transfer;
-//            int y = index / WIDTH_OUT;
-//            int x = index % WIDTH_OUT;
-//
-//            temp_load.range(pixel_transfer * BITS_PER_PIXEL + 23, pixel_transfer * BITS_PER_PIXEL) = output_data_stored[y][x];
-//        }
-//
-//        loaded[load] = temp_load;
-//    }
-//
-//    for (int i = 0; i < NUM_TRANSFERS_OUT; i++) {
-//        axis_t output_stream;
-//        output_stream.data = loaded[i];
-//        output_stream.last = (i == NUM_TRANSFERS_OUT - 1);
-//        output_stream.keep = 0xFFFF;
-//        output_stream.strb = 0xFFFF;
-//        out_stream.write(output_stream);
-//    }
-//}
 
 
 // Main function for bilinear interpolation processing
@@ -951,77 +590,10 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
 	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
 
-	hls::stream<pixel_t> fifo_bilin_first_0 ("bilin first 0"), fifo_bilin_first_1 ("bilin first 1"), fifo_bilin_first_2, fifo_bilin_first_3,
-	                          fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-	                          fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-	                          fifo_bilin_first_12, fifo_bilin_first_13;
-
-	hls::stream<pixel_t> fifo_bilin_second_0 ("bilin second 0"), fifo_bilin_second_1 ("bilin second 1"), fifo_bilin_second_2, fifo_bilin_second_3,
-	                          fifo_bilin_second_4, fifo_bilin_second_5, fifo_bilin_second_6, fifo_bilin_second_7,
-	                          fifo_bilin_second_8, fifo_bilin_second_9, fifo_bilin_second_10, fifo_bilin_second_11,
-	                          fifo_bilin_second_12, fifo_bilin_second_13;
-
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_0
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_1
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_2
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_3
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_4
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_5
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_6
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_7
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_8
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_9
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_10
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_11
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_12
-#pragma HLS INTERFACE axis register both port=fifo_bilin_first_13
-
-#pragma HLS STREAM variable=fifo_bilin_first_0 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_1 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_2 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_3 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_4 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_5 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_6 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_7 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_8 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_9 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_10 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_11 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_12 depth=784
-#pragma HLS STREAM variable=fifo_bilin_first_13 depth=784
-
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_0
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_1
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_2
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_3
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_4
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_5
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_6
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_7
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_8
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_9
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_10
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_11
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_12
-#pragma HLS INTERFACE axis register both port=fifo_bilin_second_13
-
-#pragma HLS STREAM variable=fifo_bilin_second_0 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_1 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_2 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_3 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_4 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_5 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_6 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_7 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_8 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_9 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_10 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_11 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_12 depth=784
-#pragma HLS STREAM variable=fifo_bilin_second_13 depth=784
-
-
+	hls::stream<pixel_t> fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+	                      fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+	                      fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+	                      fifo_bilin_12, fifo_bilin_13;
 
 	//Stream values in and store pixel values in FIFOs
 #pragma HLS DATAFLOW
@@ -1064,43 +636,24 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
 
+				bilinear_interpolation_calculations(
+				    image_section,
+				    SLIDER_WIDTH_IN * i,
+				    row_sliced * SLIDER_HEIGHT_IN,
+				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+				    fifo_bilin_12, fifo_bilin_13);
 
-			bilinear_interpolation_calculations(
-				image_section,
-				0,
-				row_sliced * SLIDER_HEIGHT_IN,
-				fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-				fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-				fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-				fifo_bilin_first_12, fifo_bilin_first_13);
+				create_upscaled_image_section(
+						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
 
-			stream_samples_out(
-				fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-				fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-				fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-				fifo_bilin_first_12, fifo_bilin_first_13, bottom_row, out_stream);
-
-
-//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-//
-//				bilinear_interpolation_calculations(
-//				    image_section,
-//				    SLIDER_WIDTH_IN * i,
-//				    row_sliced * SLIDER_HEIGHT_IN,
-//				    fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-//				    fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-//				    fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-//				    fifo_bilin_first_12, fifo_bilin_first_13);
-//
-//				stream_samples_out(
-//				    fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-//				    fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-//				    fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-//				    fifo_bilin_first_12, fifo_bilin_first_13, out_stream);
-//
-//
-//			}
+			}
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
@@ -1112,42 +665,25 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
-			bilinear_interpolation_calculations(
-				image_section,
-				0,
-				row_sliced * SLIDER_HEIGHT_IN,
-				fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-				fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-				fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-				fifo_bilin_first_12, fifo_bilin_first_13);
+			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
 
-			stream_samples_out(
-				fifo_bilin_first_0, fifo_bilin_first_1, fifo_bilin_first_2, fifo_bilin_first_3,
-				fifo_bilin_first_4, fifo_bilin_first_5, fifo_bilin_first_6, fifo_bilin_first_7,
-				fifo_bilin_first_8, fifo_bilin_first_9, fifo_bilin_first_10, fifo_bilin_first_11,
-				fifo_bilin_first_12, fifo_bilin_first_13, bottom_row, out_stream);
+				bilinear_interpolation_calculations(
+				    image_section,
+				    SLIDER_WIDTH_IN * i,
+				    row_sliced * SLIDER_HEIGHT_IN,
+				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+				    fifo_bilin_12, fifo_bilin_13);
+
+				create_upscaled_image_section(
+						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
 
 
-//			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
-//
-//				bilinear_interpolation_calculations(
-//				    image_section,
-//				    SLIDER_WIDTH_IN * i,
-//				    row_sliced * SLIDER_HEIGHT_IN,
-//				    fifo_bilin_second_0, fifo_bilin_second_1, fifo_bilin_second_2, fifo_bilin_second_3,
-//				    fifo_bilin_second_4, fifo_bilin_second_5, fifo_bilin_second_6, fifo_bilin_second_7,
-//				    fifo_bilin_second_8, fifo_bilin_second_9, fifo_bilin_second_10, fifo_bilin_second_11,
-//				    fifo_bilin_second_12, fifo_bilin_second_13);
-//
-//				stream_samples_out(
-//				    fifo_bilin_second_0, fifo_bilin_second_1, fifo_bilin_second_2, fifo_bilin_second_3,
-//				    fifo_bilin_second_4, fifo_bilin_second_5, fifo_bilin_second_6, fifo_bilin_second_7,
-//				    fifo_bilin_second_8, fifo_bilin_second_9, fifo_bilin_second_10, fifo_bilin_second_11,
-//				    fifo_bilin_second_12, fifo_bilin_second_13, out_stream);
-//
-//
-//
-//			}
+			}
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
 			row_sliced++;
 		}
@@ -1156,8 +692,8 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 
     pixel_t output_data_stored[HEIGHT_OUT][WIDTH_OUT];
     #pragma HLS BIND_STORAGE variable=output_data_stored type=RAM_2P impl=BRAM
-//
-//    combine_upscaled_sections(upscaled_sections, output_data_stored);
-//
-//    stream_samples_out(output_data_stored, out_stream);
+
+    combine_upscaled_sections(upscaled_sections, output_data_stored);
+
+    stream_samples_out(output_data_stored, out_stream);
 }
