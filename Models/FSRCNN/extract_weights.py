@@ -16,18 +16,50 @@ def sec_to_human(seconds):
     seconds %= 60
     return "%d:%02d:%02d" % (hours, minutes, seconds)
 
-def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weight"):
+def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weight", transposed=False):
+    """
+    Prints the weights of a neural network layer in a format suitable for use as a C array.
+    This function extracts the weights of a specified tensor from the given state dictionary
+    and formats them as a C-style array. It supports different types of tensors, including
+    convolutional weights, biases, and PReLU parameters.
+    Args:
+        state_dict (dict): Model's state dict
+        tensor_name (str, optional): The name of the tensor to extract from the state_dict.
+        transposed (bool, optional): Whether to transpose the weights. 
+    Output:
+        The function prints the formatted C array to the console. The output includes
+        comments to indicate the structure of the array, such as filters and channels.
+    
+    """
+    
     if tensor_name not in state_dict:
         print(f"Tensor {tensor_name} not found in state_dict.")
         return
     
     weights = state_dict[tensor_name]  # Shape: [44, 3, 5, 5]
+    
+    if(transposed):
+        # Flip the weights because it's emulated as standard convolution under the hood
+        weights = torch.flip(weights, dims=[2, 3])
+        
+        # Also permute them because they're backwards
+        weights = weights.permute(1, 0, 2, 3)
+        
     weights = weights.numpy()  # Convert to NumPy array
     shape = weights.shape
     
     strsplit = tensor_name.split('.')
-    layer_num = int(strsplit[1])
-    layer_name = f"{strsplit[0]}"
+    
+    layer_name = strsplit[0]
+    layer_num = 0
+    try:
+        layer_num = int(strsplit[1])
+        layer_name = strsplit[0]
+    except ValueError:
+        
+        # if there is no number in the layer, set it to 0
+        layer_num = 0
+        # layer_name = tensor_name
     
     # Bias or prelu
     if("bias" in tensor_name):
@@ -87,7 +119,10 @@ def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weigh
                 for j in range(shape[1]):
                     print("        {   // Channel", j)
                     for k in range(shape[2]):
-                        row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
+                        if(transposed):
+                            row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
+                        else:
+                            row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
                         print(f"            {{ {row_values} }},")
                     print("        },")
                 print("    },")
@@ -172,7 +207,8 @@ if __name__ == '__main__':
     deconv.bias
     """
     
-    print_weights_as_c_array(state_dict, 'feature_extraction.0.weight')
+    print_weights_as_c_array(state_dict, 'deconv.weight', transposed=True)
+    print_weights_as_c_array(state_dict, 'deconv.bias')
     
     exit()
     conv_weights = state_dict['feature_extraction.0.weight'].detach().numpy()

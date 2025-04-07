@@ -263,6 +263,14 @@ def low_level_deconv(input_streams, weight_matrix:np.ndarray, biases:np.ndarray)
                     if(row >= 8):
                         mac8 += np.dot(weight_matrix[map][ch][8], slider[ch])
                 
+                # if(row==4):
+                #     print(mac0)
+                #     print(mac1)
+                #     print(mac2)
+                #     print(mac3)
+                #     print(mac4)
+                #     exit()
+                
                 if(row <= last_row_kernel):
                     psum1[map].append(mac0)
                 if(row >= 1 and row <= last_row_kernel + 1):
@@ -415,6 +423,8 @@ def compare_tconv_conv_fmod(input:torch.tensor=None, fsrcnn:FSRCNN=None):
         # need to flip the weights because transposed and math idfk
         nconv_pyt.weight.data.copy_(flipped_weights)
         nconv_pyt.bias.data.copy_(tconv_bias_tensor)
+        
+    # print(flipped_weights[0,0,0].numpy())
     
     stimulus = torch.randn((1, in_ch, 28, 28))
     
@@ -474,8 +484,8 @@ def compare_tconv_conv_fmod(input:torch.tensor=None, fsrcnn:FSRCNN=None):
                 dut = resulting_maps[ch][row*56 + col]
                 ideal = ideal_tconv[ch, row, col]
                 
-                if(ch == 0 and row < 28):
-                    print(f"DUT: {dut:>10.6f} Ideal: {ideal:>10.6f}. Error: {abs(ideal-dut):.8f}")
+                # if(ch == 0 and row < 28):
+                #     print(f"DUT: {dut:>10.6f} Ideal: {ideal:>10.6f}. Error: {abs(ideal-dut):.8f}")
                 
                 if(not float_compare(dut, ideal, 0.0001)):
                     num_wrong += 1
@@ -523,6 +533,6 @@ if __name__ == '__main__':
     
     # compare_hls_pytorch(inference, 56*56)
     
-    compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
     print(inference[0,0])
+    # compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
     

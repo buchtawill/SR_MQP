@@ -43,6 +43,10 @@
 #define OUT_CHN_LAYER_EXPAND0   44
 #define NUM_PE_LAYER_EXPAND0    1
 
+#define IN_CHN_LAYER_DECONV0    44
+#define OUT_CHN_LAYER_DECONV0   3
+#define NUM_PE_LAYER_DECONV0    1
+
 typedef ap_uint<STREAM_WIDTH> stream_data_t;
 
 // TODO WARNING NOTE: Using AP_SAT can cost up to a 20% increase in LUT usage!!!
@@ -59,6 +63,7 @@ typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 typedef hls::axis<stream_data_t, 0, 0, 0> axis_t;
 
 typedef hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX> ch_stream_t;
+typedef hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PIX * 2 * 2> upscaled_stream_t;
 
 void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
