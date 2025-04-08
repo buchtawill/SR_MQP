@@ -85,17 +85,17 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         std::cout << "Test PASSED!" << std::endl;
     } else {
         std::cout << "Input Data (R,G,B):\n";
-        for (size_t i = 0; i < input_data.size(); i += 3) {
+        for (size_t i = 0; i < input_data.size(); i += MARGIN_OF_ERROR) {
             std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
                       << "," << (int)input_data[i+2] << ") ";
         }
         std::cout << "\nExpected:\n";
-        for (size_t i = 0; i < expected_output.size(); i += 3) {
+        for (size_t i = 0; i < expected_output.size(); i += MARGIN_OF_ERROR) {
             std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
                       << "," << (int)expected_output[i+2] << ") ";
         }
         std::cout << "\nReceived:\n";
-        for (size_t i = 0; i < received_output.size(); i += 3) {
+        for (size_t i = 0; i < received_output.size(); i += MARGIN_OF_ERROR) {
             std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
                       << "," << (int)received_output[i+2] << ") ";
         }
@@ -104,7 +104,7 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
 
         // Print detailed mismatch info
         for (size_t i = 0; i < received_output.size(); ++i) {
-            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>1 ||received_output[i]-expected_output[i]<-1)) {
+            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>MARGIN_OF_ERROR ||received_output[i]-expected_output[i]<-MARGIN_OF_ERROR)) {
                 if(passed){
                 	passed = false;
                 	fail_count++;
