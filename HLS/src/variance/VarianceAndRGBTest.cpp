@@ -1,6 +1,6 @@
 #include <iostream>
 #include "VarianceAndRGB.h"
-#include "image_tile_conversion.hpp"
+#include "../image_tile_conversion.hpp"
 #include <cmath>
 
 int test_rgb_convert();
