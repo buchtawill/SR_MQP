@@ -11,6 +11,8 @@ pre-built/linux/
 *.jou
 *.log
 
+!*.sh
+
 # Yes this is a huge pain in the ass to unignore the one file
 components/*
 !components/yocto

@@ -935,8 +935,6 @@
 #define CRL_APB_TIMESTAMP_REF_CTRL_OFFSET                                          0XFF5E0128
 #undef CRF_APB_SATA_REF_CTRL_OFFSET 
 #define CRF_APB_SATA_REF_CTRL_OFFSET                                               0XFD1A00A0
-#undef CRF_APB_PCIE_REF_CTRL_OFFSET 
-#define CRF_APB_PCIE_REF_CTRL_OFFSET                                               0XFD1A00B4
 #undef CRF_APB_DP_VIDEO_REF_CTRL_OFFSET 
 #define CRF_APB_DP_VIDEO_REF_CTRL_OFFSET                                           0XFD1A0070
 #undef CRF_APB_DP_AUDIO_REF_CTRL_OFFSET 
@@ -1838,38 +1836,6 @@
 #define CRF_APB_SATA_REF_CTRL_DIVISOR0_DEFVAL                  0x01001600
 #define CRF_APB_SATA_REF_CTRL_DIVISOR0_SHIFT                   8
 #define CRF_APB_SATA_REF_CTRL_DIVISOR0_MASK                    0x00003F00U
-
-/*
-* 000 = IOPLL_TO_FPD; 010 = RPLL_TO_FPD; 011 = DPLL; (This signal may only
-    *  be toggled after 4 cycles of the old clock and 4 cycles of the new cloc
-    * k. This is not usually an issue, but designers must be aware.)
-*/
-#undef CRF_APB_PCIE_REF_CTRL_SRCSEL_DEFVAL 
-#undef CRF_APB_PCIE_REF_CTRL_SRCSEL_SHIFT 
-#undef CRF_APB_PCIE_REF_CTRL_SRCSEL_MASK 
-#define CRF_APB_PCIE_REF_CTRL_SRCSEL_DEFVAL                    0x00001500
-#define CRF_APB_PCIE_REF_CTRL_SRCSEL_SHIFT                     0
-#define CRF_APB_PCIE_REF_CTRL_SRCSEL_MASK                      0x00000007U
-
-/*
-* Clock active signal. Switch to 0 to disable the clock
-*/
-#undef CRF_APB_PCIE_REF_CTRL_CLKACT_DEFVAL 
-#undef CRF_APB_PCIE_REF_CTRL_CLKACT_SHIFT 
-#undef CRF_APB_PCIE_REF_CTRL_CLKACT_MASK 
-#define CRF_APB_PCIE_REF_CTRL_CLKACT_DEFVAL                    0x00001500
-#define CRF_APB_PCIE_REF_CTRL_CLKACT_SHIFT                     24
-#define CRF_APB_PCIE_REF_CTRL_CLKACT_MASK                      0x01000000U
-
-/*
-* 6 bit divider
-*/
-#undef CRF_APB_PCIE_REF_CTRL_DIVISOR0_DEFVAL 
-#undef CRF_APB_PCIE_REF_CTRL_DIVISOR0_SHIFT 
-#undef CRF_APB_PCIE_REF_CTRL_DIVISOR0_MASK 
-#define CRF_APB_PCIE_REF_CTRL_DIVISOR0_DEFVAL                  0x00001500
-#define CRF_APB_PCIE_REF_CTRL_DIVISOR0_SHIFT                   8
-#define CRF_APB_PCIE_REF_CTRL_DIVISOR0_MASK                    0x00003F00U
 
 /*
 * 6 bit divider
@@ -23594,12 +23560,6 @@
 #define IOU_SLCR_MIO_PIN_32_OFFSET                                                 0XFF180080
 #undef IOU_SLCR_MIO_PIN_33_OFFSET 
 #define IOU_SLCR_MIO_PIN_33_OFFSET                                                 0XFF180084
-#undef IOU_SLCR_MIO_PIN_35_OFFSET 
-#define IOU_SLCR_MIO_PIN_35_OFFSET                                                 0XFF18008C
-#undef IOU_SLCR_MIO_PIN_36_OFFSET 
-#define IOU_SLCR_MIO_PIN_36_OFFSET                                                 0XFF180090
-#undef IOU_SLCR_MIO_PIN_37_OFFSET 
-#define IOU_SLCR_MIO_PIN_37_OFFSET                                                 0XFF180094
 #undef IOU_SLCR_MIO_PIN_38_OFFSET 
 #define IOU_SLCR_MIO_PIN_38_OFFSET                                                 0XFF180098
 #undef IOU_SLCR_MIO_PIN_39_OFFSET 
@@ -25458,163 +25418,6 @@
 #define IOU_SLCR_MIO_PIN_33_L3_SEL_DEFVAL                      0x00000000
 #define IOU_SLCR_MIO_PIN_33_L3_SEL_SHIFT                       5
 #define IOU_SLCR_MIO_PIN_33_L3_SEL_MASK                        0x000000E0U
-
-/*
-* Level 0 Mux Select 0= Level 1 Mux Output 1= gem0, Input, gem0_rgmii_rxd[
-    * 2]- (RX RGMII data)
-*/
-#undef IOU_SLCR_MIO_PIN_35_L0_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_35_L0_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_35_L0_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_35_L0_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_35_L0_SEL_SHIFT                       1
-#define IOU_SLCR_MIO_PIN_35_L0_SEL_MASK                        0x00000002U
-
-/*
-* Level 1 Mux Select 0= Level 2 Mux Output 1= pcie, Input, pcie_reset_n- (
-    * PCIE Reset signal)
-*/
-#undef IOU_SLCR_MIO_PIN_35_L1_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_35_L1_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_35_L1_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_35_L1_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_35_L1_SEL_SHIFT                       2
-#define IOU_SLCR_MIO_PIN_35_L1_SEL_MASK                        0x00000004U
-
-/*
-* Level 2 Mux Select 0= Level 3 Mux Output 1= pmu, Output, pmu_gpo[3]- (PM
-    * U GPI) 2= test_scan, Input, test_scan_in[35]- (Test Scan Port) = test_sc
-    * an, Output, test_scan_out[35]- (Test Scan Port) 3= dpaux, Input, dp_hot_
-    * plug_detect- (Dp Aux Hot Plug)
-*/
-#undef IOU_SLCR_MIO_PIN_35_L2_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_35_L2_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_35_L2_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_35_L2_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_35_L2_SEL_SHIFT                       3
-#define IOU_SLCR_MIO_PIN_35_L2_SEL_MASK                        0x00000018U
-
-/*
-* Level 3 Mux Select 0= gpio1, Input, gpio_1_pin_in[9]- (GPIO bank 1) 0= g
-    * pio1, Output, gpio_1_pin_out[9]- (GPIO bank 1) 1= can0, Output, can0_phy
-    * _tx- (Can TX signal) 2= i2c0, Input, i2c0_sda_input- (SDA signal) 2= i2c
-    * 0, Output, i2c0_sda_out- (SDA signal) 3= swdt0, Output, swdt0_rst_out- (
-    * Watch Dog Timer Output clock) 4= spi1, Input, spi1_n_ss_in- (SPI Master
-    * Selects) 4= spi1, Output, spi1_n_ss_out[0]- (SPI Master Selects) 5= ttc2
-    * , Output, ttc2_wave_out- (TTC Waveform Clock) 6= ua0, Output, ua0_txd- (
-    * UART transmitter serial output) 7= trace, Output, tracedq[13]- (Trace Po
-    * rt Databus)
-*/
-#undef IOU_SLCR_MIO_PIN_35_L3_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_35_L3_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_35_L3_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_35_L3_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_35_L3_SEL_SHIFT                       5
-#define IOU_SLCR_MIO_PIN_35_L3_SEL_MASK                        0x000000E0U
-
-/*
-* Level 0 Mux Select 0= Level 1 Mux Output 1= gem0, Input, gem0_rgmii_rxd[
-    * 3]- (RX RGMII data)
-*/
-#undef IOU_SLCR_MIO_PIN_36_L0_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_36_L0_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_36_L0_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_36_L0_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_36_L0_SEL_SHIFT                       1
-#define IOU_SLCR_MIO_PIN_36_L0_SEL_MASK                        0x00000002U
-
-/*
-* Level 1 Mux Select 0= Level 2 Mux Output 1= pcie, Input, pcie_reset_n- (
-    * PCIE Reset signal)
-*/
-#undef IOU_SLCR_MIO_PIN_36_L1_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_36_L1_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_36_L1_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_36_L1_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_36_L1_SEL_SHIFT                       2
-#define IOU_SLCR_MIO_PIN_36_L1_SEL_MASK                        0x00000004U
-
-/*
-* Level 2 Mux Select 0= Level 3 Mux Output 1= pmu, Output, pmu_gpo[4]- (PM
-    * U GPI) 2= test_scan, Input, test_scan_in[36]- (Test Scan Port) = test_sc
-    * an, Output, test_scan_out[36]- (Test Scan Port) 3= dpaux, Input, dp_aux_
-    * data_in- (Dp Aux Data) = dpaux, Output, dp_aux_data_out- (Dp Aux Data)
-*/
-#undef IOU_SLCR_MIO_PIN_36_L2_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_36_L2_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_36_L2_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_36_L2_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_36_L2_SEL_SHIFT                       3
-#define IOU_SLCR_MIO_PIN_36_L2_SEL_MASK                        0x00000018U
-
-/*
-* Level 3 Mux Select 0= gpio1, Input, gpio_1_pin_in[10]- (GPIO bank 1) 0=
-    * gpio1, Output, gpio_1_pin_out[10]- (GPIO bank 1) 1= can1, Output, can1_p
-    * hy_tx- (Can TX signal) 2= i2c1, Input, i2c1_scl_input- (SCL signal) 2= i
-    * 2c1, Output, i2c1_scl_out- (SCL signal) 3= swdt1, Input, swdt1_clk_in- (
-    * Watch Dog Timer Input clock) 4= spi1, Input, spi1_mi- (MISO signal) 4= s
-    * pi1, Output, spi1_so- (MISO signal) 5= ttc1, Input, ttc1_clk_in- (TTC Cl
-    * ock) 6= ua1, Output, ua1_txd- (UART transmitter serial output) 7= trace,
-    *  Output, tracedq[14]- (Trace Port Databus)
-*/
-#undef IOU_SLCR_MIO_PIN_36_L3_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_36_L3_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_36_L3_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_36_L3_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_36_L3_SEL_SHIFT                       5
-#define IOU_SLCR_MIO_PIN_36_L3_SEL_MASK                        0x000000E0U
-
-/*
-* Level 0 Mux Select 0= Level 1 Mux Output 1= gem0, Input, gem0_rgmii_rx_c
-    * tl- (RX RGMII control )
-*/
-#undef IOU_SLCR_MIO_PIN_37_L0_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_37_L0_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_37_L0_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_37_L0_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_37_L0_SEL_SHIFT                       1
-#define IOU_SLCR_MIO_PIN_37_L0_SEL_MASK                        0x00000002U
-
-/*
-* Level 1 Mux Select 0= Level 2 Mux Output 1= pcie, Input, pcie_reset_n- (
-    * PCIE Reset signal)
-*/
-#undef IOU_SLCR_MIO_PIN_37_L1_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_37_L1_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_37_L1_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_37_L1_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_37_L1_SEL_SHIFT                       2
-#define IOU_SLCR_MIO_PIN_37_L1_SEL_MASK                        0x00000004U
-
-/*
-* Level 2 Mux Select 0= Level 3 Mux Output 1= pmu, Output, pmu_gpo[5]- (PM
-    * U GPI) 2= test_scan, Input, test_scan_in[37]- (Test Scan Port) = test_sc
-    * an, Output, test_scan_out[37]- (Test Scan Port) 3= dpaux, Input, dp_hot_
-    * plug_detect- (Dp Aux Hot Plug)
-*/
-#undef IOU_SLCR_MIO_PIN_37_L2_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_37_L2_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_37_L2_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_37_L2_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_37_L2_SEL_SHIFT                       3
-#define IOU_SLCR_MIO_PIN_37_L2_SEL_MASK                        0x00000018U
-
-/*
-* Level 3 Mux Select 0= gpio1, Input, gpio_1_pin_in[11]- (GPIO bank 1) 0=
-    * gpio1, Output, gpio_1_pin_out[11]- (GPIO bank 1) 1= can1, Input, can1_ph
-    * y_rx- (Can RX signal) 2= i2c1, Input, i2c1_sda_input- (SDA signal) 2= i2
-    * c1, Output, i2c1_sda_out- (SDA signal) 3= swdt1, Output, swdt1_rst_out-
-    * (Watch Dog Timer Output clock) 4= spi1, Output, spi1_mo- (MOSI signal) 4
-    * = spi1, Input, spi1_si- (MOSI signal) 5= ttc1, Output, ttc1_wave_out- (T
-    * TC Waveform Clock) 6= ua1, Input, ua1_rxd- (UART receiver serial input)
-    * 7= trace, Output, tracedq[15]- (Trace Port Databus)
-*/
-#undef IOU_SLCR_MIO_PIN_37_L3_SEL_DEFVAL 
-#undef IOU_SLCR_MIO_PIN_37_L3_SEL_SHIFT 
-#undef IOU_SLCR_MIO_PIN_37_L3_SEL_MASK 
-#define IOU_SLCR_MIO_PIN_37_L3_SEL_DEFVAL                      0x00000000
-#define IOU_SLCR_MIO_PIN_37_L3_SEL_SHIFT                       5
-#define IOU_SLCR_MIO_PIN_37_L3_SEL_MASK                        0x000000E0U
 
 /*
 * Level 0 Mux Select 0= Level 1 Mux Output 1= gem1, Output, gem1_rgmii_tx_
@@ -33271,50 +33074,6 @@
 #define CRL_APB_BOOT_PIN_CTRL_OFFSET                                               0XFF5E0250
 #undef CRL_APB_BOOT_PIN_CTRL_OFFSET 
 #define CRL_APB_BOOT_PIN_CTRL_OFFSET                                               0XFF5E0250
-#undef GPIO_DIRM_1_OFFSET 
-#define GPIO_DIRM_1_OFFSET                                                         0XFF0A0244
-#undef GPIO_OEN_1_OFFSET 
-#define GPIO_OEN_1_OFFSET                                                          0XFF0A0248
-#undef GPIO_MASK_DATA_1_LSW_OFFSET 
-#define GPIO_MASK_DATA_1_LSW_OFFSET                                                0XFF0A0008
-#undef GPIO_MASK_DATA_1_LSW_OFFSET 
-#define GPIO_MASK_DATA_1_LSW_OFFSET                                                0XFF0A0008
-#undef GPIO_DIRM_1_OFFSET 
-#define GPIO_DIRM_1_OFFSET                                                         0XFF0A0244
-#undef GPIO_OEN_1_OFFSET 
-#define GPIO_OEN_1_OFFSET                                                          0XFF0A0248
-#undef GPIO_MASK_DATA_1_LSW_OFFSET 
-#define GPIO_MASK_DATA_1_LSW_OFFSET                                                0XFF0A0008
-
-/*
-* PCIE config reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL              0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT               19
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK                0x00080000U
-
-/*
-* PCIE control block level reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL             0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT              17
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK               0x00020000U
-
-/*
-* PCIE bridge block level reset (AXI interface)
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL           0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT            18
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK             0x00040000U
 
 /*
 * Display Port block level reset (includes DPDMA)
@@ -34396,106 +34155,6 @@
 #define CRL_APB_BOOT_PIN_CTRL_OUT_EN_DEFVAL                    0x00000000
 #define CRL_APB_BOOT_PIN_CTRL_OUT_EN_SHIFT                     0
 #define CRL_APB_BOOT_PIN_CTRL_OUT_EN_MASK                      0x0000000FU
-
-/*
-* Operation is the same as DIRM_0[DIRECTION_0]
-*/
-#undef GPIO_DIRM_1_DIRECTION_1_DEFVAL 
-#undef GPIO_DIRM_1_DIRECTION_1_SHIFT 
-#undef GPIO_DIRM_1_DIRECTION_1_MASK 
-#define GPIO_DIRM_1_DIRECTION_1_DEFVAL                         0x00000000
-#define GPIO_DIRM_1_DIRECTION_1_SHIFT                          0
-#define GPIO_DIRM_1_DIRECTION_1_MASK                           0x03FFFFFFU
-
-/*
-* Operation is the same as OEN_0[OP_ENABLE_0]
-*/
-#undef GPIO_OEN_1_OP_ENABLE_1_DEFVAL 
-#undef GPIO_OEN_1_OP_ENABLE_1_SHIFT 
-#undef GPIO_OEN_1_OP_ENABLE_1_MASK 
-#define GPIO_OEN_1_OP_ENABLE_1_DEFVAL                          0x00000000
-#define GPIO_OEN_1_OP_ENABLE_1_SHIFT                           0
-#define GPIO_OEN_1_OP_ENABLE_1_MASK                            0x03FFFFFFU
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[MASK_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT                  16
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK                   0xFFFF0000U
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[DATA_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT                  0
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK                   0x0000FFFFU
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[MASK_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT                  16
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK                   0xFFFF0000U
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[DATA_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT                  0
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK                   0x0000FFFFU
-
-/*
-* Operation is the same as DIRM_0[DIRECTION_0]
-*/
-#undef GPIO_DIRM_1_DIRECTION_1_DEFVAL 
-#undef GPIO_DIRM_1_DIRECTION_1_SHIFT 
-#undef GPIO_DIRM_1_DIRECTION_1_MASK 
-#define GPIO_DIRM_1_DIRECTION_1_DEFVAL                         0x00000000
-#define GPIO_DIRM_1_DIRECTION_1_SHIFT                          0
-#define GPIO_DIRM_1_DIRECTION_1_MASK                           0x03FFFFFFU
-
-/*
-* Operation is the same as OEN_0[OP_ENABLE_0]
-*/
-#undef GPIO_OEN_1_OP_ENABLE_1_DEFVAL 
-#undef GPIO_OEN_1_OP_ENABLE_1_SHIFT 
-#undef GPIO_OEN_1_OP_ENABLE_1_MASK 
-#define GPIO_OEN_1_OP_ENABLE_1_DEFVAL                          0x00000000
-#define GPIO_OEN_1_OP_ENABLE_1_SHIFT                           0
-#define GPIO_OEN_1_OP_ENABLE_1_MASK                            0x03FFFFFFU
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[MASK_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT                  16
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK                   0xFFFF0000U
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[DATA_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT                  0
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK                   0x0000FFFFU
 #undef FPD_SLCR_SECURE_SLCR_DPDMA_OFFSET 
 #define FPD_SLCR_SECURE_SLCR_DPDMA_OFFSET                                          0XFD690040
 #undef FPD_SLCR_SECURE_SLCR_PCIE_OFFSET 
@@ -35026,10 +34685,22 @@
 #define SERDES_L3_PLL_SS_STEPS_0_LSB_OFFSET                                        0XFD40E368
 #undef SERDES_L3_PLL_SS_STEPS_1_MSB_OFFSET 
 #define SERDES_L3_PLL_SS_STEPS_1_MSB_OFFSET                                        0XFD40E36C
+#undef SERDES_L0_PLL_SS_STEPS_0_LSB_OFFSET 
+#define SERDES_L0_PLL_SS_STEPS_0_LSB_OFFSET                                        0XFD402368
+#undef SERDES_L0_PLL_SS_STEPS_1_MSB_OFFSET 
+#define SERDES_L0_PLL_SS_STEPS_1_MSB_OFFSET                                        0XFD40236C
 #undef SERDES_L1_PLL_SS_STEPS_0_LSB_OFFSET 
 #define SERDES_L1_PLL_SS_STEPS_0_LSB_OFFSET                                        0XFD406368
 #undef SERDES_L1_PLL_SS_STEPS_1_MSB_OFFSET 
 #define SERDES_L1_PLL_SS_STEPS_1_MSB_OFFSET                                        0XFD40636C
+#undef SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_OFFSET 
+#define SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_OFFSET                                    0XFD402370
+#undef SERDES_L0_PLL_SS_STEP_SIZE_1_OFFSET 
+#define SERDES_L0_PLL_SS_STEP_SIZE_1_OFFSET                                        0XFD402374
+#undef SERDES_L0_PLL_SS_STEP_SIZE_2_OFFSET 
+#define SERDES_L0_PLL_SS_STEP_SIZE_2_OFFSET                                        0XFD402378
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_OFFSET 
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_OFFSET                                    0XFD40237C
 #undef SERDES_L1_PLL_SS_STEP_SIZE_0_LSB_OFFSET 
 #define SERDES_L1_PLL_SS_STEP_SIZE_0_LSB_OFFSET                                    0XFD406370
 #undef SERDES_L1_PLL_SS_STEP_SIZE_1_OFFSET 
@@ -35064,8 +34735,6 @@
 #define SERDES_L3_TM_DIG_6_OFFSET                                                  0XFD40D06C
 #undef SERDES_L3_TX_DIG_TM_61_OFFSET 
 #define SERDES_L3_TX_DIG_TM_61_OFFSET                                              0XFD40C0F4
-#undef SERDES_L0_TM_AUX_0_OFFSET 
-#define SERDES_L0_TM_AUX_0_OFFSET                                                  0XFD4010CC
 #undef SERDES_L2_TM_AUX_0_OFFSET 
 #define SERDES_L2_TM_AUX_0_OFFSET                                                  0XFD4090CC
 #undef SERDES_L0_TM_DIG_8_OFFSET 
@@ -35076,32 +34745,6 @@
 #define SERDES_L2_TM_DIG_8_OFFSET                                                  0XFD409074
 #undef SERDES_L3_TM_DIG_8_OFFSET 
 #define SERDES_L3_TM_DIG_8_OFFSET                                                  0XFD40D074
-#undef SERDES_L0_TM_MISC2_OFFSET 
-#define SERDES_L0_TM_MISC2_OFFSET                                                  0XFD40189C
-#undef SERDES_L0_TM_IQ_ILL1_OFFSET 
-#define SERDES_L0_TM_IQ_ILL1_OFFSET                                                0XFD4018F8
-#undef SERDES_L0_TM_IQ_ILL2_OFFSET 
-#define SERDES_L0_TM_IQ_ILL2_OFFSET                                                0XFD4018FC
-#undef SERDES_L0_TM_ILL12_OFFSET 
-#define SERDES_L0_TM_ILL12_OFFSET                                                  0XFD401990
-#undef SERDES_L0_TM_E_ILL1_OFFSET 
-#define SERDES_L0_TM_E_ILL1_OFFSET                                                 0XFD401924
-#undef SERDES_L0_TM_E_ILL2_OFFSET 
-#define SERDES_L0_TM_E_ILL2_OFFSET                                                 0XFD401928
-#undef SERDES_L0_TM_IQ_ILL3_OFFSET 
-#define SERDES_L0_TM_IQ_ILL3_OFFSET                                                0XFD401900
-#undef SERDES_L0_TM_E_ILL3_OFFSET 
-#define SERDES_L0_TM_E_ILL3_OFFSET                                                 0XFD40192C
-#undef SERDES_L0_TM_ILL8_OFFSET 
-#define SERDES_L0_TM_ILL8_OFFSET                                                   0XFD401980
-#undef SERDES_L0_TM_IQ_ILL8_OFFSET 
-#define SERDES_L0_TM_IQ_ILL8_OFFSET                                                0XFD401914
-#undef SERDES_L0_TM_IQ_ILL9_OFFSET 
-#define SERDES_L0_TM_IQ_ILL9_OFFSET                                                0XFD401918
-#undef SERDES_L0_TM_E_ILL8_OFFSET 
-#define SERDES_L0_TM_E_ILL8_OFFSET                                                 0XFD401940
-#undef SERDES_L0_TM_E_ILL9_OFFSET 
-#define SERDES_L0_TM_E_ILL9_OFFSET                                                 0XFD401944
 #undef SERDES_L0_TM_ILL13_OFFSET 
 #define SERDES_L0_TM_ILL13_OFFSET                                                  0XFD401994
 #undef SERDES_L1_TM_ILL13_OFFSET 
@@ -35212,14 +34855,16 @@
 #define SERDES_L2_TM_EQ11_OFFSET                                                   0XFD409978
 #undef SERDES_L3_TM_EQ11_OFFSET 
 #define SERDES_L3_TM_EQ11_OFFSET                                                   0XFD40D978
-#undef SIOU_ECO_0_OFFSET 
-#define SIOU_ECO_0_OFFSET                                                          0XFD3D001C
 #undef SERDES_ICM_CFG0_OFFSET 
 #define SERDES_ICM_CFG0_OFFSET                                                     0XFD410010
 #undef SERDES_ICM_CFG1_OFFSET 
 #define SERDES_ICM_CFG1_OFFSET                                                     0XFD410014
+#undef SERDES_L0_TXPMD_TM_45_OFFSET 
+#define SERDES_L0_TXPMD_TM_45_OFFSET                                               0XFD400CB4
 #undef SERDES_L1_TXPMD_TM_45_OFFSET 
 #define SERDES_L1_TXPMD_TM_45_OFFSET                                               0XFD404CB4
+#undef SERDES_L0_TX_ANA_TM_118_OFFSET 
+#define SERDES_L0_TX_ANA_TM_118_OFFSET                                             0XFD4001D8
 #undef SERDES_L1_TX_ANA_TM_118_OFFSET 
 #define SERDES_L1_TX_ANA_TM_118_OFFSET                                             0XFD4041D8
 #undef SERDES_L3_TX_ANA_TM_118_OFFSET 
@@ -35234,8 +34879,12 @@
 #define SERDES_L3_TM_EQ1_OFFSET                                                    0XFD40D950
 #undef SERDES_L1_TXPMD_TM_48_OFFSET 
 #define SERDES_L1_TXPMD_TM_48_OFFSET                                               0XFD404CC0
+#undef SERDES_L0_TXPMD_TM_48_OFFSET 
+#define SERDES_L0_TXPMD_TM_48_OFFSET                                               0XFD400CC0
 #undef SERDES_L1_TX_ANA_TM_18_OFFSET 
 #define SERDES_L1_TX_ANA_TM_18_OFFSET                                              0XFD404048
+#undef SERDES_L0_TX_ANA_TM_18_OFFSET 
+#define SERDES_L0_TX_ANA_TM_18_OFFSET                                              0XFD400048
 #undef SERDES_L3_TX_ANA_TM_18_OFFSET 
 #define SERDES_L3_TX_ANA_TM_18_OFFSET                                              0XFD40C048
 
@@ -35305,6 +34954,17 @@
 #define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_LCL_SEL_DEFVAL     0x00000080
 #define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_LCL_SEL_SHIFT      7
 #define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_LCL_SEL_MASK       0x00000080U
+
+/*
+* Bit 3 of lane 0 ref clock mux one hot sel. Set to 1 to select lane 3 sli
+    * cer output from ref clock network
+*/
+#undef SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_DEFVAL 
+#undef SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_SHIFT 
+#undef SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_MASK 
+#define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_DEFVAL       0x00000080
+#define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_SHIFT        3
+#define SERDES_L0_L0_REF_CLK_SEL_L0_REF_CLK_SEL_3_MASK         0x00000008U
 
 /*
 * Sel of lane 1 ref clock local mux. Set to 1 to select lane 1 slicer outp
@@ -35414,6 +35074,26 @@
 /*
 * Spread Spectrum No of Steps [7:0]
 */
+#undef SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_SHIFT 
+#undef SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_MASK 
+#define SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_SHIFT  0
+#define SERDES_L0_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_MASK  0x000000FFU
+
+/*
+* Spread Spectrum No of Steps [10:8]
+*/
+#undef SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_SHIFT 
+#undef SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_MASK 
+#define SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_SHIFT  0
+#define SERDES_L0_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_MASK  0x00000007U
+
+/*
+* Spread Spectrum No of Steps [7:0]
+*/
 #undef SERDES_L1_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_DEFVAL 
 #undef SERDES_L1_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_SHIFT 
 #undef SERDES_L1_PLL_SS_STEPS_0_LSB_SS_NUM_OF_STEPS_0_LSB_MASK 
@@ -35430,6 +35110,66 @@
 #define SERDES_L1_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_DEFVAL  0x00000000
 #define SERDES_L1_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_SHIFT  0
 #define SERDES_L1_PLL_SS_STEPS_1_MSB_SS_NUM_OF_STEPS_1_MSB_MASK  0x00000007U
+
+/*
+* Step Size for Spread Spectrum [7:0]
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_SHIFT  0
+#define SERDES_L0_PLL_SS_STEP_SIZE_0_LSB_SS_STEP_SIZE_0_LSB_MASK  0x000000FFU
+
+/*
+* Step Size for Spread Spectrum [15:8]
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_DEFVAL     0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_SHIFT      0
+#define SERDES_L0_PLL_SS_STEP_SIZE_1_SS_STEP_SIZE_1_MASK       0x000000FFU
+
+/*
+* Step Size for Spread Spectrum [23:16]
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_DEFVAL     0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_SHIFT      0
+#define SERDES_L0_PLL_SS_STEP_SIZE_2_SS_STEP_SIZE_2_MASK       0x000000FFU
+
+/*
+* Step Size for Spread Spectrum [25:24]
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_SHIFT  0
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_SS_STEP_SIZE_3_MSB_MASK  0x00000003U
+
+/*
+* Enable/Disable test mode force on SS step size
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_SHIFT  4
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_STEP_SIZE_MASK  0x00000010U
+
+/*
+* Enable/Disable test mode force on SS no of steps
+*/
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_DEFVAL 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_SHIFT 
+#undef SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_MASK 
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_DEFVAL  0x00000000
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_SHIFT  5
+#define SERDES_L0_PLL_SS_STEP_SIZE_3_MSB_FORCE_SS_NUM_OF_STEPS_MASK  0x00000020U
 
 /*
 * Step Size for Spread Spectrum [7:0]
@@ -35744,16 +35484,6 @@
 /*
 * Spare- not used
 */
-#undef SERDES_L0_TM_AUX_0_BIT_2_DEFVAL 
-#undef SERDES_L0_TM_AUX_0_BIT_2_SHIFT 
-#undef SERDES_L0_TM_AUX_0_BIT_2_MASK 
-#define SERDES_L0_TM_AUX_0_BIT_2_DEFVAL                        0x00000000
-#define SERDES_L0_TM_AUX_0_BIT_2_SHIFT                         5
-#define SERDES_L0_TM_AUX_0_BIT_2_MASK                          0x00000020U
-
-/*
-* Spare- not used
-*/
 #undef SERDES_L2_TM_AUX_0_BIT_2_DEFVAL 
 #undef SERDES_L2_TM_AUX_0_BIT_2_SHIFT 
 #undef SERDES_L2_TM_AUX_0_BIT_2_MASK 
@@ -35800,138 +35530,6 @@
 #define SERDES_L3_TM_DIG_8_EYESURF_ENABLE_DEFVAL               0x00000000
 #define SERDES_L3_TM_DIG_8_EYESURF_ENABLE_SHIFT                4
 #define SERDES_L3_TM_DIG_8_EYESURF_ENABLE_MASK                 0x00000010U
-
-/*
-* ILL calib counts BYPASSED with calcode bits
-*/
-#undef SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_DEFVAL 
-#undef SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_SHIFT 
-#undef SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_MASK 
-#define SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_DEFVAL        0x00000000
-#define SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_SHIFT         7
-#define SERDES_L0_TM_MISC2_ILL_CAL_BYPASS_COUNTS_MASK          0x00000080U
-
-/*
-* IQ ILL F0 CALCODE bypass value. MPHY : G1a, PCIE : Gen 1, SATA : Gen1 ,
-    * USB3 : SS
-*/
-#undef SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_DEFVAL 
-#undef SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_SHIFT 
-#undef SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_MASK 
-#define SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_DEFVAL   0x00000000
-#define SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_SHIFT    0
-#define SERDES_L0_TM_IQ_ILL1_ILL_BYPASS_IQ_CALCODE_F0_MASK     0x000000FFU
-
-/*
-* IQ ILL F1 CALCODE bypass value. MPHY : G1b, PCIE : Gen2, SATA: Gen2
-*/
-#undef SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_DEFVAL 
-#undef SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_SHIFT 
-#undef SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_MASK 
-#define SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_DEFVAL   0x00000000
-#define SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_SHIFT    0
-#define SERDES_L0_TM_IQ_ILL2_ILL_BYPASS_IQ_CALCODE_F1_MASK     0x000000FFU
-
-/*
-* G1A pll ctr bypass value
-*/
-#undef SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_DEFVAL 
-#undef SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_SHIFT 
-#undef SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_MASK 
-#define SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_DEFVAL          0x00000000
-#define SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_SHIFT           0
-#define SERDES_L0_TM_ILL12_G1A_PLL_CTR_BYP_VAL_MASK            0x000000FFU
-
-/*
-* E ILL F0 CALCODE bypass value. MPHY : G1a, PCIE : Gen 1, SATA : Gen1 , U
-    * SB3 : SS
-*/
-#undef SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_DEFVAL 
-#undef SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_SHIFT 
-#undef SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_MASK 
-#define SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_DEFVAL     0x00000000
-#define SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_SHIFT      0
-#define SERDES_L0_TM_E_ILL1_ILL_BYPASS_E_CALCODE_F0_MASK       0x000000FFU
-
-/*
-* E ILL F1 CALCODE bypass value. MPHY : G1b, PCIE : Gen2, SATA: Gen2
-*/
-#undef SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_DEFVAL 
-#undef SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_SHIFT 
-#undef SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_MASK 
-#define SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_DEFVAL     0x00000000
-#define SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_SHIFT      0
-#define SERDES_L0_TM_E_ILL2_ILL_BYPASS_E_CALCODE_F1_MASK       0x000000FFU
-
-/*
-* IQ ILL F2CALCODE bypass value. MPHY : G2a, SATA : Gen3
-*/
-#undef SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_DEFVAL 
-#undef SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_SHIFT 
-#undef SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_MASK 
-#define SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_DEFVAL   0x00000000
-#define SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_SHIFT    0
-#define SERDES_L0_TM_IQ_ILL3_ILL_BYPASS_IQ_CALCODE_F2_MASK     0x000000FFU
-
-/*
-* E ILL F2CALCODE bypass value. MPHY : G2a, SATA : Gen3
-*/
-#undef SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_DEFVAL 
-#undef SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_SHIFT 
-#undef SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_MASK 
-#define SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_DEFVAL     0x00000000
-#define SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_SHIFT      0
-#define SERDES_L0_TM_E_ILL3_ILL_BYPASS_E_CALCODE_F2_MASK       0x000000FFU
-
-/*
-* ILL calibration code change wait time
-*/
-#undef SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_DEFVAL 
-#undef SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_SHIFT 
-#undef SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_MASK 
-#define SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_DEFVAL             0x00000002
-#define SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_SHIFT              0
-#define SERDES_L0_TM_ILL8_ILL_CAL_ITER_WAIT_MASK               0x000000FFU
-
-/*
-* IQ ILL polytrim bypass value
-*/
-#undef SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_DEFVAL 
-#undef SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_SHIFT 
-#undef SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_MASK 
-#define SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_DEFVAL  0x00000000
-#define SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_SHIFT  0
-#define SERDES_L0_TM_IQ_ILL8_ILL_BYPASS_IQ_POLYTRIM_VAL_MASK   0x000000FFU
-
-/*
-* bypass IQ polytrim
-*/
-#undef SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_DEFVAL 
-#undef SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_SHIFT 
-#undef SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_MASK 
-#define SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_DEFVAL      0x00000000
-#define SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_SHIFT       0
-#define SERDES_L0_TM_IQ_ILL9_ILL_BYPASS_IQ_POLYTIM_MASK        0x00000001U
-
-/*
-* E ILL polytrim bypass value
-*/
-#undef SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_DEFVAL 
-#undef SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_SHIFT 
-#undef SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_MASK 
-#define SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_DEFVAL   0x00000000
-#define SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_SHIFT    0
-#define SERDES_L0_TM_E_ILL8_ILL_BYPASS_E_POLYTRIM_VAL_MASK     0x000000FFU
-
-/*
-* bypass E polytrim
-*/
-#undef SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_DEFVAL 
-#undef SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_SHIFT 
-#undef SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_MASK 
-#define SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_DEFVAL        0x00000000
-#define SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_SHIFT         0
-#define SERDES_L0_TM_E_ILL9_ILL_BYPASS_E_POLYTIM_MASK          0x00000001U
 
 /*
 * ILL cal idle val refcnt
@@ -36528,16 +36126,6 @@
 #define SERDES_L3_TM_EQ11_FORCE_EQ_OFFS_OFF_MASK               0x00000010U
 
 /*
-* For future use
-*/
-#undef SIOU_ECO_0_FIELD_DEFVAL 
-#undef SIOU_ECO_0_FIELD_SHIFT 
-#undef SIOU_ECO_0_FIELD_MASK 
-#define SIOU_ECO_0_FIELD_DEFVAL                                
-#define SIOU_ECO_0_FIELD_SHIFT                                 0
-#define SIOU_ECO_0_FIELD_MASK                                  0xFFFFFFFFU
-
-/*
 * Controls UPHY Lane 0 protocol configuration. 0 - PowerDown, 1 - PCIe .0,
     *  2 - Sata0, 3 - USB0, 4 - DP.1, 5 - SGMII0, 6 - Unused, 7 - Unused
 */
@@ -36580,6 +36168,56 @@
 #define SERDES_ICM_CFG1_L3_ICM_CFG_DEFVAL                      0x00000000
 #define SERDES_ICM_CFG1_L3_ICM_CFG_SHIFT                       4
 #define SERDES_ICM_CFG1_L3_ICM_CFG_MASK                        0x00000070U
+
+/*
+* Enable/disable DP post2 path
+*/
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_SHIFT 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_MASK 
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_SHIFT  5
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_POST2_PATH_MASK  0x00000020U
+
+/*
+* Override enable/disable of DP post2 path
+*/
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_SHIFT 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_MASK 
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_SHIFT  4
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST2_PATH_MASK  0x00000010U
+
+/*
+* Override enable/disable of DP post1 path
+*/
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_SHIFT 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_MASK 
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_SHIFT  2
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_POST1_PATH_MASK  0x00000004U
+
+/*
+* Enable/disable DP main path
+*/
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_SHIFT 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_MASK 
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_SHIFT  1
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_DP_ENABLE_MAIN_PATH_MASK  0x00000002U
+
+/*
+* Override enable/disable of DP main path
+*/
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_SHIFT 
+#undef SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_MASK 
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_SHIFT  0
+#define SERDES_L0_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_MASK  0x00000001U
 
 /*
 * Enable/disable DP post2 path
@@ -36630,6 +36268,16 @@
 #define SERDES_L1_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_DEFVAL  0x00000000
 #define SERDES_L1_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_SHIFT  0
 #define SERDES_L1_TXPMD_TM_45_DP_TM_TX_OVRD_DP_ENABLE_MAIN_PATH_MASK  0x00000001U
+
+/*
+* Test register force for enabling/disablign TX deemphasis bits <17:0>
+*/
+#undef SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_DEFVAL 
+#undef SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_SHIFT 
+#undef SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_MASK 
+#define SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_DEFVAL    0x00000000
+#define SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_SHIFT     0
+#define SERDES_L0_TX_ANA_TM_118_FORCE_TX_DEEMPH_17_0_MASK      0x00000001U
 
 /*
 * Test register force for enabling/disablign TX deemphasis bits <17:0>
@@ -36722,6 +36370,16 @@
 #define SERDES_L1_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_MASK  0x0000001FU
 
 /*
+* Margining factor value
+*/
+#undef SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_DEFVAL 
+#undef SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_SHIFT 
+#undef SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_MASK 
+#define SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_DEFVAL  0x00000000
+#define SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_SHIFT  0
+#define SERDES_L0_TXPMD_TM_48_TM_RESULTANT_MARGINING_FACTOR_MASK  0x0000001FU
+
+/*
 * pipe_TX_Deemph. 0: -6dB de-emphasis, 1: -3.5dB de-emphasis, 2 : No de-em
     * phasis, Others: reserved
 */
@@ -36731,6 +36389,17 @@
 #define SERDES_L1_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_DEFVAL       0x00000002
 #define SERDES_L1_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_SHIFT        0
 #define SERDES_L1_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_MASK         0x000000FFU
+
+/*
+* pipe_TX_Deemph. 0: -6dB de-emphasis, 1: -3.5dB de-emphasis, 2 : No de-em
+    * phasis, Others: reserved
+*/
+#undef SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_DEFVAL 
+#undef SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_SHIFT 
+#undef SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_MASK 
+#define SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_DEFVAL       0x00000002
+#define SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_SHIFT        0
+#define SERDES_L0_TX_ANA_TM_18_PIPE_TX_DEEMPH_7_0_MASK         0x000000FFU
 
 /*
 * pipe_TX_Deemph. 0: -6dB de-emphasis, 1: -3.5dB de-emphasis, 2 : No de-em
@@ -36758,8 +36427,6 @@
 #define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
 #undef CRF_APB_RST_FPD_TOP_OFFSET 
 #define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
-#undef CRF_APB_RST_FPD_TOP_OFFSET 
-#define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
 #undef DP_DP_PHY_RESET_OFFSET 
 #define DP_DP_PHY_RESET_OFFSET                                                     0XFD4A0200
 #undef DP_DP_TX_PHY_POWER_DOWN_OFFSET 
@@ -36774,96 +36441,6 @@
 #define USB3_0_XHCI_GUCTL_OFFSET                                                   0XFE20C12C
 #undef PCIE_ATTRIB_ATTR_25_OFFSET 
 #define PCIE_ATTRIB_ATTR_25_OFFSET                                                 0XFD480064
-#undef PCIE_ATTRIB_ATTR_7_OFFSET 
-#define PCIE_ATTRIB_ATTR_7_OFFSET                                                  0XFD48001C
-#undef PCIE_ATTRIB_ATTR_8_OFFSET 
-#define PCIE_ATTRIB_ATTR_8_OFFSET                                                  0XFD480020
-#undef PCIE_ATTRIB_ATTR_9_OFFSET 
-#define PCIE_ATTRIB_ATTR_9_OFFSET                                                  0XFD480024
-#undef PCIE_ATTRIB_ATTR_10_OFFSET 
-#define PCIE_ATTRIB_ATTR_10_OFFSET                                                 0XFD480028
-#undef PCIE_ATTRIB_ATTR_11_OFFSET 
-#define PCIE_ATTRIB_ATTR_11_OFFSET                                                 0XFD48002C
-#undef PCIE_ATTRIB_ATTR_12_OFFSET 
-#define PCIE_ATTRIB_ATTR_12_OFFSET                                                 0XFD480030
-#undef PCIE_ATTRIB_ATTR_13_OFFSET 
-#define PCIE_ATTRIB_ATTR_13_OFFSET                                                 0XFD480034
-#undef PCIE_ATTRIB_ATTR_14_OFFSET 
-#define PCIE_ATTRIB_ATTR_14_OFFSET                                                 0XFD480038
-#undef PCIE_ATTRIB_ATTR_15_OFFSET 
-#define PCIE_ATTRIB_ATTR_15_OFFSET                                                 0XFD48003C
-#undef PCIE_ATTRIB_ATTR_16_OFFSET 
-#define PCIE_ATTRIB_ATTR_16_OFFSET                                                 0XFD480040
-#undef PCIE_ATTRIB_ATTR_17_OFFSET 
-#define PCIE_ATTRIB_ATTR_17_OFFSET                                                 0XFD480044
-#undef PCIE_ATTRIB_ATTR_18_OFFSET 
-#define PCIE_ATTRIB_ATTR_18_OFFSET                                                 0XFD480048
-#undef PCIE_ATTRIB_ATTR_27_OFFSET 
-#define PCIE_ATTRIB_ATTR_27_OFFSET                                                 0XFD48006C
-#undef PCIE_ATTRIB_ATTR_50_OFFSET 
-#define PCIE_ATTRIB_ATTR_50_OFFSET                                                 0XFD4800C8
-#undef PCIE_ATTRIB_ATTR_105_OFFSET 
-#define PCIE_ATTRIB_ATTR_105_OFFSET                                                0XFD4801A4
-#undef PCIE_ATTRIB_ATTR_106_OFFSET 
-#define PCIE_ATTRIB_ATTR_106_OFFSET                                                0XFD4801A8
-#undef PCIE_ATTRIB_ATTR_107_OFFSET 
-#define PCIE_ATTRIB_ATTR_107_OFFSET                                                0XFD4801AC
-#undef PCIE_ATTRIB_ATTR_108_OFFSET 
-#define PCIE_ATTRIB_ATTR_108_OFFSET                                                0XFD4801B0
-#undef PCIE_ATTRIB_ATTR_109_OFFSET 
-#define PCIE_ATTRIB_ATTR_109_OFFSET                                                0XFD4801B4
-#undef PCIE_ATTRIB_ATTR_34_OFFSET 
-#define PCIE_ATTRIB_ATTR_34_OFFSET                                                 0XFD480088
-#undef PCIE_ATTRIB_ATTR_53_OFFSET 
-#define PCIE_ATTRIB_ATTR_53_OFFSET                                                 0XFD4800D4
-#undef PCIE_ATTRIB_ATTR_41_OFFSET 
-#define PCIE_ATTRIB_ATTR_41_OFFSET                                                 0XFD4800A4
-#undef PCIE_ATTRIB_ATTR_97_OFFSET 
-#define PCIE_ATTRIB_ATTR_97_OFFSET                                                 0XFD480184
-#undef PCIE_ATTRIB_ATTR_100_OFFSET 
-#define PCIE_ATTRIB_ATTR_100_OFFSET                                                0XFD480190
-#undef PCIE_ATTRIB_ATTR_101_OFFSET 
-#define PCIE_ATTRIB_ATTR_101_OFFSET                                                0XFD480194
-#undef PCIE_ATTRIB_ATTR_37_OFFSET 
-#define PCIE_ATTRIB_ATTR_37_OFFSET                                                 0XFD480094
-#undef PCIE_ATTRIB_ATTR_93_OFFSET 
-#define PCIE_ATTRIB_ATTR_93_OFFSET                                                 0XFD480174
-#undef PCIE_ATTRIB_ID_OFFSET 
-#define PCIE_ATTRIB_ID_OFFSET                                                      0XFD480200
-#undef PCIE_ATTRIB_SUBSYS_ID_OFFSET 
-#define PCIE_ATTRIB_SUBSYS_ID_OFFSET                                               0XFD480204
-#undef PCIE_ATTRIB_REV_ID_OFFSET 
-#define PCIE_ATTRIB_REV_ID_OFFSET                                                  0XFD480208
-#undef PCIE_ATTRIB_ATTR_24_OFFSET 
-#define PCIE_ATTRIB_ATTR_24_OFFSET                                                 0XFD480060
-#undef PCIE_ATTRIB_ATTR_25_OFFSET 
-#define PCIE_ATTRIB_ATTR_25_OFFSET                                                 0XFD480064
-#undef PCIE_ATTRIB_ATTR_4_OFFSET 
-#define PCIE_ATTRIB_ATTR_4_OFFSET                                                  0XFD480010
-#undef PCIE_ATTRIB_ATTR_89_OFFSET 
-#define PCIE_ATTRIB_ATTR_89_OFFSET                                                 0XFD480164
-#undef PCIE_ATTRIB_ATTR_79_OFFSET 
-#define PCIE_ATTRIB_ATTR_79_OFFSET                                                 0XFD48013C
-#undef PCIE_ATTRIB_ATTR_43_OFFSET 
-#define PCIE_ATTRIB_ATTR_43_OFFSET                                                 0XFD4800AC
-#undef PCIE_ATTRIB_ATTR_48_OFFSET 
-#define PCIE_ATTRIB_ATTR_48_OFFSET                                                 0XFD4800C0
-#undef PCIE_ATTRIB_ATTR_46_OFFSET 
-#define PCIE_ATTRIB_ATTR_46_OFFSET                                                 0XFD4800B8
-#undef PCIE_ATTRIB_ATTR_47_OFFSET 
-#define PCIE_ATTRIB_ATTR_47_OFFSET                                                 0XFD4800BC
-#undef PCIE_ATTRIB_ATTR_44_OFFSET 
-#define PCIE_ATTRIB_ATTR_44_OFFSET                                                 0XFD4800B0
-#undef PCIE_ATTRIB_ATTR_45_OFFSET 
-#define PCIE_ATTRIB_ATTR_45_OFFSET                                                 0XFD4800B4
-#undef PCIE_ATTRIB_CB_OFFSET 
-#define PCIE_ATTRIB_CB_OFFSET                                                      0XFD48031C
-#undef PCIE_ATTRIB_ATTR_35_OFFSET 
-#define PCIE_ATTRIB_ATTR_35_OFFSET                                                 0XFD48008C
-#undef CRF_APB_RST_FPD_TOP_OFFSET 
-#define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
-#undef GPIO_MASK_DATA_1_LSW_OFFSET 
-#define GPIO_MASK_DATA_1_LSW_OFFSET                                                0XFF0A0008
 #undef SATA_AHCI_VENDOR_PP2C_OFFSET 
 #define SATA_AHCI_VENDOR_PP2C_OFFSET                                               0XFD0C00AC
 #undef SATA_AHCI_VENDOR_PP3C_OFFSET 
@@ -36953,26 +36530,6 @@
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_DEFVAL                  0x000F9FFE
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_SHIFT                   1
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_MASK                    0x00000002U
-
-/*
-* PCIE config reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL              0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT               19
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK                0x00080000U
-
-/*
-* PCIE bridge block level reset (AXI interface)
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL           0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT            18
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK             0x00040000U
 
 /*
 * Display Port block level reset (includes DPDMA)
@@ -37269,927 +36826,6 @@
 #define PCIE_ATTRIB_ATTR_25_ATTR_CPL_TIMEOUT_DISABLE_SUPPORTED_MASK  0x00000200U
 
 /*
-* Specifies mask/settings for Base Address Register (BAR) 0. If BAR is not
-    *  to be implemented, set to 32'h00000000. Bits are defined as follows: Me
-    * mory Space BAR [0] = Mem Space Indicator (set to 0) [2:1] = Type field (
-    * 10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = Mask
-    * for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to 1, w
-    * here 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost 63:
-    * n bits of \'7bBAR1,BAR0\'7d to 1. IO Space BAR 0] = IO Space Indicator (
-    * set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits of B
-    * AR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in bytes.;
-    *  EP=0x0004; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_7_ATTR_BAR0_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_7_ATTR_BAR0_SHIFT 
-#undef PCIE_ATTRIB_ATTR_7_ATTR_BAR0_MASK 
-#define PCIE_ATTRIB_ATTR_7_ATTR_BAR0_DEFVAL                    
-#define PCIE_ATTRIB_ATTR_7_ATTR_BAR0_SHIFT                     0
-#define PCIE_ATTRIB_ATTR_7_ATTR_BAR0_MASK                      0x0000FFFFU
-
-/*
-* Specifies mask/settings for Base Address Register (BAR) 0. If BAR is not
-    *  to be implemented, set to 32'h00000000. Bits are defined as follows: Me
-    * mory Space BAR [0] = Mem Space Indicator (set to 0) [2:1] = Type field (
-    * 10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = Mask
-    * for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to 1, w
-    * here 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost 63:
-    * n bits of \'7bBAR1,BAR0\'7d to 1. IO Space BAR 0] = IO Space Indicator (
-    * set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits of B
-    * AR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in bytes.;
-    *  EP=0xFFF0; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_8_ATTR_BAR0_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_8_ATTR_BAR0_SHIFT 
-#undef PCIE_ATTRIB_ATTR_8_ATTR_BAR0_MASK 
-#define PCIE_ATTRIB_ATTR_8_ATTR_BAR0_DEFVAL                    
-#define PCIE_ATTRIB_ATTR_8_ATTR_BAR0_SHIFT                     0
-#define PCIE_ATTRIB_ATTR_8_ATTR_BAR0_MASK                      0x0000FFFFU
-
-/*
-* Specifies mask/settings for Base Address Register (BAR) 1 if BAR0 is a 3
-    * 2-bit BAR, or the upper bits of \'7bBAR1,BAR0\'7d if BAR0 is a 64-bit BA
-    * R. If BAR is not to be implemented, set to 32'h00000000. See BAR0 descri
-    * ption if this functions as the upper bits of a 64-bit BAR. Bits are defi
-    * ned as follows: Memory Space BAR (not upper bits of BAR0) [0] = Mem Spac
-    * e Indicator (set to 0) [2:1] = Type field (10 for 64-bit, 00 for 32-bit)
-    *  [3] = Prefetchable (0 or 1) [31:4] = Mask for writable bits of BAR; if
-    * 32-bit BAR, set uppermost 31:n bits to 1, where 2^n=memory aperture size
-    *  in bytes. If 64-bit BAR, set uppermost 63:n bits of \'7bBAR2,BAR1\'7d t
-    * o 1. IO Space BAR 0] = IO Space Indicator (set to 1) [1] = Reserved (set
-    *  to 0) [31:2] = Mask for writable bits of BAR; set uppermost 31:n bits t
-    * o 1, where 2^n=i/o aperture size in bytes.; EP=0xFFFF; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_9_ATTR_BAR1_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_9_ATTR_BAR1_SHIFT 
-#undef PCIE_ATTRIB_ATTR_9_ATTR_BAR1_MASK 
-#define PCIE_ATTRIB_ATTR_9_ATTR_BAR1_DEFVAL                    
-#define PCIE_ATTRIB_ATTR_9_ATTR_BAR1_SHIFT                     0
-#define PCIE_ATTRIB_ATTR_9_ATTR_BAR1_MASK                      0x0000FFFFU
-
-/*
-* Specifies mask/settings for Base Address Register (BAR) 1 if BAR0 is a 3
-    * 2-bit BAR, or the upper bits of \'7bBAR1,BAR0\'7d if BAR0 is a 64-bit BA
-    * R. If BAR is not to be implemented, set to 32'h00000000. See BAR0 descri
-    * ption if this functions as the upper bits of a 64-bit BAR. Bits are defi
-    * ned as follows: Memory Space BAR (not upper bits of BAR0) [0] = Mem Spac
-    * e Indicator (set to 0) [2:1] = Type field (10 for 64-bit, 00 for 32-bit)
-    *  [3] = Prefetchable (0 or 1) [31:4] = Mask for writable bits of BAR; if
-    * 32-bit BAR, set uppermost 31:n bits to 1, where 2^n=memory aperture size
-    *  in bytes. If 64-bit BAR, set uppermost 63:n bits of \'7bBAR2,BAR1\'7d t
-    * o 1. IO Space BAR 0] = IO Space Indicator (set to 1) [1] = Reserved (set
-    *  to 0) [31:2] = Mask for writable bits of BAR; set uppermost 31:n bits t
-    * o 1, where 2^n=i/o aperture size in bytes.; EP=0xFFFF; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_10_ATTR_BAR1_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_10_ATTR_BAR1_SHIFT 
-#undef PCIE_ATTRIB_ATTR_10_ATTR_BAR1_MASK 
-#define PCIE_ATTRIB_ATTR_10_ATTR_BAR1_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_10_ATTR_BAR1_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_10_ATTR_BAR1_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  2 if BAR1 is a 32-bit BAR, or the upper bits of \'7bBAR2,BAR1\'7d if BA
-    * R1 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR1 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root: This must be set to 00FF_FFF
-    * F. For an endpoint, bits are defined as follows: Memory Space BAR (not u
-    * pper bits of BAR1) [0] = Mem Space Indicator (set to 0) [2:1] = Type fie
-    * ld (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = M
-    * ask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to
-    * 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost
-    *  63:n bits of \'7bBAR3,BAR2\'7d to 1. IO Space BAR 0] = IO Space Indicat
-    * or (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits
-    * of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in byt
-    * es.; EP=0x0004; RP=0xFFFF
-*/
-#undef PCIE_ATTRIB_ATTR_11_ATTR_BAR2_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_11_ATTR_BAR2_SHIFT 
-#undef PCIE_ATTRIB_ATTR_11_ATTR_BAR2_MASK 
-#define PCIE_ATTRIB_ATTR_11_ATTR_BAR2_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_11_ATTR_BAR2_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_11_ATTR_BAR2_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  2 if BAR1 is a 32-bit BAR, or the upper bits of \'7bBAR2,BAR1\'7d if BA
-    * R1 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR1 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root: This must be set to 00FF_FFF
-    * F. For an endpoint, bits are defined as follows: Memory Space BAR (not u
-    * pper bits of BAR1) [0] = Mem Space Indicator (set to 0) [2:1] = Type fie
-    * ld (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = M
-    * ask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to
-    * 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost
-    *  63:n bits of \'7bBAR3,BAR2\'7d to 1. IO Space BAR 0] = IO Space Indicat
-    * or (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits
-    * of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in byt
-    * es.; EP=0xFFF0; RP=0x00FF
-*/
-#undef PCIE_ATTRIB_ATTR_12_ATTR_BAR2_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_12_ATTR_BAR2_SHIFT 
-#undef PCIE_ATTRIB_ATTR_12_ATTR_BAR2_MASK 
-#define PCIE_ATTRIB_ATTR_12_ATTR_BAR2_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_12_ATTR_BAR2_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_12_ATTR_BAR2_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  3 if BAR2 is a 32-bit BAR, or the upper bits of \'7bBAR3,BAR2\'7d if BA
-    * R2 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR2 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root, this must be set to: FFFF_00
-    * 00 = IO Limit/Base Registers not implemented FFFF_F0F0 = IO Limit/Base R
-    * egisters use 16-bit decode FFFF_F1F1 = IO Limit/Base Registers use 32-bi
-    * t decode For an endpoint, bits are defined as follows: Memory Space BAR
-    * (not upper bits of BAR2) [0] = Mem Space Indicator (set to 0) [2:1] = Ty
-    * pe field (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:
-    * 4] = Mask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bi
-    * ts to 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set upp
-    * ermost 63:n bits of \'7bBAR4,BAR3\'7d to 1. IO Space BAR 0] = IO Space I
-    * ndicator (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable
-    *  bits of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size
-    * in bytes.; EP=0xFFFF; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_13_ATTR_BAR3_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_13_ATTR_BAR3_SHIFT 
-#undef PCIE_ATTRIB_ATTR_13_ATTR_BAR3_MASK 
-#define PCIE_ATTRIB_ATTR_13_ATTR_BAR3_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_13_ATTR_BAR3_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_13_ATTR_BAR3_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  3 if BAR2 is a 32-bit BAR, or the upper bits of \'7bBAR3,BAR2\'7d if BA
-    * R2 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR2 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root, this must be set to: FFFF_00
-    * 00 = IO Limit/Base Registers not implemented FFFF_F0F0 = IO Limit/Base R
-    * egisters use 16-bit decode FFFF_F1F1 = IO Limit/Base Registers use 32-bi
-    * t decode For an endpoint, bits are defined as follows: Memory Space BAR
-    * (not upper bits of BAR2) [0] = Mem Space Indicator (set to 0) [2:1] = Ty
-    * pe field (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:
-    * 4] = Mask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bi
-    * ts to 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set upp
-    * ermost 63:n bits of \'7bBAR4,BAR3\'7d to 1. IO Space BAR 0] = IO Space I
-    * ndicator (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable
-    *  bits of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size
-    * in bytes.; EP=0xFFFF; RP=0xFFFF
-*/
-#undef PCIE_ATTRIB_ATTR_14_ATTR_BAR3_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_14_ATTR_BAR3_SHIFT 
-#undef PCIE_ATTRIB_ATTR_14_ATTR_BAR3_MASK 
-#define PCIE_ATTRIB_ATTR_14_ATTR_BAR3_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_14_ATTR_BAR3_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_14_ATTR_BAR3_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  4 if BAR3 is a 32-bit BAR, or the upper bits of \'7bBAR4,BAR3\'7d if BA
-    * R3 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR3 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root: This must be set to FFF0_FFF
-    * 0. For an endpoint, bits are defined as follows: Memory Space BAR (not u
-    * pper bits of BAR3) [0] = Mem Space Indicator (set to 0) [2:1] = Type fie
-    * ld (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = M
-    * ask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to
-    * 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost
-    *  63:n bits of \'7bBAR5,BAR4\'7d to 1. IO Space BAR 0] = IO Space Indicat
-    * or (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits
-    * of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in byt
-    * es.; EP=0x0004; RP=0xFFF0
-*/
-#undef PCIE_ATTRIB_ATTR_15_ATTR_BAR4_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_15_ATTR_BAR4_SHIFT 
-#undef PCIE_ATTRIB_ATTR_15_ATTR_BAR4_MASK 
-#define PCIE_ATTRIB_ATTR_15_ATTR_BAR4_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_15_ATTR_BAR4_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_15_ATTR_BAR4_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  4 if BAR3 is a 32-bit BAR, or the upper bits of \'7bBAR4,BAR3\'7d if BA
-    * R3 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR3 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root: This must be set to FFF0_FFF
-    * 0. For an endpoint, bits are defined as follows: Memory Space BAR (not u
-    * pper bits of BAR3) [0] = Mem Space Indicator (set to 0) [2:1] = Type fie
-    * ld (10 for 64-bit, 00 for 32-bit) [3] = Prefetchable (0 or 1) [31:4] = M
-    * ask for writable bits of BAR; if 32-bit BAR, set uppermost 31:n bits to
-    * 1, where 2^n=memory aperture size in bytes. If 64-bit BAR, set uppermost
-    *  63:n bits of \'7bBAR5,BAR4\'7d to 1. IO Space BAR 0] = IO Space Indicat
-    * or (set to 1) [1] = Reserved (set to 0) [31:2] = Mask for writable bits
-    * of BAR; set uppermost 31:n bits to 1, where 2^n=i/o aperture size in byt
-    * es.; EP=0xFFF0; RP=0xFFF0
-*/
-#undef PCIE_ATTRIB_ATTR_16_ATTR_BAR4_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_16_ATTR_BAR4_SHIFT 
-#undef PCIE_ATTRIB_ATTR_16_ATTR_BAR4_MASK 
-#define PCIE_ATTRIB_ATTR_16_ATTR_BAR4_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_16_ATTR_BAR4_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_16_ATTR_BAR4_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  5 if BAR4 is a 32-bit BAR, or the upper bits of \'7bBAR5,BAR4\'7d if BA
-    * R4 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR4 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root, this must be set to: 0000_00
-    * 00 = Prefetchable Memory Limit/Base Registers not implemented FFF0_FFF0
-    * = 32-bit Prefetchable Memory Limit/Base implemented FFF1_FFF1 = 64-bit P
-    * refetchable Memory Limit/Base implemented For an endpoint, bits are defi
-    * ned as follows: Memory Space BAR (not upper bits of BAR4) [0] = Mem Spac
-    * e Indicator (set to 0) [2:1] = Type field (00 for 32-bit; BAR5 cannot be
-    *  lower part of a 64-bit BAR) [3] = Prefetchable (0 or 1) [31:4] = Mask f
-    * or writable bits of BAR; set uppermost 31:n bits to 1, where 2^n=memory
-    * aperture size in bytes. IO Space BAR 0] = IO Space Indicator (set to 1)
-    * [1] = Reserved (set to 0) [31:2] = Mask for writable bits of BAR; set up
-    * permost 31:n bits to 1, where 2^n=i/o aperture size in bytes.; EP=0xFFFF
-    * ; RP=0xFFF1
-*/
-#undef PCIE_ATTRIB_ATTR_17_ATTR_BAR5_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_17_ATTR_BAR5_SHIFT 
-#undef PCIE_ATTRIB_ATTR_17_ATTR_BAR5_MASK 
-#define PCIE_ATTRIB_ATTR_17_ATTR_BAR5_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_17_ATTR_BAR5_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_17_ATTR_BAR5_MASK                     0x0000FFFFU
-
-/*
-* For an endpoint, specifies mask/settings for Base Address Register (BAR)
-    *  5 if BAR4 is a 32-bit BAR, or the upper bits of \'7bBAR5,BAR4\'7d if BA
-    * R4 is the lower part of a 64-bit BAR. If BAR is not to be implemented, s
-    * et to 32'h00000000. See BAR4 description if this functions as the upper
-    * bits of a 64-bit BAR. For a switch or root, this must be set to: 0000_00
-    * 00 = Prefetchable Memory Limit/Base Registers not implemented FFF0_FFF0
-    * = 32-bit Prefetchable Memory Limit/Base implemented FFF1_FFF1 = 64-bit P
-    * refetchable Memory Limit/Base implemented For an endpoint, bits are defi
-    * ned as follows: Memory Space BAR (not upper bits of BAR4) [0] = Mem Spac
-    * e Indicator (set to 0) [2:1] = Type field (00 for 32-bit; BAR5 cannot be
-    *  lower part of a 64-bit BAR) [3] = Prefetchable (0 or 1) [31:4] = Mask f
-    * or writable bits of BAR; set uppermost 31:n bits to 1, where 2^n=memory
-    * aperture size in bytes. IO Space BAR 0] = IO Space Indicator (set to 1)
-    * [1] = Reserved (set to 0) [31:2] = Mask for writable bits of BAR; set up
-    * permost 31:n bits to 1, where 2^n=i/o aperture size in bytes.; EP=0xFFFF
-    * ; RP=0xFFF1
-*/
-#undef PCIE_ATTRIB_ATTR_18_ATTR_BAR5_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_18_ATTR_BAR5_SHIFT 
-#undef PCIE_ATTRIB_ATTR_18_ATTR_BAR5_MASK 
-#define PCIE_ATTRIB_ATTR_18_ATTR_BAR5_DEFVAL                   
-#define PCIE_ATTRIB_ATTR_18_ATTR_BAR5_SHIFT                    0
-#define PCIE_ATTRIB_ATTR_18_ATTR_BAR5_MASK                     0x0000FFFFU
-
-/*
-* Specifies maximum payload supported. Valid settings are: 0- 128 bytes, 1
-    * - 256 bytes, 2- 512 bytes, 3- 1024 bytes. Transferred to the Device Capa
-    * bilities register. The values: 4-2048 bytes, 5- 4096 bytes are not suppo
-    * rted; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_SHIFT 
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_MASK 
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_DEFVAL  0x00002138
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_SHIFT  8
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_MAX_PAYLOAD_SUPPORTED_MASK  0x00000700U
-
-/*
-* Endpoint L1 Acceptable Latency. Records the latency that the endpoint ca
-    * n withstand on transitions from L1 state to L0 (if L1 state supported).
-    * Valid settings are: 0h less than 1us, 1h 1 to 2us, 2h 2 to 4us, 3h 4 to
-    * 8us, 4h 8 to 16us, 5h 16 to 32us, 6h 32 to 64us, 7h more than 64us. For
-    * Endpoints only. Must be 0h for other devices.; EP=0x0007; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_SHIFT 
-#undef PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_MASK 
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_DEFVAL  0x00002138
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_SHIFT  3
-#define PCIE_ATTRIB_ATTR_27_ATTR_DEV_CAP_ENDPOINT_L1_LATENCY_MASK  0x00000038U
-
-/*
-* Identifies the type of device/port as follows: 0000b PCI Express Endpoin
-    * t device, 0001b Legacy PCI Express Endpoint device, 0100b Root Port of P
-    * CI Express Root Complex, 0101b Upstream Port of PCI Express Switch, 0110
-    * b Downstream Port of PCI Express Switch, 0111b PCIE Express to PCI/PCI-X
-    *  Bridge, 1000b PCI/PCI-X to PCI Express Bridge. Transferred to PCI Expre
-    * ss Capabilities register. Must be consistent with IS_SWITCH and UPSTREAM
-    * _FACING settings.; EP=0x0000; RP=0x0004
-*/
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_MASK 
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_DEFVAL  0x00009C02
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_SHIFT  4
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_DEVICE_PORT_TYPE_MASK  0x000000F0U
-
-/*
-* PCIe Capability's Next Capability Offset pointer to the next item in the
-    *  capabilities list, or 00h if this is the final capability.; EP=0x009C;
-    * RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_SHIFT 
-#undef PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_MASK 
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_DEFVAL       0x00009C02
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_SHIFT        8
-#define PCIE_ATTRIB_ATTR_50_ATTR_PCIE_CAP_NEXTPTR_MASK         0x0000FF00U
-
-/*
-* Number of credits that should be advertised for Completion data received
-    *  on Virtual Channel 0. The bytes advertised must be less than or equal t
-    * o the bram bytes available. See VC0_RX_RAM_LIMIT; EP=0x0172; RP=0x00CD
-*/
-#undef PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_SHIFT 
-#undef PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_MASK 
-#define PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_DEFVAL  
-#define PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_SHIFT   0
-#define PCIE_ATTRIB_ATTR_105_ATTR_VC0_TOTAL_CREDITS_CD_MASK    0x000007FFU
-
-/*
-* Number of credits that should be advertised for Completion headers recei
-    * ved on Virtual Channel 0. The sum of the posted, non posted, and complet
-    * ion header credits must be <= 80; EP=0x0048; RP=0x0024
-*/
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_SHIFT 
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_MASK 
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_DEFVAL  0x00000248
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_SHIFT   0
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_CH_MASK    0x0000007FU
-
-/*
-* Number of credits that should be advertised for Non-Posted headers recei
-    * ved on Virtual Channel 0. The number of non posted data credits advertis
-    * ed by the block is equal to the number of non posted header credits. The
-    *  sum of the posted, non posted, and completion header credits must be <=
-    *  80; EP=0x0004; RP=0x000C
-*/
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_SHIFT 
-#undef PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_MASK 
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_DEFVAL  0x00000248
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_SHIFT  7
-#define PCIE_ATTRIB_ATTR_106_ATTR_VC0_TOTAL_CREDITS_NPH_MASK   0x00003F80U
-
-/*
-* Number of credits that should be advertised for Non-Posted data received
-    *  on Virtual Channel 0. The number of non posted data credits advertised
-    * by the block is equal to two times the number of non posted header credi
-    * ts if atomic operations are supported or is equal to the number of non p
-    * osted header credits if atomic operations are not supported. The bytes a
-    * dvertised must be less than or equal to the bram bytes available. See VC
-    * 0_RX_RAM_LIMIT; EP=0x0008; RP=0x0018
-*/
-#undef PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_SHIFT 
-#undef PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_MASK 
-#define PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_DEFVAL  
-#define PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_SHIFT  0
-#define PCIE_ATTRIB_ATTR_107_ATTR_VC0_TOTAL_CREDITS_NPD_MASK   0x000007FFU
-
-/*
-* Number of credits that should be advertised for Posted data received on
-    * Virtual Channel 0. The bytes advertised must be less than or equal to th
-    * e bram bytes available. See VC0_RX_RAM_LIMIT; EP=0x0020; RP=0x00B5
-*/
-#undef PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_SHIFT 
-#undef PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_MASK 
-#define PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_DEFVAL  
-#define PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_SHIFT   0
-#define PCIE_ATTRIB_ATTR_108_ATTR_VC0_TOTAL_CREDITS_PD_MASK    0x000007FFU
-
-/*
-* Not currently in use. Invert ECRC generated by block when trn_tecrc_gen_
-    * n and trn_terrfwd_n are asserted.; EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_SHIFT 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_MASK 
-#define PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_DEFVAL          0x00007E04
-#define PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_SHIFT           15
-#define PCIE_ATTRIB_ATTR_109_ATTR_TECRC_EP_INV_MASK            0x00008000U
-
-/*
-* Enables td bit clear and ECRC trim on received TLP's FALSE == don't trim
-    *  TRUE == trim.; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_SHIFT 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_MASK 
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_DEFVAL        0x00007E04
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_SHIFT         14
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_TRIM_MASK          0x00004000U
-
-/*
-* Enables ECRC check on received TLP's 0 == don't check 1 == always check
-    * 3 == check if enabled by ECRC check enable bit of AER cap structure; EP=
-    * 0x0003; RP=0x0003
-*/
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_SHIFT 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_MASK 
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_DEFVAL             0x00007E04
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_SHIFT              12
-#define PCIE_ATTRIB_ATTR_109_ATTR_RECRC_CHK_MASK               0x00003000U
-
-/*
-* Index of last packet buffer used by TX TLM (i.e. number of buffers - 1).
-    *  Calculated from max payload size supported and the number of brams conf
-    * igured for transmit; EP=0x001C; RP=0x001C
-*/
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_SHIFT 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_MASK 
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_DEFVAL     0x00007E04
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_SHIFT      7
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TX_LASTPACKET_MASK       0x00000F80U
-
-/*
-* Number of credits that should be advertised for Posted headers received
-    * on Virtual Channel 0. The sum of the posted, non posted, and completion
-    * header credits must be <= 80; EP=0x0004; RP=0x0020
-*/
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_SHIFT 
-#undef PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_MASK 
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_DEFVAL  0x00007E04
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_SHIFT   0
-#define PCIE_ATTRIB_ATTR_109_ATTR_VC0_TOTAL_CREDITS_PH_MASK    0x0000007FU
-
-/*
-* Specifies values to be transferred to Header Type register. Bit 7 should
-    *  be set to '0' indicating single-function device. Bit 0 identifies heade
-    * r as Type 0 or Type 1, with '0' indicating a Type 0 header.; EP=0x0000;
-    * RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_MASK 
-#define PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_DEFVAL            0x00000100
-#define PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_SHIFT             0
-#define PCIE_ATTRIB_ATTR_34_ATTR_HEADER_TYPE_MASK              0x000000FFU
-
-/*
-* PM Capability's Next Capability Offset pointer to the next item in the c
-    * apabilities list, or 00h if this is the final capability.; EP=0x0048; RP
-    * =0x0060
-*/
-#undef PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_SHIFT 
-#undef PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_MASK 
-#define PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_DEFVAL         0x00003D48
-#define PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_SHIFT          0
-#define PCIE_ATTRIB_ATTR_53_ATTR_PM_CAP_NEXTPTR_MASK           0x000000FFU
-
-/*
-* MSI Per-Vector Masking Capable. The value is transferred to the MSI Cont
-    * rol Register[8]. When set, adds Mask and Pending Dword to Cap structure;
-    *  EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_MASK 
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_DEFVAL  0x00000160
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_SHIFT  9
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_PER_VECTOR_MASKING_CAPABLE_MASK  0x00000200U
-
-/*
-* Indicates that the MSI structures exists. If this is FALSE, then the MSI
-    *  structure cannot be accessed via either the link or the management port
-    * .; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_SHIFT 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_MASK 
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_DEFVAL             0x00000160
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_SHIFT              8
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_MASK               0x00000100U
-
-/*
-* MSI Capability's Next Capability Offset pointer to the next item in the
-    * capabilities list, or 00h if this is the final capability.; EP=0x0060; R
-    * P=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_SHIFT 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_MASK 
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_DEFVAL        0x00000160
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_SHIFT         0
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_NEXTPTR_MASK          0x000000FFU
-
-/*
-* Indicates that the MSI structures exists. If this is FALSE, then the MSI
-    *  structure cannot be accessed via either the link or the management port
-    * .; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_SHIFT 
-#undef PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_MASK 
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_DEFVAL             0x00000160
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_SHIFT              8
-#define PCIE_ATTRIB_ATTR_41_ATTR_MSI_CAP_ON_MASK               0x00000100U
-
-/*
-* Maximum Link Width. Valid settings are: 000001b x1, 000010b x2, 000100b
-    * x4, 001000b x8.; EP=0x0004; RP=0x0004
-*/
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_SHIFT 
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_MASK 
-#define PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_DEFVAL  0x00000104
-#define PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_SHIFT  0
-#define PCIE_ATTRIB_ATTR_97_ATTR_LINK_CAP_MAX_LINK_WIDTH_MASK  0x0000003FU
-
-/*
-* Used by LTSSM to set Maximum Link Width. Valid settings are: 000001b [x1
-    * ], 000010b [x2], 000100b [x4], 001000b [x8].; EP=0x0004; RP=0x0004
-*/
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_SHIFT 
-#undef PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_MASK 
-#define PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_DEFVAL   0x00000104
-#define PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_SHIFT    6
-#define PCIE_ATTRIB_ATTR_97_ATTR_LTSSM_MAX_LINK_WIDTH_MASK     0x00000FC0U
-
-/*
-* TRUE specifies upstream-facing port. FALSE specifies downstream-facing p
-    * ort.; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_SHIFT 
-#undef PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_MASK 
-#define PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_DEFVAL       0x000000F0
-#define PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_SHIFT        6
-#define PCIE_ATTRIB_ATTR_100_ATTR_UPSTREAM_FACING_MASK         0x00000040U
-
-/*
-* Enable the routing of message TLPs to the user through the TRN RX interf
-    * ace. A bit value of 1 enables routing of the message TLP to the user. Me
-    * ssages are always decoded by the message decoder. Bit 0 - ERR COR, Bit 1
-    *  - ERR NONFATAL, Bit 2 - ERR FATAL, Bit 3 - INTA Bit 4 - INTB, Bit 5 - I
-    * NTC, Bit 6 - INTD, Bit 7 PM_PME, Bit 8 - PME_TO_ACK, Bit 9 - unlock, Bit
-    *  10 PME_Turn_Off; EP=0x0000; RP=0x07FF
-*/
-#undef PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_MASK 
-#define PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_DEFVAL      0x00000000
-#define PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_SHIFT       5
-#define PCIE_ATTRIB_ATTR_101_ATTR_ENABLE_MSG_ROUTE_MASK        0x0000FFE0U
-
-/*
-* Disable BAR filtering. Does not change the behavior of the bar hit outpu
-    * ts; EP=0x0000; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_SHIFT 
-#undef PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_MASK 
-#define PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_DEFVAL  0x00000000
-#define PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_SHIFT  1
-#define PCIE_ATTRIB_ATTR_101_ATTR_DISABLE_BAR_FILTERING_MASK   0x00000002U
-
-/*
-* Link Bandwidth notification capability. Indicates support for the link b
-    * andwidth notification status and interrupt mechanism. Required for Root.
-    * ; EP=0x0000; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_SHIFT 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_MASK 
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_DEFVAL  0x000009FF
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_SHIFT  9
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_LINK_BANDWIDTH_NOTIFICATION_CAP_MASK  0x00000200U
-
-/*
-* Maximum Link Speed. Valid settings are: 0001b [2.5 GT/s], 0010b [5.0 GT/
-    * s and 2.5 GT/s].; EP=0x0002; RP=0x0002
-*/
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_SHIFT 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_MASK 
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_DEFVAL  0x000009FF
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_SHIFT  10
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_MAX_LINK_SPEED_MASK  0x00003C00U
-
-/*
-* Sets the ASPM Optionality Compliance bit, to comply with the 2.1 ASPM Op
-    * tionality ECN. Transferred to the Link Capabilities register.; EP=0x0001
-    * ; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_SHIFT 
-#undef PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_MASK 
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_DEFVAL  0x000009FF
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_SHIFT  14
-#define PCIE_ATTRIB_ATTR_37_ATTR_LINK_CAP_ASPM_OPTIONALITY_MASK  0x00004000U
-
-/*
-* Enables the Replay Timer to use the user-defined LL_REPLAY_TIMEOUT value
-    *  (or combined with the built-in value, depending on LL_REPLAY_TIMEOUT_FU
-    * NC). If FALSE, the built-in value is used.; EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_SHIFT 
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_MASK 
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_DEFVAL   0x00000000
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_SHIFT    15
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_EN_MASK     0x00008000U
-
-/*
-* Sets a user-defined timeout for the Replay Timer to force cause the retr
-    * ansmission of unacknowledged TLPs; refer to LL_REPLAY_TIMEOUT_EN and LL_
-    * REPLAY_TIMEOUT_FUNC to see how this value is used. The unit for this att
-    * ribute is in symbol times, which is 4ns at GEN1 speeds and 2ns at GEN2.;
-    *  EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_SHIFT 
-#undef PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_MASK 
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_DEFVAL      0x00000000
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_SHIFT       0
-#define PCIE_ATTRIB_ATTR_93_ATTR_LL_REPLAY_TIMEOUT_MASK        0x00007FFFU
-
-/*
-* Device ID for the the PCIe Cap Structure Device ID field
-*/
-#undef PCIE_ATTRIB_ID_CFG_DEV_ID_DEFVAL 
-#undef PCIE_ATTRIB_ID_CFG_DEV_ID_SHIFT 
-#undef PCIE_ATTRIB_ID_CFG_DEV_ID_MASK 
-#define PCIE_ATTRIB_ID_CFG_DEV_ID_DEFVAL                       0x10EE7024
-#define PCIE_ATTRIB_ID_CFG_DEV_ID_SHIFT                        0
-#define PCIE_ATTRIB_ID_CFG_DEV_ID_MASK                         0x0000FFFFU
-
-/*
-* Vendor ID for the PCIe Cap Structure Vendor ID field
-*/
-#undef PCIE_ATTRIB_ID_CFG_VEND_ID_DEFVAL 
-#undef PCIE_ATTRIB_ID_CFG_VEND_ID_SHIFT 
-#undef PCIE_ATTRIB_ID_CFG_VEND_ID_MASK 
-#define PCIE_ATTRIB_ID_CFG_VEND_ID_DEFVAL                      0x10EE7024
-#define PCIE_ATTRIB_ID_CFG_VEND_ID_SHIFT                       16
-#define PCIE_ATTRIB_ID_CFG_VEND_ID_MASK                        0xFFFF0000U
-
-/*
-* Subsystem ID for the the PCIe Cap Structure Subsystem ID field
-*/
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_DEFVAL 
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_SHIFT 
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_MASK 
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_DEFVAL             0x10EE0007
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_SHIFT              0
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_ID_MASK               0x0000FFFFU
-
-/*
-* Subsystem Vendor ID for the PCIe Cap Structure Subsystem Vendor ID field
-*/
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_DEFVAL 
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_SHIFT 
-#undef PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_MASK 
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_DEFVAL        0x10EE0007
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_SHIFT         16
-#define PCIE_ATTRIB_SUBSYS_ID_CFG_SUBSYS_VEND_ID_MASK          0xFFFF0000U
-
-/*
-* Revision ID for the the PCIe Cap Structure
-*/
-#undef PCIE_ATTRIB_REV_ID_CFG_REV_ID_DEFVAL 
-#undef PCIE_ATTRIB_REV_ID_CFG_REV_ID_SHIFT 
-#undef PCIE_ATTRIB_REV_ID_CFG_REV_ID_MASK 
-#define PCIE_ATTRIB_REV_ID_CFG_REV_ID_DEFVAL                   
-#define PCIE_ATTRIB_REV_ID_CFG_REV_ID_SHIFT                    0
-#define PCIE_ATTRIB_REV_ID_CFG_REV_ID_MASK                     0x000000FFU
-
-/*
-* Code identifying basic function, subclass and applicable programming int
-    * erface. Transferred to the Class Code register.; EP=0x8000; RP=0x8000
-*/
-#undef PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_MASK 
-#define PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_DEFVAL             
-#define PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_SHIFT              0
-#define PCIE_ATTRIB_ATTR_24_ATTR_CLASS_CODE_MASK               0x0000FFFFU
-
-/*
-* Code identifying basic function, subclass and applicable programming int
-    * erface. Transferred to the Class Code register.; EP=0x0005; RP=0x0006
-*/
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_MASK 
-#define PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_DEFVAL             0x00000905
-#define PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_SHIFT              0
-#define PCIE_ATTRIB_ATTR_25_ATTR_CLASS_CODE_MASK               0x000000FFU
-
-/*
-* INTX Interrupt Generation Capable. If FALSE, this will cause Command[10]
-    *  to be hardwired to 0.; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_SHIFT 
-#undef PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_MASK 
-#define PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_DEFVAL   0x00000905
-#define PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_SHIFT    8
-#define PCIE_ATTRIB_ATTR_25_ATTR_CMD_INTX_IMPLEMENTED_MASK     0x00000100U
-
-/*
-* Indicates that the AER structures exists. If this is FALSE, then the AER
-    *  structure cannot be accessed via either the link or the management port
-    * , and AER will be considered to not be present for error management task
-    * s (such as what types of error messages are sent if an error is detected
-    * ).; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_SHIFT 
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_MASK 
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_DEFVAL              0x00001000
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_SHIFT               12
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_MASK                0x00001000U
-
-/*
-* Indicates that the AER structures exists. If this is FALSE, then the AER
-    *  structure cannot be accessed via either the link or the management port
-    * , and AER will be considered to not be present for error management task
-    * s (such as what types of error messages are sent if an error is detected
-    * ).; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_SHIFT 
-#undef PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_MASK 
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_DEFVAL              0x00001000
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_SHIFT               12
-#define PCIE_ATTRIB_ATTR_4_ATTR_AER_CAP_ON_MASK                0x00001000U
-
-/*
-* VSEC's Next Capability Offset pointer to the next item in the capabiliti
-    * es list, or 000h if this is the final capability.; EP=0x0140; RP=0x0140
-*/
-#undef PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_SHIFT 
-#undef PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_MASK 
-#define PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_DEFVAL       0x00002281
-#define PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_SHIFT        1
-#define PCIE_ATTRIB_ATTR_89_ATTR_VSEC_CAP_NEXTPTR_MASK         0x00001FFEU
-
-/*
-* CRS SW Visibility. Indicates RC can return CRS to SW. Transferred to the
-    *  Root Capabilities register.; EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_SHIFT 
-#undef PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_MASK 
-#define PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_DEFVAL  0x00000000
-#define PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_SHIFT  5
-#define PCIE_ATTRIB_ATTR_79_ATTR_ROOT_CAP_CRS_SW_VISIBILITY_MASK  0x00000020U
-
-/*
-* Indicates that the MSIX structures exists. If this is FALSE, then the MS
-    * IX structure cannot be accessed via either the link or the management po
-    * rt.; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_SHIFT 
-#undef PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_MASK 
-#define PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_DEFVAL            0x00000100
-#define PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_SHIFT             8
-#define PCIE_ATTRIB_ATTR_43_ATTR_MSIX_CAP_ON_MASK              0x00000100U
-
-/*
-* MSI-X Table Size. This value is transferred to the MSI-X Message Control
-    * [10:0] field. Set to 0 if MSI-X is not enabled. Note that the core does
-    * not implement the table; that must be implemented in user logic.; EP=0x0
-    * 003; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_SHIFT 
-#undef PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_MASK 
-#define PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_DEFVAL    
-#define PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_SHIFT     0
-#define PCIE_ATTRIB_ATTR_48_ATTR_MSIX_CAP_TABLE_SIZE_MASK      0x000007FFU
-
-/*
-* MSI-X Table Offset. This value is transferred to the MSI-X Table Offset
-    * field. Set to 0 if MSI-X is not enabled.; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_SHIFT 
-#undef PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_MASK 
-#define PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_DEFVAL  
-#define PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_SHIFT   0
-#define PCIE_ATTRIB_ATTR_46_ATTR_MSIX_CAP_TABLE_OFFSET_MASK    0x0000FFFFU
-
-/*
-* MSI-X Table Offset. This value is transferred to the MSI-X Table Offset
-    * field. Set to 0 if MSI-X is not enabled.; EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_SHIFT 
-#undef PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_MASK 
-#define PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_DEFVAL  
-#define PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_SHIFT   0
-#define PCIE_ATTRIB_ATTR_47_ATTR_MSIX_CAP_TABLE_OFFSET_MASK    0x00001FFFU
-
-/*
-* MSI-X Pending Bit Array Offset This value is transferred to the MSI-X PB
-    * A Offset field. Set to 0 if MSI-X is not enabled.; EP=0x0001; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_SHIFT 
-#undef PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_MASK 
-#define PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_DEFVAL    
-#define PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_SHIFT     0
-#define PCIE_ATTRIB_ATTR_44_ATTR_MSIX_CAP_PBA_OFFSET_MASK      0x0000FFFFU
-
-/*
-* MSI-X Pending Bit Array Offset This value is transferred to the MSI-X PB
-    * A Offset field. Set to 0 if MSI-X is not enabled.; EP=0x1000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_SHIFT 
-#undef PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_MASK 
-#define PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_DEFVAL    0x00008000
-#define PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_SHIFT     3
-#define PCIE_ATTRIB_ATTR_45_ATTR_MSIX_CAP_PBA_OFFSET_MASK      0x0000FFF8U
-
-/*
-* DT837748 Enable
-*/
-#undef PCIE_ATTRIB_CB_CB1_DEFVAL 
-#undef PCIE_ATTRIB_CB_CB1_SHIFT 
-#undef PCIE_ATTRIB_CB_CB1_MASK 
-#define PCIE_ATTRIB_CB_CB1_DEFVAL                              0x00000001
-#define PCIE_ATTRIB_CB_CB1_SHIFT                               1
-#define PCIE_ATTRIB_CB_CB1_MASK                                0x00000002U
-
-/*
-* Active State PM Support. Indicates the level of active state power manag
-    * ement supported by the selected PCI Express Link, encoded as follows: 0
-    * Reserved, 1 L0s entry supported, 2 Reserved, 3 L0s and L1 entry supporte
-    * d.; EP=0x0001; RP=0x0001
-*/
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_SHIFT 
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_MASK 
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_DEFVAL  0x00001FFD
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_SHIFT   12
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_ASPM_SUPPORT_MASK    0x00003000U
-
-/*
-* Data Link Layer Link Active status notification is supported. This is op
-    * tional for Upstream ports.; EP=0x0000; RP=0x0000
-*/
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_DEFVAL 
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_SHIFT 
-#undef PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_MASK 
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_DEFVAL  0x00001FFD
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_SHIFT  15
-#define PCIE_ATTRIB_ATTR_35_ATTR_LINK_CAP_DLL_LINK_ACTIVE_REPORTING_CAP_MASK  0x00008000U
-
-/*
-* PCIE control block level reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL             0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT              17
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK               0x00020000U
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[MASK_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_SHIFT                  16
-#define GPIO_MASK_DATA_1_LSW_MASK_1_LSW_MASK                   0xFFFF0000U
-
-/*
-* Operation is the same as MASK_DATA_0_LSW[DATA_0_LSW]
-*/
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT 
-#undef GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK 
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_DEFVAL                 0x00000000
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_SHIFT                  0
-#define GPIO_MASK_DATA_1_LSW_DATA_1_LSW_MASK                   0x0000FFFFU
-
-/*
-* Status Read value of PLL Lock
-*/
-#undef SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_DEFVAL 
-#undef SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_SHIFT 
-#undef SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_MASK 
-#define SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_DEFVAL  0x00000001
-#define SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_SHIFT  4
-#define SERDES_L0_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_MASK  0x00000010U
-#define SERDES_L0_PLL_STATUS_READ_1_OFFSET                                         0XFD4023E4
-
-/*
 * Status Read value of PLL Lock
 */
 #undef SERDES_L1_PLL_STATUS_READ_1_PLL_LOCK_STATUS_READ_DEFVAL 
@@ -38378,8 +37014,6 @@
 #define CRL_APB_RST_LPD_IOU0_OFFSET                                                0XFF5E0230
 #undef CRF_APB_RST_FPD_TOP_OFFSET 
 #define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
-#undef CRF_APB_RST_FPD_TOP_OFFSET 
-#define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
 #undef DP_DP_TX_PHY_POWER_DOWN_OFFSET 
 #define DP_DP_TX_PHY_POWER_DOWN_OFFSET                                             0XFD4A0238
 #undef DP_DP_PHY_RESET_OFFSET 
@@ -38436,36 +37070,6 @@
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_DEFVAL                  0x000F9FFE
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_SHIFT                   1
 #define CRF_APB_RST_FPD_TOP_SATA_RESET_MASK                    0x00000002U
-
-/*
-* PCIE config reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_DEFVAL              0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_SHIFT               19
-#define CRF_APB_RST_FPD_TOP_PCIE_CFG_RESET_MASK                0x00080000U
-
-/*
-* PCIE control block level reset
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_DEFVAL             0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_SHIFT              17
-#define CRF_APB_RST_FPD_TOP_PCIE_CTRL_RESET_MASK               0x00020000U
-
-/*
-* PCIE bridge block level reset (AXI interface)
-*/
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT 
-#undef CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK 
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_DEFVAL           0x000F9FFE
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_SHIFT            18
-#define CRF_APB_RST_FPD_TOP_PCIE_BRIDGE_RESET_MASK             0x00040000U
 
 /*
 * Two bits per lane. When set to 11, moves the GT to power down mode. When
@@ -38537,6 +37141,12 @@
 #define CRF_APB_RST_FPD_TOP_OFFSET                                                 0XFD1A0100
 #undef CRL_APB_RST_LPD_TOP_OFFSET 
 #define CRL_APB_RST_LPD_TOP_OFFSET                                                 0XFF5E023C
+#undef FPD_SLCR_AFI_FS_OFFSET 
+#define FPD_SLCR_AFI_FS_OFFSET                                                     0XFD615000
+#undef AFIFM2_AFIFM_RDCTRL_OFFSET 
+#define AFIFM2_AFIFM_RDCTRL_OFFSET                                                 0XFD380000
+#undef AFIFM2_AFIFM_WRCTRL_OFFSET 
+#define AFIFM2_AFIFM_WRCTRL_OFFSET                                                 0XFD380014
 
 /*
 * AF_FM0 block level reset
@@ -38607,6 +37217,52 @@
 #define CRL_APB_RST_LPD_TOP_AFI_FM6_RESET_DEFVAL               0x00188FDF
 #define CRL_APB_RST_LPD_TOP_AFI_FM6_RESET_SHIFT                19
 #define CRL_APB_RST_LPD_TOP_AFI_FM6_RESET_MASK                 0x00080000U
+
+/*
+* Select the 32/64/128-bit data width selection for the Slave 0 00: 32-bit
+    *  AXI data width (default) 01: 64-bit AXI data width 10: 128-bit AXI data
+    *  width 11: reserved
+*/
+#undef FPD_SLCR_AFI_FS_DW_SS0_SEL_DEFVAL 
+#undef FPD_SLCR_AFI_FS_DW_SS0_SEL_SHIFT 
+#undef FPD_SLCR_AFI_FS_DW_SS0_SEL_MASK 
+#define FPD_SLCR_AFI_FS_DW_SS0_SEL_DEFVAL                      0x00000A00
+#define FPD_SLCR_AFI_FS_DW_SS0_SEL_SHIFT                       8
+#define FPD_SLCR_AFI_FS_DW_SS0_SEL_MASK                        0x00000300U
+
+/*
+* Select the 32/64/128-bit data width selection for the Slave 1 00: 32-bit
+    *  AXI data width (default) 01: 64-bit AXI data width 10: 128-bit AXI data
+    *  width 11: reserved
+*/
+#undef FPD_SLCR_AFI_FS_DW_SS1_SEL_DEFVAL 
+#undef FPD_SLCR_AFI_FS_DW_SS1_SEL_SHIFT 
+#undef FPD_SLCR_AFI_FS_DW_SS1_SEL_MASK 
+#define FPD_SLCR_AFI_FS_DW_SS1_SEL_DEFVAL                      0x00000A00
+#define FPD_SLCR_AFI_FS_DW_SS1_SEL_SHIFT                       10
+#define FPD_SLCR_AFI_FS_DW_SS1_SEL_MASK                        0x00000C00U
+
+/*
+* Configures the Read Channel Fabric interface width. 2'b11 : Reserved 2'b
+    * 10 : 32-bit Fabric 2'b01 : 64-bit enabled 2'b00 : 128-bit enabled
+*/
+#undef AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_DEFVAL 
+#undef AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_SHIFT 
+#undef AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_MASK 
+#define AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_DEFVAL                0x000003B0
+#define AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_SHIFT                 0
+#define AFIFM2_AFIFM_RDCTRL_FABRIC_WIDTH_MASK                  0x00000003U
+
+/*
+* Configures the Write Channel Fabric interface width. 2'b11 : Reserved 2'
+    * b10 : 32-bit Fabric 2'b01 : 64-bit enabled 2'b00 : 128-bit enabled
+*/
+#undef AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_DEFVAL 
+#undef AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_SHIFT 
+#undef AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_MASK 
+#define AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_DEFVAL                0x000003B0
+#define AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_SHIFT                 0
+#define AFIFM2_AFIFM_WRCTRL_FABRIC_WIDTH_MASK                  0x00000003U
 #undef GPIO_MASK_DATA_5_MSW_OFFSET 
 #define GPIO_MASK_DATA_5_MSW_OFFSET                                                0XFF0A002C
 #undef GPIO_DIRM_5_OFFSET 
