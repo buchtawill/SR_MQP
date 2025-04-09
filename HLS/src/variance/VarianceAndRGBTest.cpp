@@ -1,6 +1,6 @@
 #include <iostream>
 #include "VarianceAndRGB.h"
-#include "image_tile_conversion.hpp"
+#include "../image_tile_conversion.hpp"
 #include <cmath>
 
 int test_rgb_convert();
@@ -101,7 +101,7 @@ int test_rgb_convert(){
 	for (int i = 0; i < YUYV_NUM_TRANSFERS; i++){
 	    ap_uint_128 packed_data = 0;
 	    for (int j = 0; j < 16; j++){
-	        packed_data |= ((ap_uint_128)diyar_test_yuv[i * 16 + j]) << (8 * j);
+	        packed_data |= ((ap_uint_128)conversion_tile_yuyv[i * 16 + j]) << (8 * j);
 	    }
 //        std::cout << "Packed YUYV pixels: " << std::hex << packed_data << std::endl; // data is correct here
 
@@ -133,18 +133,18 @@ int test_rgb_convert(){
 		int total_tests = 0;
 		std::cout << "Expected vs. Output RGB Values:\n";
 		for (int i = 0; i < PIXEL_COUNT; i++) {
-			diff = abs(diyar_test_rgb[i] - extracted_rgb[i]);
+			diff = abs(conversion_tile_rgb[i] - extracted_rgb[i]);
 			if (diff > ACCEPTABLE_ERROR) {
 				if (diff > biggest_diff) biggest_diff = diff;
 
-				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
+				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   FAIL 		DIFFERENCE = " << diff << "\n" ;
 				all_pass = false;
 				this_pass = false;
 				fails++;
 				total_tests++;
 			}
 			else {
-				std::cout << "Expected: " << std::setw(3) << (int)diyar_test_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   PASS 		DIFFERENCE = " << diff << "\n" ;
+				std::cout << "Expected: " << std::setw(3) << (int)conversion_tile_rgb[i] << " | Output: " << std::setw(3) << (int)extracted_rgb[i] << " |   PASS 		DIFFERENCE = " << diff << "\n" ;
 				this_pass = true;
 				passes++;
 				total_tests++;
