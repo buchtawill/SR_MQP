@@ -20,7 +20,7 @@ Example build_info['bilinear_interpolation']:
         "../image_coin_tile.h"
     ],
     "tb": [
-        "bilinear_interpolation_tb.cpp"
+        "bilinear_interpolation_sim_128bit.cpp"
     ],
     "top_func": "bilinear_interpolation"
 }

@@ -4701,7 +4701,7 @@ const fixed_4_8_t conv_expand0_prelu[44] = {
      0.31391418
 };
 
-const fixed_4_8_t weights_layer_deconv0[3][44][9][9] = {
+fixed_4_8_t weights_layer_deconv0[3][44][9][9] = {
     // Filter 0
     {
         {   // Channel 0
@@ -6164,6 +6164,8 @@ const fixed_4_8_t weights_layer_deconv0[3][44][9][9] = {
         },
     },
 };
+
+
 
 const fixed_4_8_t conv_deconv0_bias[3] = {
      0.00045964,

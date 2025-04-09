@@ -52,7 +52,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 #define SLIDER_BUFFER_HEIGHT_OUT (SLIDER_HEIGHT_OUT + 4)
 
 
-#define MARGIN_OF_ERROR 10
+#define MARGIN_OF_ERROR 5
 
 
 #endif

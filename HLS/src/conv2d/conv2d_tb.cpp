@@ -59,29 +59,38 @@ int main(){
 	conv2d_top(in_stream, out_stream);
 
 	// Check the results
-	// i = 0;
-	// bool tlast = false;
-	// bool failed = false;
-	// do{
-	// 	axis_t tmp_stream;
+	bool tlast = false;
+	bool failed = false;
+	do{
+		axis_t tmp_stream;
 
-	// 	tmp_stream = out_stream.read();
-	// 	tlast = tmp_stream.last;
+		tmp_stream = out_stream.read();
+		tlast = tmp_stream.last;
 
-	// 	// Check the data
-	// 	for(j = 0; j < BYTES_PER_TRANSFER; j++){
-	// 		coin_idx = (i * BYTES_PER_TRANSFER) + j;
-	// 		uint8_t tmp_stream_val = tmp_stream.data.range((j+1)*8-1, j*8);
-	// 		if(tmp_stream_val != coin_tile_low_res_rgb[coin_idx]){
-	// 			printf("ERROR [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res_rgb[coin_idx], tmp_stream_val);
-	// 			failed = true;
-	// 		}
-	// 		else{
-	// 			printf("GOOD [conv2d_tb] Expected %3u, got %3u\n", coin_tile_low_res_rgb[coin_idx], tmp_stream_val);
-	// 		}
-	// 	}
-	// 	i++;
-	// }while(!tlast);
+		stream_data_t tmp_data = tmp_stream.data;
+
+		uint8_t r0 = tmp_data.range(7, 0);
+		uint8_t g0 = tmp_data.range(15, 8);
+		uint8_t b0 = tmp_data.range(23, 16);
+	
+		uint8_t r1 = tmp_data.range(39, 32);
+		uint8_t g1 = tmp_data.range(47, 40);
+		uint8_t b1 = tmp_data.range(55, 48);
+	
+		uint8_t r2 = tmp_data.range(71, 64);
+		uint8_t g2 = tmp_data.range(79, 72);
+		uint8_t b2 = tmp_data.range(87, 80);
+	
+		uint8_t r3 = tmp_data.range(103, 96);
+		uint8_t g3 = tmp_data.range(111, 104);
+		uint8_t b3 = tmp_data.range(119, 112);
+
+		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r0, g0, b0);
+		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r1, g1, b1);
+		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r2, g2, b2);
+		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r3, g3, b3);
+
+	}while(!tlast);
 
 	// if(failed) return -1;
 	// else return 0;
