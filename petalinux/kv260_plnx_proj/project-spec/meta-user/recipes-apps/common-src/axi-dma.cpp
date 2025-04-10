@@ -171,13 +171,9 @@ void AXIDMA::enable_s2mm_intr(){
 
 #ifndef DMA_SG_MODE
 
-void AXIDMA::print_debug_info(){
-    printf("DEBUG [AXIDMA::print_debug_info()] Base address: 0x%08X\n", this->base_address);
-    printf("                                   Total good bytes MM2S: %d\n", this->total_bytes_mm2s);
-    printf("                                   Total good bytes S2MM: %d\n", this->total_bytes_s2mm);
-    printf("                                   Number of MM2S calls:  %d\n", this->n_mm2s_calls);
-    printf("                                   Number of S2MM calls:  %d\n", this->n_s2mm_calls);
-}
+// void AXIDMA::print_debug_info(){
+
+// }
 
 int AXIDMA::transfer_mm2s(uint32_t src_addr, uint32_t len, bool block){
 

@@ -4,6 +4,7 @@
 #include "bits.h"
 #include "dma-sg-bd.h"
 #include <stdint.h>
+#include <cstdio>
 
 // #define DMA_SG_MODE 1
 // #define DMA_DIRECT_REG_MODE 1
@@ -27,8 +28,8 @@
 // Length of DMA self test transfer in bytes
 #define DMA_SELF_TEST_LEN           ((uint32_t)4096)
 
-#define DMA_SELF_TEST_SG_NUM_BDS    ((uint32_t)28)
-#define DMA_SELF_TEST_BYTES_PER_BD  ((uint32_t)84)
+#define DMA_SELF_TEST_SG_NUM_BDS    ((uint32_t)32)
+#define DMA_SELF_TEST_BYTES_PER_BD  ((uint32_t)96) // 32 pixels * 3 bytes per pixel
 #define DMA_SELF_TEST_SG_LEN        (DMA_SELF_TEST_SG_NUM_BDS * DMA_SELF_TEST_BYTES_PER_BD)
 
 #define DMA_SYNC_TRIES				10000
@@ -160,10 +161,24 @@ public:
     // Read from a DMA register
     uint32_t read_dma(uint32_t reg);
 
+    uint32_t get_total_bytes_mm2s(){
+        return this->total_bytes_mm2s;
+    }
+
+    uint32_t get_total_bytes_s2mm(){
+        return this->total_bytes_s2mm;
+    }
+
     /**
      * Print some debug info about the DMA core
      */
-    void print_debug_info();
+    void print_debug_info(){
+        printf("DEBUG [AXIDMA::print_debug_info()] Base address: 0x%08X\n", this->base_address);
+        printf("DEBUG [AXIDMA::print_debug_info()] Total good bytes MM2S: %d\n", this->total_bytes_mm2s);
+        printf("DEBUG [AXIDMA::print_debug_info()] Total good bytes S2MM: %d\n", this->total_bytes_s2mm);
+        printf("DEBUG [AXIDMA::print_debug_info()] Number of MM2S calls:  %d\n", this->n_mm2s_calls);
+        printf("DEBUG [AXIDMA::print_debug_info()] Number of S2MM calls:  %d\n", this->n_s2mm_calls);
+    }
 
     /**
      * Read-Modify-Write to a DMA register

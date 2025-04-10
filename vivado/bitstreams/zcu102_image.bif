@@ -1,0 +1,4 @@
+all:
+{
+    ./bitstreams/zcu102_fpga_image.bit
+}
