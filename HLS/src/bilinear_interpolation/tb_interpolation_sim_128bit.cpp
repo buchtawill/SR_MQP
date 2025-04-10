@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <random>
 #include "bilinear_interpolation.h"
-#include "image_tile_coin.h"
+//#include "image_tile_coin.h"
 
 // -----------------------------------------------------------------------------
 // Expected interpolation output
