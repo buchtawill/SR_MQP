@@ -16,13 +16,13 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 									   hls::stream<pixel_t> &fifo_bilin_4,
 									   hls::stream<pixel_t> &fifo_bilin_5,
 									   hls::stream<pixel_t> &fifo_bilin_6,
-									   hls::stream<pixel_t> &fifo_bilin_7,
-									   hls::stream<pixel_t> &fifo_bilin_8,
-									   hls::stream<pixel_t> &fifo_bilin_9,
-									   hls::stream<pixel_t> &fifo_bilin_10,
-									   hls::stream<pixel_t> &fifo_bilin_11,
-									   hls::stream<pixel_t> &fifo_bilin_12,
-									   hls::stream<pixel_t> &fifo_bilin_13){
+									   hls::stream<pixel_t> &fifo_bilin_7){//,
+//									   hls::stream<pixel_t> &fifo_bilin_8,
+//									   hls::stream<pixel_t> &fifo_bilin_9,
+//									   hls::stream<pixel_t> &fifo_bilin_10,
+//									   hls::stream<pixel_t> &fifo_bilin_11,
+//									   hls::stream<pixel_t> &fifo_bilin_12,
+//									   hls::stream<pixel_t> &fifo_bilin_13){
 
 	#pragma HLS INTERFACE axis register both port=fifo_bilin_0
 	#pragma HLS INTERFACE axis register both port=fifo_bilin_1
@@ -32,12 +32,12 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	#pragma HLS INTERFACE axis register both port=fifo_bilin_5
 	#pragma HLS INTERFACE axis register both port=fifo_bilin_6
 	#pragma HLS INTERFACE axis register both port=fifo_bilin_7
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_8
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_9
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_10
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_11
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_12
-	#pragma HLS INTERFACE axis register both port=fifo_bilin_13
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_8
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_9
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_10
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_11
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_12
+//	#pragma HLS INTERFACE axis register both port=fifo_bilin_13
 
 	#pragma HLS STREAM variable=fifo_bilin_0 depth=784
 	#pragma HLS STREAM variable=fifo_bilin_1 depth=784
@@ -47,12 +47,12 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
 	#pragma HLS STREAM variable=fifo_bilin_5 depth=784
 	#pragma HLS STREAM variable=fifo_bilin_6 depth=784
 	#pragma HLS STREAM variable=fifo_bilin_7 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_8 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_9 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_10 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_11 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_12 depth=784
-	#pragma HLS STREAM variable=fifo_bilin_13 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_8 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_9 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_10 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_11 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_12 depth=784
+//	#pragma HLS STREAM variable=fifo_bilin_13 depth=784
 
 
 
@@ -164,12 +164,12 @@ int bilinear_interpolation_calculations(pixel_t image_section[SLIDER_HEIGHT_IN +
                 case 5:  fifo_bilin_5.write(temp_pixel);  break;
                 case 6:  fifo_bilin_6.write(temp_pixel);  break;
                 case 7:  fifo_bilin_7.write(temp_pixel);  break;
-                case 8:  fifo_bilin_8.write(temp_pixel);  break;
-                case 9:  fifo_bilin_9.write(temp_pixel);  break;
-                case 10: fifo_bilin_10.write(temp_pixel); break;
-                case 11: fifo_bilin_11.write(temp_pixel); break;
-                case 12: fifo_bilin_12.write(temp_pixel); break;
-                case 13: fifo_bilin_13.write(temp_pixel); break;
+//                case 8:  fifo_bilin_8.write(temp_pixel);  break;
+//                case 9:  fifo_bilin_9.write(temp_pixel);  break;
+//                case 10: fifo_bilin_10.write(temp_pixel); break;
+//                case 11: fifo_bilin_11.write(temp_pixel); break;
+//                case 12: fifo_bilin_12.write(temp_pixel); break;
+//                case 13: fifo_bilin_13.write(temp_pixel); break;
             }
 
             x_location++;
@@ -190,39 +190,38 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
                        hls::stream<pixel_t> &fifo_first_3,
                        hls::stream<pixel_t> &fifo_first_4,
                        hls::stream<pixel_t> &fifo_first_5,
-                       hls::stream<pixel_t> &fifo_first_6,
-                       hls::stream<pixel_t> &fifo_first_7,
-                       hls::stream<pixel_t> &fifo_first_8,
+//                       hls::stream<pixel_t> &fifo_first_6,
+//                       hls::stream<pixel_t> &fifo_first_7,
+//                       hls::stream<pixel_t> &fifo_first_8,
                        hls::stream<pixel_t> &fifo_second_0,
                        hls::stream<pixel_t> &fifo_second_1,
                        hls::stream<pixel_t> &fifo_second_2,
                        hls::stream<pixel_t> &fifo_second_3,
                        hls::stream<pixel_t> &fifo_second_4,
-                       hls::stream<pixel_t> &fifo_second_5,
-                       hls::stream<pixel_t> &fifo_second_6,
-                       hls::stream<pixel_t> &fifo_second_7,
-                       hls::stream<pixel_t> &fifo_second_8){
+                       hls::stream<pixel_t> &fifo_second_5){//,
+//                       hls::stream<pixel_t> &fifo_second_6,
+//                       hls::stream<pixel_t> &fifo_second_7,
+//                       hls::stream<pixel_t> &fifo_second_8){
 
     #pragma HLS INTERFACE axis register both port=in_stream
     #pragma HLS INTERFACE axis register both port=fifo_first_0
-//#pragma HLS RESOURCE variable=psum1 core=FIFO_BRAM
     #pragma HLS INTERFACE axis register both port=fifo_first_1
     #pragma HLS INTERFACE axis register both port=fifo_first_2
     #pragma HLS INTERFACE axis register both port=fifo_first_3
     #pragma HLS INTERFACE axis register both port=fifo_first_4
     #pragma HLS INTERFACE axis register both port=fifo_first_5
-    #pragma HLS INTERFACE axis register both port=fifo_first_6
-    #pragma HLS INTERFACE axis register both port=fifo_first_7
-    #pragma HLS INTERFACE axis register both port=fifo_first_8
+//    #pragma HLS INTERFACE axis register both port=fifo_first_6
+//    #pragma HLS INTERFACE axis register both port=fifo_first_7
+//    #pragma HLS INTERFACE axis register both port=fifo_first_8
     #pragma HLS INTERFACE axis register both port=fifo_second_0
     #pragma HLS INTERFACE axis register both port=fifo_second_1
     #pragma HLS INTERFACE axis register both port=fifo_second_2
     #pragma HLS INTERFACE axis register both port=fifo_second_3
     #pragma HLS INTERFACE axis register both port=fifo_second_4
     #pragma HLS INTERFACE axis register both port=fifo_second_5
-    #pragma HLS INTERFACE axis register both port=fifo_second_6
-    #pragma HLS INTERFACE axis register both port=fifo_second_7
-    #pragma HLS INTERFACE axis register both port=fifo_second_8
+//    #pragma HLS INTERFACE axis register both port=fifo_second_6
+//    #pragma HLS INTERFACE axis register both port=fifo_second_7
+//    #pragma HLS INTERFACE axis register both port=fifo_second_8
 
 	#pragma HLS STREAM variable=fifo_first_0 depth=784
 	#pragma HLS STREAM variable=fifo_first_1 depth=784
@@ -230,18 +229,18 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 	#pragma HLS STREAM variable=fifo_first_3 depth=784
 	#pragma HLS STREAM variable=fifo_first_4 depth=784
 	#pragma HLS STREAM variable=fifo_first_5 depth=784
-	#pragma HLS STREAM variable=fifo_first_6 depth=784
-	#pragma HLS STREAM variable=fifo_first_7 depth=784
-	#pragma HLS STREAM variable=fifo_first_8 depth=784
+//	#pragma HLS STREAM variable=fifo_first_6 depth=784
+//	#pragma HLS STREAM variable=fifo_first_7 depth=784
+//	#pragma HLS STREAM variable=fifo_first_8 depth=784
 	#pragma HLS STREAM variable=fifo_second_0 depth=784
 	#pragma HLS STREAM variable=fifo_second_1 depth=784
 	#pragma HLS STREAM variable=fifo_second_2 depth=784
 	#pragma HLS STREAM variable=fifo_second_3 depth=784
 	#pragma HLS STREAM variable=fifo_second_4 depth=784
 	#pragma HLS STREAM variable=fifo_second_5 depth=784
-	#pragma HLS STREAM variable=fifo_second_6 depth=784
-	#pragma HLS STREAM variable=fifo_second_7 depth=784
-	#pragma HLS STREAM variable=fifo_second_8 depth=784
+//	#pragma HLS STREAM variable=fifo_second_6 depth=784
+//	#pragma HLS STREAM variable=fifo_second_7 depth=784
+//	#pragma HLS STREAM variable=fifo_second_8 depth=784
 
 
     // Internal overlap FIFOs
@@ -342,18 +341,18 @@ void stream_samples_in(hls::stream<axis_t> &in_stream,
 			        if (fill_first_set) fifo_first_5.write(data);
 			        else fifo_second_5.write(data);
 			        break;
-			    case 6:
-			        if (fill_first_set) fifo_first_6.write(data);
-			        else fifo_second_6.write(data);
-			        break;
-			    case 7:
-			        if (fill_first_set) fifo_first_7.write(data);
-			        else fifo_second_7.write(data);
-			        break;
-			    case 8:
-			        if (fill_first_set) fifo_first_8.write(data);
-			        else fifo_second_8.write(data);
-			        break;
+//			    case 6:
+//			        if (fill_first_set) fifo_first_6.write(data);
+//			        else fifo_second_6.write(data);
+//			        break;
+//			    case 7:
+//			        if (fill_first_set) fifo_first_7.write(data);
+//			        else fifo_second_7.write(data);
+//			        break;
+//			    case 8:
+//			        if (fill_first_set) fifo_first_8.write(data);
+//			        else fifo_second_8.write(data);
+//			        break;
 			}
 
 
@@ -429,9 +428,9 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
                           hls::stream<pixel_t> &fifo_3,
                           hls::stream<pixel_t> &fifo_4,
                           hls::stream<pixel_t> &fifo_5,
-                          hls::stream<pixel_t> &fifo_6,
-                          hls::stream<pixel_t> &fifo_7,
-                          hls::stream<pixel_t> &fifo_8,
+//                          hls::stream<pixel_t> &fifo_6,
+//                          hls::stream<pixel_t> &fifo_7,
+//                          hls::stream<pixel_t> &fifo_8,
                           bool top_slider, bool bottom_slider,
                           pixel_t image_section[SLIDER_HEIGHT_IN + BUFFER * 2][WIDTH_IN]) {
 
@@ -443,10 +442,11 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
 							   (i == 1) ? fifo_2.read() :
 							   (i == 2) ? fifo_3.read() :
 							   (i == 3) ? fifo_4.read() :
-							   (i == 4) ? fifo_5.read() :
-							   (i == 5) ? fifo_6.read() :
-							   (i == 6) ? fifo_7.read() :
-							   fifo_8.read();
+								fifo_5.read();
+//							   (i == 4) ? fifo_5.read() :
+//							   (i == 5) ? fifo_6.read() :
+//							   (i == 6) ? fifo_7.read() :
+//							   fifo_8.read();
 				image_section[i][col_idx] = data;
             }
         }
@@ -459,10 +459,11 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
 							   (i == 1) ? fifo_1.read() :
 							   (i == 2) ? fifo_2.read() :
 							   (i == 3) ? fifo_3.read() :
-							   (i == 4) ? fifo_4.read() :
-							   (i == 5) ? fifo_5.read() :
-							   (i == 6) ? fifo_6.read() :
-							   fifo_7.read();
+								fifo_4.read();
+//							   (i == 4) ? fifo_4.read() :
+//							   (i == 5) ? fifo_5.read() :
+//							   (i == 6) ? fifo_6.read() :
+//							   fifo_7.read();
 				image_section[i][col_idx] = data;
             }
         }
@@ -476,10 +477,11 @@ void create_image_section(hls::stream<pixel_t> &fifo_0,
                                (i == 2) ? fifo_2.read() :
                                (i == 3) ? fifo_3.read() :
                                (i == 4) ? fifo_4.read() :
-                               (i == 5) ? fifo_5.read() :
-                               (i == 6) ? fifo_6.read() :
-                               (i == 7) ? fifo_7.read() :
-                               fifo_8.read();
+                            	fifo_5.read();
+//                               (i == 5) ? fifo_5.read() :
+//                               (i == 6) ? fifo_6.read() :
+//                               (i == 7) ? fifo_7.read() :
+//                               fifo_8.read();
                 image_section[i][col_idx] = data;
             }
         }
@@ -496,12 +498,12 @@ void create_upscaled_image_section(hls::stream<pixel_t> &fifo_0,
 									hls::stream<pixel_t> &fifo_5,
 									hls::stream<pixel_t> &fifo_6,
 									hls::stream<pixel_t> &fifo_7,
-									hls::stream<pixel_t> &fifo_8,
-									hls::stream<pixel_t> &fifo_9,
-									hls::stream<pixel_t> &fifo_10,
-									hls::stream<pixel_t> &fifo_11,
-									hls::stream<pixel_t> &fifo_12,
-									hls::stream<pixel_t> &fifo_13,
+//									hls::stream<pixel_t> &fifo_8,
+//									hls::stream<pixel_t> &fifo_9,
+//									hls::stream<pixel_t> &fifo_10,
+//									hls::stream<pixel_t> &fifo_11,
+//									hls::stream<pixel_t> &fifo_12,
+//									hls::stream<pixel_t> &fifo_13,
 									pixel_t image_section[SLIDER_HEIGHT_OUT][SLIDER_WIDTH_OUT]){
 
     for (int col_idx = 0; col_idx < SLIDER_WIDTH_OUT; col_idx++) {
@@ -513,12 +515,12 @@ void create_upscaled_image_section(hls::stream<pixel_t> &fifo_0,
     	image_section[5][col_idx] = fifo_5.read();
     	image_section[6][col_idx] = fifo_6.read();
     	image_section[7][col_idx] = fifo_7.read();
-    	image_section[8][col_idx] = fifo_8.read();
-    	image_section[9][col_idx] = fifo_9.read();
-    	image_section[10][col_idx] = fifo_10.read();
-    	image_section[11][col_idx] = fifo_11.read();
-    	image_section[12][col_idx] = fifo_12.read();
-    	image_section[13][col_idx] = fifo_13.read();
+//    	image_section[8][col_idx] = fifo_8.read();
+//    	image_section[9][col_idx] = fifo_9.read();
+//    	image_section[10][col_idx] = fifo_10.read();
+//    	image_section[11][col_idx] = fifo_11.read();
+//    	image_section[12][col_idx] = fifo_12.read();
+//    	image_section[13][col_idx] = fifo_13.read();
     }
 
 }
@@ -587,19 +589,32 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
 	// Declare FIFOs for pixel values
-	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
-	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
+//	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8;
+//	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8;
+
+	hls::stream<pixel_t> fifo_first_0 ("first 0"), fifo_first_1 ("first 1"), fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5;
+	hls::stream<pixel_t> fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5;
+
+//
+//	hls::stream<pixel_t> fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+//	                      fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+//	                      fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+//	                      fifo_bilin_12, fifo_bilin_13;
+
 
 	hls::stream<pixel_t> fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
-	                      fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
-	                      fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
-	                      fifo_bilin_12, fifo_bilin_13;
+	                      fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7;
 
 	//Stream values in and store pixel values in FIFOs
 #pragma HLS DATAFLOW
+//	stream_samples_in(in_stream,
+//	                  fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8,
+//	                  fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8);
+//
+
 	stream_samples_in(in_stream,
-	                  fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8,
-	                  fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8);
+	                  fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5,
+	                  fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5);
 
 
 
@@ -632,26 +647,41 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 		if(row_sliced % 2 == 0 && first_fifos_filled){
 
 #pragma HLS DATAFLOW
-			create_image_section(fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8,
+//			create_image_section(fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5, fifo_first_6, fifo_first_7, fifo_first_8,
+//								top_row, bottom_row, image_section);
+
+			create_image_section(fifo_first_0, fifo_first_1, fifo_first_2, fifo_first_3, fifo_first_4, fifo_first_5,
 								top_row, bottom_row, image_section);
 			first_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION -> # of times called = NUM_SLIDERS_WIDTH
 			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+
+//				bilinear_interpolation_calculations(
+//				    image_section,
+//				    SLIDER_WIDTH_IN * i,
+//				    row_sliced * SLIDER_HEIGHT_IN,
+//				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+//				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+//				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+//				    fifo_bilin_12, fifo_bilin_13);
+//
+//				create_upscaled_image_section(
+//						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+//						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+//						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+//						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
 
 				bilinear_interpolation_calculations(
 				    image_section,
 				    SLIDER_WIDTH_IN * i,
 				    row_sliced * SLIDER_HEIGHT_IN,
 				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
-				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
-				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
-				    fifo_bilin_12, fifo_bilin_13);
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7);
 
 				create_upscaled_image_section(
 						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
 						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
-						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
-						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
+						upscaled_sections[section_upscaled + i]);
 
 			}
 			section_upscaled = section_upscaled + NUM_SLIDERS_WIDTH;
@@ -661,26 +691,41 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 		//if the row_sliced number is odd, then pulling from second set of FIFOs
 		else if(row_sliced % 2 == 1 && second_fifos_filled){
 #pragma HLS DATAFLOW
-			create_image_section(fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8,
+//			create_image_section(fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5, fifo_second_6, fifo_second_7, fifo_second_8,
+//								top_row, bottom_row, image_section);
+
+			create_image_section(fifo_second_0, fifo_second_1, fifo_second_2, fifo_second_3, fifo_second_4, fifo_second_5,
 								top_row, bottom_row, image_section);
 			second_fifos_filled = false;
 			//CALL BILINEAR INTERPOLATION
 			for (int i = 0; i < NUM_SLIDERS_WIDTH; i++) {
+
+//				bilinear_interpolation_calculations(
+//				    image_section,
+//				    SLIDER_WIDTH_IN * i,
+//				    row_sliced * SLIDER_HEIGHT_IN,
+//				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+//				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+//				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+//				    fifo_bilin_12, fifo_bilin_13);
+//
+//				create_upscaled_image_section(
+//						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
+//						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
+//						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
+//						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
 
 				bilinear_interpolation_calculations(
 				    image_section,
 				    SLIDER_WIDTH_IN * i,
 				    row_sliced * SLIDER_HEIGHT_IN,
 				    fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
-				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
-				    fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
-				    fifo_bilin_12, fifo_bilin_13);
+				    fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7);
 
 				create_upscaled_image_section(
 						fifo_bilin_0, fifo_bilin_1, fifo_bilin_2, fifo_bilin_3,
 						fifo_bilin_4, fifo_bilin_5, fifo_bilin_6, fifo_bilin_7,
-						fifo_bilin_8, fifo_bilin_9, fifo_bilin_10, fifo_bilin_11,
-						fifo_bilin_12, fifo_bilin_13, upscaled_sections[section_upscaled + i]);
+						upscaled_sections[section_upscaled + i]);
 
 
 			}

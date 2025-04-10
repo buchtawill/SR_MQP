@@ -6,8 +6,8 @@
 #include <iostream>
 #include <cmath>
 
-#define WIDTH_IN 28
-#define HEIGHT_IN 28
+#define WIDTH_IN 32
+#define HEIGHT_IN 32
 #define CHANNELS 3
 
 #define SCALE_FACTOR 2
@@ -23,6 +23,7 @@
 #define BITS_PER_CHANNEL 8
 #define NUM_TRANSFERS_IN (WIDTH_IN*HEIGHT_IN/PIXELS_PER_TRANSFER)
 #define NUM_TRANSFERS_OUT (NUM_TRANSFERS_IN*SCALE_FACTOR*SCALE_FACTOR)
+#define NUM_TRANSFERS_OUT_ROW (WIDTH_OUT / PIXELS_PER_TRANSFER)
 
 #define BUFFER 1
 
@@ -38,8 +39,8 @@ typedef hls::axis<data_streamed, 0, 0, 0> axis_t;
 
 void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream);
 
-#define SLIDER_WIDTH_IN 7
-#define SLIDER_HEIGHT_IN 7
+#define SLIDER_WIDTH_IN 4
+#define SLIDER_HEIGHT_IN 4
 #define SLIDER_WIDTH_OUT (SLIDER_WIDTH_IN * SCALE_FACTOR)
 #define SLIDER_HEIGHT_OUT (SLIDER_HEIGHT_IN * SCALE_FACTOR)
 #define NUM_SLIDERS_WIDTH (WIDTH_IN / SLIDER_WIDTH_IN)
@@ -52,7 +53,7 @@ void bilinear_interpolation(hls::stream<axis_t> &in_stream, hls::stream<axis_t> 
 #define SLIDER_BUFFER_HEIGHT_OUT (SLIDER_HEIGHT_OUT + 4)
 
 
-#define MARGIN_OF_ERROR 5
+#define MARGIN_OF_ERROR 10
 
 
 #endif

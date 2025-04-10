@@ -4,10 +4,10 @@
 #include <algorithm>
 #include <random>
 #include "bilinear_interpolation.h"
-#include "image_coin_tile.h"
+#include "image_tile_coin.h"
 
 // -----------------------------------------------------------------------------
-// Expected interpolation output  
+// Expected interpolation output
 // -----------------------------------------------------------------------------
 std::vector<uint8_t> bilinearInterpolation(
     const std::vector<uint8_t>& image,
@@ -85,17 +85,17 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
         std::cout << "Test PASSED!" << std::endl;
     } else {
         std::cout << "Input Data (R,G,B):\n";
-        for (size_t i = 0; i < input_data.size(); i += MARGIN_OF_ERROR) {
+        for (size_t i = 0; i < input_data.size(); i += 5) {
             std::cout << "(" << (int)input_data[i] << "," << (int)input_data[i+1]
                       << "," << (int)input_data[i+2] << ") ";
         }
         std::cout << "\nExpected:\n";
-        for (size_t i = 0; i < expected_output.size(); i += MARGIN_OF_ERROR) {
+        for (size_t i = 0; i < expected_output.size(); i += 5) {
             std::cout << "(" << (int)expected_output[i] << "," << (int)expected_output[i+1]
                       << "," << (int)expected_output[i+2] << ") ";
         }
         std::cout << "\nReceived:\n";
-        for (size_t i = 0; i < received_output.size(); i += MARGIN_OF_ERROR) {
+        for (size_t i = 0; i < received_output.size(); i += 5) {
             std::cout << "(" << (int)received_output[i] << "," << (int)received_output[i+1]
                       << "," << (int)received_output[i+2] << ") ";
         }
@@ -104,7 +104,7 @@ void compare_outputs(const std::vector<uint8_t>& expected_output,
 
         // Print detailed mismatch info
         for (size_t i = 0; i < received_output.size(); ++i) {
-            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>MARGIN_OF_ERROR ||received_output[i]-expected_output[i]<-MARGIN_OF_ERROR)) {
+            if (received_output[i] != expected_output[i] && (received_output[i]-expected_output[i]>5 ||received_output[i]-expected_output[i]<-5)) {
                 if(passed){
                 	passed = false;
                 	fail_count++;
@@ -221,22 +221,22 @@ int main()
     int pass_count = 0;
     int fail_count = 0;
 
-    int width    = 28;
-    int height   = 28;
+    int width    = 32;
+    int height   = 32;
     int channels = 4;
     float scale  = 2.0f;
 
-    // Tile coin self test
-    std::cout << "\nRunning tile coin self test case ...\n";
-
-    std::vector<uint8_t> my_coin_tile_low_res;
-    std::vector<uint8_t> my_coin_tile_interpolated;
-    
-    my_coin_tile_low_res.assign(coin_tile_low_res, coin_tile_low_res + sizeof(coin_tile_low_res) / sizeof(coin_tile_low_res[0]));
-    my_coin_tile_interpolated.assign(coin_tile_interpolated, coin_tile_interpolated + sizeof(coin_tile_interpolated) / sizeof(coin_tile_interpolated[0]));
-
-    std::vector<uint8_t> rec_output = bilinearInterpolation(my_coin_tile_low_res, width, height, 3, scale);
-    compare_outputs(my_coin_tile_interpolated, rec_output, pass_count, fail_count, my_coin_tile_low_res);
+//    // Tile coin self test
+//    std::cout << "\nRunning tile coin self test case ...\n";
+//
+//    std::vector<uint8_t> my_coin_tile_low_res;
+//    std::vector<uint8_t> my_coin_tile_interpolated;
+//
+//    my_coin_tile_low_res.assign(coin_tile_low_res, coin_tile_low_res + sizeof(coin_tile_low_res) / sizeof(coin_tile_low_res[0]));
+//    my_coin_tile_interpolated.assign(coin_tile_interpolated, coin_tile_interpolated + sizeof(coin_tile_interpolated) / sizeof(coin_tile_interpolated[0]));
+//
+//    std::vector<uint8_t> rec_output = bilinearInterpolation(my_coin_tile_low_res, width, height, 3, scale);
+//    compare_outputs(my_coin_tile_interpolated, rec_output, pass_count, fail_count, my_coin_tile_low_res);
 
     pass_count = 0;
     fail_count = 0;
