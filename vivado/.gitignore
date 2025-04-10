@@ -5,5 +5,7 @@
 *.runs
 *.str
 kv260_vivado_project
-!edit_project.sh
+zcu102_vivado_project
+!*.sh
+!*.tcl
 !src

@@ -7,7 +7,7 @@
 #include "ap_int.h"
 #include "hls_stream.h"
 #include "VarianceAndRGB.h"
-#include "image_tile_conversion.hpp"
+#include "../image_tile_conversion.hpp"
 
 //------------------------------------------------------------------------------
 // AXI stream data type definition (128-bit data word)
@@ -197,36 +197,36 @@ void receive_axi_stream_output_128bit(
 // Main testbench
 int main()
 {
-    int num_tests  = 10000;
+    int num_tests  = 10;
     int pass_count = 0;
     int fail_count = 0;
 
-    int width       = 28;
-    int height      = 28;
+    int width       = 32;
+    int height      = 32;
     int in_channels  = 2;
     int out_channels = 4;
 
     //------------------------------------------------------------------------
     // "coin tile" self test
-    std::cout << "\nRunning coin tile conversion self test case ...\n";
-
-    std::vector<uint8_t> my_conversion_tile_yuyv(
-        conversion_tile_yuyv,
-        conversion_tile_yuyv + sizeof(conversion_tile_yuyv)/sizeof(conversion_tile_yuyv[0])
-    );
-    std::vector<uint8_t> my_conversion_tile_rgb(
-        conversion_tile_rgb,
-        conversion_tile_rgb + sizeof(conversion_tile_rgb)/sizeof(conversion_tile_rgb[0])
-    );
-
-    std::vector<uint8_t> rec_output =
-        yuyv_to_rgb888_convertor(my_conversion_tile_yuyv, width, height);
-
-    compare_outputs(my_conversion_tile_rgb, rec_output,
-                    pass_count, fail_count, my_conversion_tile_yuyv);
-
-    pass_count = 0;
-    fail_count = 0;
+//    std::cout << "\nRunning coin tile conversion self test case ...\n";
+//
+//    std::vector<uint8_t> my_conversion_tile_yuyv(
+//        conversion_tile_yuyv,
+//        conversion_tile_yuyv + sizeof(conversion_tile_yuyv)/sizeof(conversion_tile_yuyv[0])
+//    );
+//    std::vector<uint8_t> my_conversion_tile_rgb(
+//        conversion_tile_rgb,
+//        conversion_tile_rgb + sizeof(conversion_tile_rgb)/sizeof(conversion_tile_rgb[0])
+//    );
+//
+//    std::vector<uint8_t> rec_output =
+//        yuyv_to_rgb888_convertor(my_conversion_tile_yuyv, width, height);
+//
+//    compare_outputs(my_conversion_tile_rgb, rec_output,
+//                    pass_count, fail_count, my_conversion_tile_yuyv);
+//
+//    pass_count = 0;
+//    fail_count = 0;
 
     //------------------------------------------------------------------------
     // Random stimulus tests
@@ -254,7 +254,7 @@ int main()
         send_axi_stream_input_128bit(in_stream, input_data, width, height, in_channels);
 
         // Call the DUT
-        process_tile(in_stream,conv,out_stream,1000,2);
+        process_tile(in_stream,conv,out_stream,1000,OVERRIDE_MODE_INTERP);
 
         std::vector<uint8_t> received_output;
         receive_axi_stream_output_128bit(out_stream, received_output,

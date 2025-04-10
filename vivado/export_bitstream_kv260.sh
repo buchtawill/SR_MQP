@@ -17,7 +17,7 @@ source /tools/Xilinx/Vivado/2023.1/settings64.sh
 read -p "QUESTION [export_bitsream.sh] Do you want to SCP the new image to the board once complete? (y/n): " SCP_ANSWER
 
 # Build the vivado project and export the bitstream
-vivado -mode batch -source build_and_export_bitstream.tcl
+vivado -mode batch -source build_and_export_bitstream_kv260.tcl
 
 # Check the exit status of the Vivado command
 if [ $? -ne 0 ]; then
@@ -27,7 +27,7 @@ else
     echo "INFO [build_project.sh] Vivado build completed successfully."
 fi
 
-bootgen -arch zynqmp -image ./bitstreams/image.bif -process_bitstream bin -w
+bootgen -arch zynqmp -image ./bitstreams/kv260_image.bif -process_bitstream bin -w
 
 # Check the exit status of the bootgen command
 if [ $? -ne 0 ]; then
@@ -40,7 +40,7 @@ fi
 
 if [[ "$SCP_ANSWER" == "y" ]]; then
     # SCP to the target KV260
-    scp ./bitstreams/fpga_image.bit.bin petalinux@$KV260_BOARD.dyn.wpi.edu:/home/petalinux
+    scp ./bitstreams/kv260_fpga_image.bit.bin petalinux@$KV260_BOARD.dyn.wpi.edu:/home/petalinux
     
     if [ $? -ne 0 ]; then
         # Send an email notification

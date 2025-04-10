@@ -16,10 +16,10 @@
 #define STREAM_BEATS_PER_TILE   ((NUM_TRANSFER_BYTES * 8) / STREAM_WIDTH)
 
 #define IN_CHN_LAYER_FEATURE_EXTRACTION0    3
-#define OUT_CHN_LAYER_FEATURE_EXTRACTION0   44
-#define NUM_PE_LAYER_FEATURE_EXTRACTION0    4
+#define OUT_CHN_LAYER_FEATURE_EXTRACTION0   16
+#define NUM_PE_LAYER_FEATURE_EXTRACTION0    1
 
-#define IN_CHN_LAYER_SHRINK0    44
+#define IN_CHN_LAYER_SHRINK0    16
 #define OUT_CHN_LAYER_SHRINK0   12
 #define NUM_PE_LAYER_SHRINK0    2
 
@@ -36,14 +36,14 @@
 #define NUM_PE_LAYER_MAP4    2
 
 #define IN_CHN_LAYER_MAP6    12
-#define OUT_CHN_LAYER_MAP6   12
+#define OUT_CHN_LAYER_MAP6   8
 #define NUM_PE_LAYER_MAP6    2
 
-#define IN_CHN_LAYER_EXPAND0    12
-#define OUT_CHN_LAYER_EXPAND0   44
+#define IN_CHN_LAYER_EXPAND0    8
+#define OUT_CHN_LAYER_EXPAND0   8
 #define NUM_PE_LAYER_EXPAND0    1
 
-#define IN_CHN_LAYER_DECONV0    44
+#define IN_CHN_LAYER_DECONV0    8
 #define OUT_CHN_LAYER_DECONV0   3
 #define NUM_PE_LAYER_DECONV0    1
 
@@ -52,11 +52,11 @@ typedef ap_uint<STREAM_WIDTH> stream_data_t;
 // TODO WARNING NOTE: Using AP_SAT can cost up to a 20% increase in LUT usage!!!
 // After development and debug, change to AP_WRAP
 // Total bit width, integer bits, Quant mode, Overflow mode
-typedef ap_fixed<17, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
+typedef ap_fixed<24, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<16, 5, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 // typedef float fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals

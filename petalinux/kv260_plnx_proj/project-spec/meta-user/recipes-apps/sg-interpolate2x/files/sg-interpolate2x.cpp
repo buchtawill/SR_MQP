@@ -43,6 +43,8 @@ Date Modified: 1/11/2025
 #include "axi-dma.h"
 #include "dma-sg-bd.h"
 
+#include "Variance_dispatch.hpp"
+
 #include "argparse.hpp"
 
 // Global variable - use with caution! This should only ever be set to true 
@@ -399,9 +401,10 @@ void setup_framebuffer(Resources *p_res){
  * @param yres The height of the source image in pixels
  * @param bytes_pp The number of bytes per pixel in the source image
  * @param mm2s_bds Pointer to the MM2S buffer descriptor array to be programmed
+ * @param src_offset Offset to start from src block. Default = 0
  * @return None
  */
-void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp, PhysMem** mm2s_bds){
+void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, uint16_t yres, uint8_t bytes_pp, PhysMem** mm2s_bds, uint32_t src_offset=0){
 
     // Compute pixel coordinates of top left corner of tile
     uint32_t pixel_x = tile->tile_x * TILE_WIDTH_PIX;
@@ -436,23 +439,25 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
  * Compute the destination address of every row in a TileInfo struct given a populated tile struct and PhysMem buffer. Additionally,
  * program DMA buffer descriptors for the S2MM channel and reset their complete bit.
  * The user MUST call compute_tile_src_addr before calling this function.
+ * @param dst_block Where the DMA will write to
  * @param tile Pointer to the TileInfo struct - Must have source offsets populated by first calling compute_tile_src_offsets
- * @param xres_in The width of the source image
+ * @param xres_screen The width of the screen to write to (to compute row offsets)
  * @param upscale_factor The factor by which the image is being upscaled
  * @param bytes_pp The number of bytes per pixel in the source image
  * @param s2mm_bds Pointer to the S2MM buffer descriptor array to be programmed
+ * @param xres_out The width of the output buffer (AKA the frame buffer) in pixels. 
  * @return None
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_in, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds){
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_screen, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
 
     // Memory address of the top left corner of the tile
-    uint32_t tile_start_offset = ((dst_pixel_y * xres_in * upscale_factor) + dst_pixel_x) * bytes_pp;
+    uint32_t tile_start_offset = ((dst_pixel_y * (xres_screen)) + dst_pixel_x) * bytes_pp;
 
     for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * upscale_factor); row++){
-        uint32_t row_offset = row * xres_in * upscale_factor * bytes_pp;
+        uint32_t row_offset = row * (xres_screen) * bytes_pp;
         tile->dst_row_offset[row] = tile_start_offset + row_offset;
 
         tile->dst_row_phys_addr[row] = tile->dst_row_offset[row] + dst_block->get_phys_address();
@@ -717,6 +722,18 @@ int main(int argc, char *argv[]){
         }
     }
 
+    // Instantiate variance block
+    VarianceDispatcher var(VARIANCE_BASE_ADDR, resources.dev_mem_fd);
+    puts("INFO [sg-interpolate2x] Initializing VarianceDispatcher\n");
+    if(var.init() != 0){
+        die_with_error("ERROR [sg-interpolate2x] Failed to initialize Variance Dispatcher\n", nullptr, &resources);
+    }
+
+    printf("INFO [sg-interpolate2x] Variance ready bit: %d\n", var.is_ready());
+    var.start();
+    var.enable_auto_restart();
+    var.set_override(VARIARNCE_OVERRIDE_MODE_INTERP);
+
     // Initialize the output buffer to cyan for debugging purposes
     for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
@@ -728,6 +745,7 @@ int main(int argc, char *argv[]){
     unsigned long start_jiffies = get_jiffies();
 
     TileInfo tile;
+    // Note: Frame is 720x576. However, game data does not start until y=76, and only goes until y=496 (call it 72 and 512)
     uint16_t num_vert_tiles = INPUT_VIDEO_HEIGHT / TILE_HEIGHT_PIX;
     uint16_t num_horz_tiles = INPUT_VIDEO_WIDTH  / TILE_WIDTH_PIX;
         
@@ -739,7 +757,8 @@ int main(int argc, char *argv[]){
     dma1.reset_dma();
     PhysMem* mm2s_bds[TILE_HEIGHT_PIX];
     PhysMem* s2mm_bds[TILE_HEIGHT_PIX * UPSCALE_FACTOR];
-    if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 3, 3) < 0){
+    // if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 3, 3) < 0){
+    if(init_buffer_descriptors(mm2s_bds, s2mm_bds, TILE_HEIGHT_PIX, UPSCALE_FACTOR, 2, 2) < 0){
         die_with_error("ERROR [sg-interpolate2x] Failed to initialize buffer descriptors\n", nullptr, &resources);
     }
     BD_PTR last_mm2s_bd = (BD_PTR)(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_mem_ptr());
@@ -768,13 +787,16 @@ int main(int argc, char *argv[]){
             die_with_error("ERROR [sg-interpolate2x] Error dequeueing buffer: ", strerror(errno), &resources);
         }
         
+        /*
         yuyv_to_rgb888((uint8_t*)(resources.vid_mem_ptr[queued_buffer]), 
-                       (uint8_t*)(resources.input888_block->get_mem_ptr()), 
-                       INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
-
+        (uint8_t*)(resources.input888_block->get_mem_ptr()), 
+        INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT);
+        */
+        memcpy((void*)resources.input888_block->get_mem_ptr(), resources.vid_mem_ptr[queued_buffer], INPUT_VIDEO_HEIGHT*INPUT_VIDEO_WIDTH*2);
 
         // save_yuyv_888_screenshot((void*)resources.vid_mem_ptr[queued_buffer], (void*)(resources.input888_block->get_mem_ptr()));
         
+        // Next buffer now has the actual data
         if(queued_buffer == 0){
             queued_buffer = 1;
             next_buffer = 0;
@@ -800,22 +822,33 @@ int main(int argc, char *argv[]){
                 // Receive the tile in the interp_888 buffer / PMM block
                 tile.tile_x = tx;
                 tile.tile_y = ty;
-                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds);
+                // compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 3, mm2s_bds, 0);
+                compute_tile_src_addr(resources.input888_block, &tile, INPUT_VIDEO_WIDTH, INPUT_VIDEO_HEIGHT, 2, mm2s_bds, 0);
                 
                 // Start the MM2S transfer
                 dma1.set_mm2s_taildesc(mm2s_bds[TILE_HEIGHT_PIX - 1]->get_phys_address());
 
                 // Calculate destination addresses for each row of the tile
-                compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
+                // compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
+
+                compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual, UPSCALE_FACTOR, 2, s2mm_bds);
 
                 // Wait for MM2S transfer to complete
-                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
-                
+                if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) {
+                    dma1.print_debug_info();
+                    // printf("INFO [sg-interpolate2x] DMA total MM2S bytes: %d\n", dma1.get_total_bytes_mm2s());
+                    die_with_error("ERROR [sg-interpolate2x] MM2S DMA transfer timed out\n", nullptr, &resources);
+                }
                 // Start the S2MM transfer
                 dma1.set_s2mm_taildesc(s2mm_bds[(TILE_HEIGHT_PIX * UPSCALE_FACTOR) - 1]->get_phys_address());
-                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0) die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
+                if(dma1.poll_bd_cmplt(last_s2mm_bd, DMA_SYNC_TRIES) < 0){
+                    dma1.print_debug_info();
+                    // printf("INFO [sg-interpolate2x] DMA total S2MM bytes: %d\n", dma1.get_total_bytes_s2mm());
+                    die_with_error("ERROR [sg-interpolate2x] S2MM DMA transfer timed out\n", nullptr, &resources);
+                } 
 
                 // Set a pixel at the top left corner of the tile to red
+                // TODO: need to fix to operate on RGB565
                 if(parser["--dots"] == true){
                     draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
                 }
@@ -828,7 +861,6 @@ int main(int argc, char *argv[]){
                     first_tile = false;
                     printf("INFO [sg-interpolate2x] First tile successfully processed\n");
                 }
-
             }
         }
         unsigned long after_tile_jiffies = get_jiffies();
@@ -854,16 +886,18 @@ int main(int argc, char *argv[]){
         // Move the interpolated frame to the framebuffer, converting to RGB565 on the way
         // Transfer 1 row at a time to account for resolution differences
         // printf("INFO [sg-interpolate2x] Moving interpolated frame to framebuffer\n");
+        /*
         for(uint16_t row = 0; row < (INPUT_VIDEO_HEIGHT * UPSCALE_FACTOR); row++){
             uint32_t rgb888_offset = row * INPUT_VIDEO_WIDTH * UPSCALE_FACTOR * 3; 
             uint8_t *rgb888_row = (uint8_t*)(resources.interp888_block->get_mem_ptr()) + rgb888_offset;
-
+            
             // Do not multiply by bytes per pixel because each index in fb_row_ptr IS a pixel
             uint32_t rgb565_offset = row * resources.configurable_fb_info.xres_virtual;
             uint16_t *fb_row_ptr = (uint16_t*)(resources.fb_mem_block->get_mem_ptr()) + rgb565_offset;
-
+            
             rgb888_to_rgb565(rgb888_row, fb_row_ptr, INPUT_VIDEO_WIDTH * UPSCALE_FACTOR);
         }
+        */
 
         // Calculate frame rate
         frame_loop_count++;
@@ -873,6 +907,8 @@ int main(int argc, char *argv[]){
             unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
 
             float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
+
+            frame_loop_count = 0;
             printf("INFO [sg-interpolate2x] FPS: %0.3f\n", fps);
         }    
     } // End of while loop

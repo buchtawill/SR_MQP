@@ -179,7 +179,7 @@ def make_hls_deconv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_wi
     func += f"                }} // For every filter \n\n" # Filter loop 2 (line 214)
     
     func += f"                for(int ch = 0; ch < IN_CHN_LAYER_{name.upper()}; ch++){{\n"
-    func += f"                   #pragma HLS_UNROLL\n"
+    func += f"                   #pragma HLS UNROLL\n"
     for i in range(kernel_size-1):
         func += f"                   slider[ch][{i}] = slider[ch][{i+1}];\n"
     func += f"                }}\n"
@@ -350,7 +350,7 @@ if __name__ == '__main__':
     map6_body, map6_defines = make_hls_conv_func('map6', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
     expand_body, expand_defines = make_hls_1x1('expand0', in_ch=12, out_ch=44, in_width_pix=28, num_pe=2)
     
-    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', 44, 3, 9, 56, 1)
+    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', 8, 3, 9, 56, 1)
     
     # # The defines
     # print(extraction_defines[0])

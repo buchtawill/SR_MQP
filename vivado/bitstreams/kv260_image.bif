@@ -1,0 +1,4 @@
+all:
+{
+    ./bitstreams/kv260_fpga_image.bit
+}

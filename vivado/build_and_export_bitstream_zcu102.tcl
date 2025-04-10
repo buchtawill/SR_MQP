@@ -4,7 +4,7 @@
 # Run with the following command: vivado -mode batch -source example_script.tcl
 # Author: Will Buchta Dec 2024
 
-set project_name "kv260_vivado_project"
+set project_name "zcu102_vivado_project"
 set project_dir "./$project_name"
 set bitstream_dir "./bitstreams"
 
@@ -43,7 +43,7 @@ if {[catch {wait_on_run impl_1} result]} {
     exit 1
 }
 
-if {[catch {write_hw_platform -fixed -include_bit -force -file "$project_dir/kv260_upscaler.xsa"} result]} {
+if {[catch {write_hw_platform -fixed -include_bit -force -file "$project_dir/zcu102_upscaler.xsa"} result]} {
     puts "Error writing hardware platform: $result"
     exit 1
 }
@@ -51,6 +51,6 @@ if {[catch {write_hw_platform -fixed -include_bit -force -file "$project_dir/kv2
 open_run impl_1
 
 # Write the bitstream and export it to ./bitstreams
-write_bitstream -force "$bitstream_dir/fpga_image.bit"
+write_bitstream -force "$bitstream_dir/zcu102_fpga_image.bit"
 
 close_project

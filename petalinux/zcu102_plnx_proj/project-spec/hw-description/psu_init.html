@@ -929,10 +929,36 @@ in
 MIO 31
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-PCIE
+GPIO1 MIO
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-reset_n
+gpio1[31]
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+cmos
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+fast
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+pullup
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+inout
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+12
+</TD>
+</TR>
+<TR valign="top">
+<TD width=10% BGCOLOR=#FBF5EF>
+MIO 32
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+PMU GPO 0
+</TD>
+<TD width=10% BGCOLOR=#FBF5EF>
+gpo[0]
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 cmos
@@ -952,39 +978,13 @@ out
 </TR>
 <TR valign="top">
 <TD width=10% BGCOLOR=#FBF5EF>
-MIO 32
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-GPIO1 MIO
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-gpio1[32]
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-cmos
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-fast
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-pullup
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-inout
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-12
-</TD>
-</TR>
-<TR valign="top">
-<TD width=10% BGCOLOR=#FBF5EF>
 MIO 33
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-GPIO1 MIO
+PMU GPO 1
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-gpio1[33]
+gpo[1]
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 cmos
@@ -996,7 +996,7 @@ fast
 pullup
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-inout
+out
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 12
@@ -1033,10 +1033,10 @@ out
 MIO 35
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-GPIO1 MIO
+PMU GPO 3
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-gpio1[35]
+gpo[3]
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 cmos
@@ -1048,7 +1048,7 @@ fast
 pullup
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-inout
+out
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 12
@@ -1059,10 +1059,10 @@ inout
 MIO 36
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-GPIO1 MIO
+PMU GPO 4
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-gpio1[36]
+gpo[4]
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 cmos
@@ -1074,7 +1074,7 @@ fast
 pullup
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-inout
+out
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 12
@@ -1085,10 +1085,10 @@ inout
 MIO 37
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-GPIO1 MIO
+PMU GPO 5
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-gpio1[37]
+gpo[5]
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 cmos
@@ -1100,7 +1100,7 @@ fast
 pullup
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-inout
+out
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 12
@@ -2614,20 +2614,6 @@ IOPLL
 </TR>
 <TR valign="top">
 <TD width=10% BGCOLOR=#FBF5EF>
-PCIE freq (MHz)
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-250
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-IOPLL
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-249.975021
-</TD>
-</TR>
-<TR valign="top">
-<TD width=10% BGCOLOR=#FBF5EF>
 DDR_CTRL freq MHz)
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
@@ -3010,24 +2996,10 @@ C_DDR_RAM_HIGHADDR
 </TR>
 <TR valign="top">
 <TD width=10% BGCOLOR=#FBF5EF>
-PCIe
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-GT Lane0
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-Ref Clk0
-</TD>
-<TD width=10% BGCOLOR=#FBF5EF>
-100
-</TD>
-</TR>
-<TR valign="top">
-<TD width=10% BGCOLOR=#FBF5EF>
 DP
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
-GT Lane1
+GT Lane0
 </TD>
 <TD width=10% BGCOLOR=#FBF5EF>
 Ref Clk3

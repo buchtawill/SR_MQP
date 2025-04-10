@@ -14,6 +14,7 @@
 // Addresses found in SR_MQP/petalinux/kv260_plnx_proj/components/plnx_workspace/device-tree/device-tree/pl.dtsi
 // Or in the vivado block diagram address editor
 #define DMA_0_AXI_LITE_BASE		0xA0020000
+#define VARIANCE_BASE_ADDR		0xA0000000
 
 #define INPUT_VIDEO_WIDTH       720
 #define INPUT_VIDEO_HEIGHT      576
@@ -22,8 +23,8 @@
 #define RGB565_BUF_SIZE_BYTES   (INPUT_VIDEO_WIDTH * INPUT_VIDEO_HEIGHT * 2) // 2 bytes per pixel
 
 #define UPSCALE_FACTOR          1
-#define TILE_WIDTH_PIX          ((uint32_t)28)
-#define TILE_HEIGHT_PIX         ((uint32_t)28)
+#define TILE_WIDTH_PIX          ((uint32_t)32)
+#define TILE_HEIGHT_PIX         ((uint32_t)32)
 
 /**
  * Contains relevant information about a given image tile.

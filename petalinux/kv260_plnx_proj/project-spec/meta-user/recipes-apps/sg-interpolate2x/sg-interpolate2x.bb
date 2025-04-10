@@ -18,6 +18,8 @@ SRC_URI =  "file://sg-interpolate2x.cpp \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/argparse.hpp \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/dma-sg-bd.cpp \
 			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/dma-sg-bd.h \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/Variance_dispatch.hpp \
+			file://${petalinux_root}/kv260_plnx_proj/project-spec/meta-user/recipes-apps/common-src/Variance_dispatch.cpp \
 		  "
 
 S = "${WORKDIR}"

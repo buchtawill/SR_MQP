@@ -33,6 +33,9 @@
 #
 #*****************************************************************************************
 
+# Set the reference directory for source file relative paths (by default the value is script directory path)
+set origin_dir [file dirname [info script]]
+
 # Check file required for this script exists
 proc checkRequiredFiles { origin_dir} {
   set status true
@@ -48,8 +51,6 @@ proc checkRequiredFiles { origin_dir} {
 
   return $status
 }
-# Set the reference directory for source file relative paths (by default the value is script directory path)
-set origin_dir [file dirname [info script]]
 
 # Use origin directory path location variable, if specified in the tcl shell
 if { [info exists ::origin_dir_loc] } {
@@ -160,9 +161,8 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
 }
 
 # Set IP repository paths
-# set obj [get_filesets sources_1]
 set_property  ip_repo_paths  $origin_dir/../HLS/build [current_project]
-update_ip_catalog
+update_ip_catalog -rebuild
 
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
