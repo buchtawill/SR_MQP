@@ -43,7 +43,7 @@
             "VarianceAndRGB.h"
         ],
         "tb": [
-            "VarianceAndRGBTest.cpp"
+            "tb_yuyv_to_rgb888_128bit.cpp"
         ],
         "top_func": "process_tile"
     },
