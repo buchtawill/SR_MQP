@@ -446,15 +446,20 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
  * @param bytes_pp The number of bytes per pixel in the source image
  * @param s2mm_bds Pointer to the S2MM buffer descriptor array to be programmed
  * @param xres_out The width of the output buffer (AKA the frame buffer) in pixels. 
+ * @param start_x x coordinate on the screen of top left corner of frame
+ * @param start_y y coordinate on the screen of top left corner of frame
  * @return None
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_screen, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds){
+void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_screen, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds, \
+                            uint32_t start_x = 0, uint32_t start_y = 0){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
 
     // Memory address of the top left corner of the tile
     uint32_t tile_start_offset = ((dst_pixel_y * (xres_screen)) + dst_pixel_x) * bytes_pp;
+
+    tile_start_offset += (start_y * xres_screen + start_x) * bytes_pp;
 
     for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * upscale_factor); row++){
         uint32_t row_offset = row * (xres_screen) * bytes_pp;
@@ -831,7 +836,8 @@ int main(int argc, char *argv[]){
                 // Calculate destination addresses for each row of the tile
                 // compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
-                compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual, UPSCALE_FACTOR, 2, s2mm_bds);
+                compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual,\
+                    UPSCALE_FACTOR, 2, s2mm_bds, 2000, 1000);
 
                 // Wait for MM2S transfer to complete
                 if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) {
@@ -850,10 +856,12 @@ int main(int argc, char *argv[]){
                 // Set a pixel at the top left corner of the tile to red
                 // TODO: need to fix to operate on RGB565
                 if(parser["--dots"] == true){
-                    draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
+                    // draw_dots(resources.interp888_block, &tile, &resources, 0xFF, 0, 0);
+                    draw_dots(resources.fb_mem_block, &tile, &resources, 0xFF, 0, 0);
                 }
                 else if(parser["--lines"] == true){
-                    draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
+                    // draw_outline(resources.interp888_block, &tile, &resources, 0x00, 0xFF, 0);
+                    draw_outline(resources.fb_mem_block, &tile, &resources, 0x00, 0xFF, 0);
                 }
 
                 static bool first_tile = true;
@@ -909,6 +917,7 @@ int main(int argc, char *argv[]){
             float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
 
             frame_loop_count = 0;
+            start_jiffies = 0;
             printf("INFO [sg-interpolate2x] FPS: %0.3f\n", fps);
         }    
     } // End of while loop
