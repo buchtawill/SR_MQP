@@ -339,22 +339,23 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
 
 if __name__ == '__main__':
     
-    extraction_func, extraction_defines = make_hls_conv_func('feature_extraction0', in_ch=3, out_ch=16, kernel_size=5, in_width_pix=28, num_pe=4)
-    shrink_body, shrink_defines = make_hls_1x1('shrink0', in_ch=16, out_ch=12, in_width_pix=28, num_pe=2)
-    map0_body, map0_defines = make_hls_conv_func('map0', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map2_body, map2_defines = make_hls_conv_func('map2', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map4_body, map4_defines = make_hls_conv_func('map4', in_ch=12, out_ch=8, kernel_size=3, in_width_pix=28, num_pe=4)
-    expand_body, expand_defines = make_hls_1x1('expand0', in_ch=8, out_ch=8, in_width_pix=28, num_pe=2)
-    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', in_ch=8, out_ch=3, kernel_size=7, in_width_pix=56, num_pe=1)
+    pixels = 32
+    extraction_func, extraction_defines = make_hls_conv_func('feature_extraction0', in_ch=3, out_ch=16, kernel_size=5, in_width_pix=pixels, num_pe=4)
+    shrink_body, shrink_defines = make_hls_1x1('shrink0', in_ch=16, out_ch=12, in_width_pix=pixels, num_pe=2)
+    map0_body, map0_defines = make_hls_conv_func('map0', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=pixels, num_pe=4)
+    map2_body, map2_defines = make_hls_conv_func('map2', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=pixels, num_pe=4)
+    map4_body, map4_defines = make_hls_conv_func('map4', in_ch=12, out_ch=8, kernel_size=3, in_width_pix=pixels, num_pe=4)
+    expand_body, expand_defines = make_hls_1x1('expand0', in_ch=8, out_ch=8, in_width_pix=pixels, num_pe=2)
+    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', in_ch=8, out_ch=3, kernel_size=7, in_width_pix=pixels*2, num_pe=1)
     
     # # The defines
-    print(extraction_defines[0])
-    print(shrink_defines[0])
-    print(map0_defines[0])
-    print(map2_defines[0])
-    print(map4_defines[0])
-    print(expand_defines[0])
-    print(deconv_defines[0])
+    # print(extraction_defines[0])
+    # print(shrink_defines[0])
+    # print(map0_defines[0])
+    # print(map2_defines[0])
+    # print(map4_defines[0])
+    # print(expand_defines[0])
+    # print(deconv_defines[0])
     
     # # The weight array declarations
     # print(extraction_defines[1])
@@ -365,10 +366,11 @@ if __name__ == '__main__':
     # print(expand_defines[1])
     # print(deconv_defines[1])
     
-    # print(extraction_func)
-    # print(shrink_body)
-    # print(map0_body)
-    # print(map2_body)
-    # print(map4_body)
-    # print(expand_body)
-    # print(deconv_body)
+    print(extraction_func)
+    print(shrink_body)
+    print(map0_body)
+    print(map2_body)
+    print(map4_body)
+    print(expand_body)
+    print(deconv_body)
+    
