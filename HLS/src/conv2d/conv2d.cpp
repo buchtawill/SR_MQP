@@ -34,7 +34,8 @@ void stream_samples_out(hls::stream<fixed_4_8_t, INPUT_WIDTH_PIX*INPUT_HEIGHT_PI
 	axis_t tmp_stream;
     tmp_stream.data;
     // int num_beats = STREAM_BEATS_PER_TILE *2 *2;
-    int num_beats = 784;
+    // int num_beats = INPUT_WIDTH_PIX * INPUT_WIDTH_PIX * 2 * 2 * 4 / BYTES_PER_TRANSFER;
+    int num_beats = 1024;
 	for(int out_ptr = 0; out_ptr < num_beats; out_ptr++){
         #pragma HLS PIPELINE II=4
 
