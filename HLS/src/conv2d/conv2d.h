@@ -17,7 +17,7 @@
 
 #define IN_CHN_LAYER_FEATURE_EXTRACTION0    3
 #define OUT_CHN_LAYER_FEATURE_EXTRACTION0   16
-#define NUM_PE_LAYER_FEATURE_EXTRACTION0    1
+#define NUM_PE_LAYER_FEATURE_EXTRACTION0    2
 
 #define IN_CHN_LAYER_SHRINK0    16
 #define OUT_CHN_LAYER_SHRINK0   12
@@ -29,19 +29,15 @@
 
 #define IN_CHN_LAYER_MAP2    12
 #define OUT_CHN_LAYER_MAP2   12
-#define NUM_PE_LAYER_MAP2    2
+#define NUM_PE_LAYER_MAP2    4
 
 #define IN_CHN_LAYER_MAP4    12
-#define OUT_CHN_LAYER_MAP4   12
+#define OUT_CHN_LAYER_MAP4   8
 #define NUM_PE_LAYER_MAP4    2
-
-#define IN_CHN_LAYER_MAP6    12
-#define OUT_CHN_LAYER_MAP6   8
-#define NUM_PE_LAYER_MAP6    2
 
 #define IN_CHN_LAYER_EXPAND0    8
 #define OUT_CHN_LAYER_EXPAND0   8
-#define NUM_PE_LAYER_EXPAND0    1
+#define NUM_PE_LAYER_EXPAND0    2
 
 #define IN_CHN_LAYER_DECONV0    8
 #define OUT_CHN_LAYER_DECONV0   3
@@ -56,7 +52,8 @@ typedef ap_fixed<24, 9, AP_RND_ZERO, AP_WRAP> fixed_9_8_t;
 
 // 4 bits int (including sign), 8 bits fractional
 // total bits, int bits
-typedef ap_fixed<16, 5, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+// typedef ap_fixed<18, 6, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
+typedef ap_fixed<36, 10, AP_RND_ZERO, AP_WRAP> fixed_4_8_t;
 // typedef float fixed_4_8_t;
 
 // Define axis_t with data width of 8 bits and no additional signals

@@ -498,8 +498,9 @@ if __name__ == '__main__':
     
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = torch.device('cpu')
-    model = FSRCNN(upscale_factor=2, color_space='rgb').to(device)
-    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
+    model = FSRCNN(upscale_factor=2).to(device)
+    # model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
+    model.load_state_dict(torch.load('./saved_weights/weights_nerfed.pth', weights_only=True))
     
     low_res_coin = torch.from_numpy(np.load('../comparisons/images/image_coin_tile.npy'))
     low_res_coin = low_res_coin.float()
@@ -525,13 +526,17 @@ if __name__ == '__main__':
     #     print(input_channels[ch][:5])
     
     inference = model.feature_extraction(low_res_coin.to(device))
-    inference = model.shrink(inference)
-    inference = model.map(inference)
-    pre_deconv = model.expand(inference)
-    inference = model.deconv(pre_deconv)
+    # inference = model.shrink(inference)
+    # inference = model.map(inference)
+    # pre_deconv = model.expand(inference)
+    # inference = model.deconv(pre_deconv)
     inference = inference.squeeze(0).cpu().detach().numpy()
     
-    compare_hls_pytorch(inference, 56*56, nmaps=3)
+    print(np.max(inference.flatten()))
+    print(np.min(inference.flatten()))
+    # exit()
+    
+    compare_hls_pytorch(inference, 28*28, nmaps=16)
     
     # print(inference[0,0])
     # compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
