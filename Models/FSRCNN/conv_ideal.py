@@ -263,14 +263,6 @@ def low_level_deconv(input_streams, weight_matrix:np.ndarray, biases:np.ndarray)
                     if(row >= 8):
                         mac8 += np.dot(weight_matrix[map][ch][8], slider[ch])
                 
-                # if(row==4):
-                #     print(mac0)
-                #     print(mac1)
-                #     print(mac2)
-                #     print(mac3)
-                #     print(mac4)
-                #     exit()
-                
                 if(row <= last_row_kernel):
                     psum1[map].append(mac0)
                 if(row >= 1 and row <= last_row_kernel + 1):
@@ -538,8 +530,8 @@ if __name__ == '__main__':
     # exit()
     
     # compare_hls_pytorch(inference, 28*28, nmaps=8)
-    # compare_hls_pytorch(inference, 56*56, nmaps=3)
+    compare_hls_pytorch(inference, 56*56, nmaps=3)
     
     # print(inference[0,0])
-    compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
+    # compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
     

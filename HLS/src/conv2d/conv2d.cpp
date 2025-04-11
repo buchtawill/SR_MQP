@@ -269,20 +269,24 @@ fixed_4_8_t get_next_tconv_9(int row, int col, ch_stream_t *input, bool *zero){
 
 /**
  * Get the next value from the input given the row, col, and input stream. 
- * @warning Assumes 9x9 kernel for transposed convolution 28x28 --> 56x56
+ * @warning Assumes 7x7 kernel for transposed convolution 28x28 --> 56x56
  */
 fixed_4_8_t get_next_tconv_7(int row, int col, ch_stream_t *input, bool *zero){
 
-    // 0 1 2 3 4 5 6
-    //
-    //
-    //
+    // Input is supposed to be 56x56, padding is 3x3 so input is 62x62
+    // 0 1 2 3 4 5 6 7 8 9 10
+    // ---------------------
+    // 0 0 0 0 0 0 0 0 0 0 0 ... 
+    // 0 0 0 0 0 0 0 0 0 0 0 ... 
+    // 0 0 0 0 0 0 0 0 0 0 0 ... 
+    // 0 0 0 d 0 d 0 d 0 d 0 ... 
+    // 0 0 0 d 0 d 0 d 0 d 0 ...  
 	#pragma HLS INLINE
-    if((row <= 2) || ((row % 2) == 1) || (row >= 59)) {
+    if((row <= 2) || ((row % 2) == 0) || (row >= 59)) {
         *zero = true;
         return (fixed_4_8_t)0.0f;
     }
-    if((col <= 2) || ((col % 2) == 1) || (col >= 59)) {
+    if((col <= 2) || ((col % 2) == 0) || (col >= 59)) {
         *zero = true;
         return (fixed_4_8_t)0.0f;
     }
@@ -912,6 +916,16 @@ void conv_deconv0(ch_stream_t tile_in[IN_CHN_LAYER_DECONV0], upscaled_stream_t m
             } // For every column 
         } // For every row
     } // For number of times thru PE
+
+    printf("INFO [conv_deconv0] Finished deconv_7.\n");
+    printf("INFO [conv_deconv0] psum1 size: %d\n", psum1[0].size());
+    printf("INFO [conv_deconv0] psum2 size: %d\n", psum2[0].size());
+    printf("INFO [conv_deconv0] psum3 size: %d\n", psum3[0].size());
+    printf("INFO [conv_deconv0] psum4 size: %d\n", psum4[0].size());
+    printf("INFO [conv_deconv0] psum5 size: %d\n", psum5[0].size());
+    printf("INFO [conv_deconv0] psum6 size: %d\n", psum6[0].size());
+    printf("INFO [conv_deconv0] tile_in sz: %d\n", tile_in[0].size());
+    printf("INFO [conv_deconv0] inbuf size: %d\n", inbuf[0].size());
 }
 
 void conv_deconv0_9(ch_stream_t tile_in[IN_CHN_LAYER_DECONV0], upscaled_stream_t map_out[OUT_CHN_LAYER_DECONV0]){
@@ -1112,13 +1126,13 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
     conv_deconv0(map_expand0, map_upscaled);
     // stream_samples_out(map_upscaled, out_stream);
 
-	// for(int i = 0; i < OUT_CHN_LAYER_EXPAND0; i++){
-	// 	printf("INFO [conv2d] Feature map %d:\n", i);
-	// 	for (int col = 0; col < 28*28; col++){
-	// 		printf("%.8f \n", map_expand0[i].read().to_float());
-	// 	}
-	// 	printf("\n");
-	// }
+//	 for(int i = 0; i < OUT_CHN_LAYER_EXPAND0; i++){
+//	 	printf("INFO [conv2d] Feature map %d:\n", i);
+//	 	for (int col = 0; col < 28*28; col++){
+//	 		printf("%.8f \n", map_expand0[i].read().to_float());
+//	 	}
+//	 	printf("\n");
+//	 }
 
     // for(int i = 0; i < OUT_CHN_LAYER_FEATURE_EXTRACTION0; i++){
 	// 	printf("INFO [conv2d] Feature map %d:\n", i);
