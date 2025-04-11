@@ -119,10 +119,10 @@ def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weigh
                 for j in range(shape[1]):
                     print("        {   // Channel", j)
                     for k in range(shape[2]):
-                        if(transposed):
-                            row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
-                        else:
-                            row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
+                        # if(transposed):
+                        row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
+                        # else:
+                            # row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
                         print(f"            {{ {row_values} }},")
                     print("        },")
                 print("    },")
@@ -180,8 +180,8 @@ if __name__ == '__main__':
     # print_weights_as_c_array(state_dict)
     # exit()
     for param_name, param_tensor in state_dict.items():
-        # print_weights_as_c_array(state_dict, param_name)
-        print(param_name, param_tensor.shape)
+        flip = 'deconv' in param_name and 'bias' not in param_name
+        print_weights_as_c_array(state_dict, param_name, flip)
     """
     feature_extraction.0.weight
     feature_extraction.0.bias
@@ -205,7 +205,8 @@ if __name__ == '__main__':
     deconv.bias
     """
     
-    print(state_dict['deconv.weight'][0,0,0])
+    # print_weights_as_c_array(state_dict, "deconv.weight")
+    exit()
     
     exit()
     print_weights_as_c_array(state_dict, "shrink.0.weight")    
