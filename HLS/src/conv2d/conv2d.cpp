@@ -961,7 +961,6 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
     #pragma HLS RESOURCE variable=map_map0 core=FIFO_BRAM
     #pragma HLS RESOURCE variable=map_map2 core=FIFO_BRAM
     #pragma HLS RESOURCE variable=map_map4 core=FIFO_BRAM
-    #pragma HLS RESOURCE variable=map_map6 core=FIFO_BRAM
     #pragma HLS RESOURCE variable=map_expand0 core=FIFO_BRAM
     #pragma HLS RESOURCE variable=map_upscaled core=FIFO_BRAM
 
