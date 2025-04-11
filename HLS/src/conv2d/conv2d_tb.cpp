@@ -58,8 +58,7 @@ int main(){
 	// Run the conv2d
 	conv2d_top(in_stream, out_stream);
 
-	/*
-	printf("INFO [tb] Starting to read results\n");
+	printf("INFO [tb] Starting to read results:\n");
 	// Check the results
 	bool tlast = false;
 	bool failed = false;
@@ -93,7 +92,6 @@ int main(){
 		printf("INFO [tb_check] Got pixel: [%3d, %3d, %3d]\n", r3, g3, b3);
 
 	}while(!tlast);
-	*/
 
 	// if(failed) return -1;
 	// else return 0;
