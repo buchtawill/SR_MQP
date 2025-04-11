@@ -583,35 +583,38 @@ void draw_outline(PhysMem* block, TileInfo *tile, Resources* res, uint8_t r, uin
  * Save the contents of before frame and after frame to a file. Assumes input and output are RGB888
  * @param before_frame Pointer to the before frame
  * @param after_frame Pointer to the after frame
+ * @param before_bytes Number of bytes from before_frame to write
  * @return 0 on success, -1 on failure
  */
-int save_screenshot(void *before_frame, void* after_frame){
+int save_screenshot(void *before_frame, void* after_frame, uint32_t before_bytes){
     // Save the input888 block and interp 888 block to a file
-    FILE *input_fp = fopen("input888.raw", "wb");
+    FILE *input_fp = fopen("input.raw", "wb");
     if(input_fp == nullptr){
-        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open input888.raw for writing\n");
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open input.raw for writing\n");
         return -1;
     }
-    size_t num_bytes = fwrite(before_frame, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3, input_fp);
-    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3){
-        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write input888.raw\n");
+    size_t num_bytes = fwrite(before_frame, 1, before_bytes, input_fp);
+    if(num_bytes != before_bytes){
+        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write input.raw\n");
         return -1;
     }
     fflush(input_fp);
     fclose(input_fp);
 
-    FILE *interp_fp = fopen("interp888.raw", "wb");
-    if(interp_fp == nullptr){
-        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open interp888.raw for writing\n");
-        return -1;
+    if(after_frame != NULL){
+        FILE *interp_fp = fopen("interp888.raw", "wb");
+        if(interp_fp == nullptr){
+            printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to open interp888.raw for writing\n");
+            return -1;
+        }
+        num_bytes = fwrite(after_frame, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR, interp_fp);
+        if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR){
+            printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write interp888.raw\n");
+            return -1;
+        }
+        fflush(interp_fp);
+        fclose(interp_fp);
     }
-    num_bytes = fwrite(after_frame, 1, INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR, interp_fp);
-    if(num_bytes != INPUT_VIDEO_WIDTH*INPUT_VIDEO_HEIGHT*3*UPSCALE_FACTOR*UPSCALE_FACTOR){
-        printf("ERROR [sg-interpolate2x::save_screenshot()] Failed to write interp888.raw\n");
-        return -1;
-    }
-    fflush(interp_fp);
-    fclose(interp_fp);
 
     return 0;
 }
@@ -661,10 +664,13 @@ int main(int argc, char *argv[]){
     argparse::ArgumentParser parser("sg-interpolate2x");
     parser.add_argument("-vid", "--video_device").help("Video device to read frames from").default_value("/dev/video0");
     parser.add_argument("-fbd", "--fb_device").help("Framebuffer device to write frames to").default_value("/dev/fb0");
+    parser.add_argument("-x").help("Starting x-coordinate of frame on screen").scan<'d', int>().default_value(0);
+    parser.add_argument("-y").help("Starting y-coordinate of frame on screen").scan<'d', int>().default_value(0);
     parser.add_argument("--dots").help("Flag to show start of a tile with a red dot").flag();
     parser.add_argument("--lines").help("Flag to draw an outline around all tiles").flag(); // .flag = .default_value(false).implicit_value(true);
     parser.add_argument("--no_self_test").help("Flag to skip the DMA self test").flag();
     parser.add_argument("--double_test").help("Flag to run the self test twice").flag();
+    parser.add_argument("--no_fps").help("Flag to disable printing fps").flag();
     parser.add_argument("--screenshot").help("Set this flag to take a single screenshot of the before frame and after frame").flag();
 
     try{
@@ -837,7 +843,7 @@ int main(int argc, char *argv[]){
                 // compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
                 compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual,\
-                    UPSCALE_FACTOR, 2, s2mm_bds, 2000, 1000);
+                    UPSCALE_FACTOR, 2, s2mm_bds, parser.get<int>("-x"), parser.get<int>("-y"));
 
                 // Wait for MM2S transfer to complete
                 if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) {
@@ -884,7 +890,8 @@ int main(int argc, char *argv[]){
         if(!screenshot_taken && (parser["--screenshot"] == true)){
             screenshot_taken = true;
             printf("INFO [sg-interpolate2x] Taking screenshot...\n");
-            int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), (void*)resources.interp888_block->get_mem_ptr());
+            // int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), (void*)resources.interp888_block->get_mem_ptr());
+            int ss = save_screenshot((void*)resources.input888_block->get_mem_ptr(), NULL, INPUT_VIDEO_HEIGHT*INPUT_VIDEO_WIDTH*2);
             if(ss < 0){
                 die_with_error("ERROR [sg-interpolate2x] Failed to save screenshot\n", nullptr, &resources);
             }
@@ -908,18 +915,21 @@ int main(int argc, char *argv[]){
         */
 
         // Calculate frame rate
-        frame_loop_count++;
-        if((frame_loop_count % 100) == 99){
-            unsigned long end_jiffies = get_jiffies();
-            unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
-            unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
+        if(parser["--no_fps"] == false){
 
-            float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
-
-            frame_loop_count = 0;
-            start_jiffies = 0;
-            printf("INFO [sg-interpolate2x] FPS: %0.3f\n", fps);
-        }    
+            frame_loop_count++;
+            if((frame_loop_count % 100) == 99){
+                unsigned long end_jiffies = get_jiffies();
+                unsigned long elapsed_jiffies = end_jiffies - start_jiffies;
+                unsigned long jiffies_per_sec = sysconf(_SC_CLK_TCK);
+                
+                float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
+                
+                frame_loop_count = 0;
+                elapsed_jiffies = 0;
+                printf("INFO [sg-interpolate2x] FPS: %0.3f\n", fps);
+            }    
+        }
     } // End of while loop
 
     // Stop video streaming
