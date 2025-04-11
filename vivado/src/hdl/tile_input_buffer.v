@@ -31,12 +31,13 @@ module tile_input_buffer (
     wire        s_axis_video_tuser;
 
     wire [31:0] vid_data_32 = {24'h000000, data_in}; // 8 bits in LSB
+    wire reset = ~aresetn;
 
     v_vid_in_axi4s_0 u_v_vid_in_axi4s_0 (
         // Signals from eval board
         .vid_io_in_clk     (LLC),
         .vid_io_in_ce      (1'b1),
-        .vid_io_in_reset   (1'b0),
+        .vid_io_in_reset   (reset),
         .vid_vsync         (VSYNC),
         .vid_hsync         (HSYNC),
         .vid_field_id      (FIELD),
@@ -62,7 +63,7 @@ module tile_input_buffer (
 
 
     //----------------------------------------------------------------
-    // 2) Clipper: 32-bit ? 8-bit AXI4-Stream
+    // 2) Clipper: 32-bit to 8-bit AXI4-Stream
     //----------------------------------------------------------------
 
     trim_output u_trim_output (
