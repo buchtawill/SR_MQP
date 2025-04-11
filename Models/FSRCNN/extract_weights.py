@@ -119,10 +119,10 @@ def print_weights_as_c_array(state_dict, tensor_name="feature_extraction.0.weigh
                 for j in range(shape[1]):
                     print("        {   // Channel", j)
                     for k in range(shape[2]):
-                        if(transposed):
-                            row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
-                        else:
-                            row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
+                        # if(transposed):
+                        row_values = ", ".join(f"{weights[i, j, k, l]:11.8f}" for l in range(shape[3]))
+                        # else:
+                            # row_values = ", ".join(f"{weights[i, j, l, k]:11.8f}" for l in range(shape[3]))
                         print(f"            {{ {row_values} }},")
                     print("        },")
                 print("    },")
@@ -158,8 +158,9 @@ if __name__ == '__main__':
     
     # Set up device, model
     device = torch.device('cpu')
-    model = FSRCNN(upscale_factor=2, color_space=COLOR_SPACE).to(device)
-    model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
+    model = FSRCNN(upscale_factor=2).to(device)
+    # model.load_state_dict(torch.load('./saved_weights/example_vitis_hls_weights_44.pth', weights_only=True))
+    model.load_state_dict(torch.load('./saved_weights/weights_nerfed.pth', weights_only=True))
     
     state_dict = model.state_dict()
     
@@ -178,9 +179,13 @@ if __name__ == '__main__':
 
     # print_weights_as_c_array(state_dict)
     # exit()
-    # for param_name, param_tensor in state_dict.items():
-        # if("deconv" not in param_name):
-            # print_weights_as_c_array(state_dict, param_name)
+    
+    print(state_dict["deconv.weight"][0,0,0])
+    exit()
+    
+    for param_name, param_tensor in state_dict.items():
+        flip = 'deconv' in param_name and 'bias' not in param_name
+        print_weights_as_c_array(state_dict, param_name, flip)
     """
     feature_extraction.0.weight
     feature_extraction.0.bias
@@ -197,9 +202,6 @@ if __name__ == '__main__':
     map.4.weight
     map.4.bias
     map.5.weight
-    map.6.weight
-    map.6.bias
-    map.7.weight
     expand.0.weight
     expand.0.bias
     expand.1.weight
@@ -207,10 +209,11 @@ if __name__ == '__main__':
     deconv.bias
     """
     
-    print_weights_as_c_array(state_dict, 'deconv.weight', transposed=True)
-    print_weights_as_c_array(state_dict, 'deconv.bias')
+    # print_weights_as_c_array(state_dict, "deconv.weight")
+    exit()
     
     exit()
+    print_weights_as_c_array(state_dict, "shrink.0.weight")    
     conv_weights = state_dict['feature_extraction.0.weight'].detach().numpy()
     conv_bias    = state_dict['feature_extraction.0.bias'].detach().numpy()
     prelu_weight = state_dict['feature_extraction.1.weight'].detach().numpy()

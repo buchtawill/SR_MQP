@@ -58,6 +58,7 @@ int main(){
 	// Run the conv2d
 	conv2d_top(in_stream, out_stream);
 
+	printf("INFO [tb] Starting to read results:\n");
 	// Check the results
 	bool tlast = false;
 	bool failed = false;
@@ -85,10 +86,10 @@ int main(){
 		uint8_t g3 = tmp_data.range(111, 104);
 		uint8_t b3 = tmp_data.range(119, 112);
 
-		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r0, g0, b0);
-		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r1, g1, b1);
-		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r2, g2, b2);
-		printf("INFO [tb_check] Got pixel: (%3d, %3d, %3d)\n", r3, g3, b3);
+		printf("INFO [tb_check] Got pixel: [%3d, %3d, %3d]\n", r0, g0, b0);
+		printf("INFO [tb_check] Got pixel: [%3d, %3d, %3d]\n", r1, g1, b1);
+		printf("INFO [tb_check] Got pixel: [%3d, %3d, %3d]\n", r2, g2, b2);
+		printf("INFO [tb_check] Got pixel: [%3d, %3d, %3d]\n", r3, g3, b3);
 
 	}while(!tlast);
 

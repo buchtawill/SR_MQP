@@ -105,9 +105,9 @@ def make_hls_deconv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_wi
     
     func += f"                    bool is_pad = false;\n"
     func += f"                    fixed_4_8_t next_data;\n"
-    func += f"                    if(pe_loop == 0) next_data = get_next_tconv(row, idx, &tile_in[ch], &is_pad); // Read from actual tile\n"
+    func += f"                    if(pe_loop == 0) next_data = get_next_tconv_{kernel_size}(row, idx, &tile_in[ch], &is_pad); // Read from actual tile\n"
     if(num_pe < out_ch):
-        func += f"                    else             next_data = get_next_tconv(row, idx, &inbuf[ch],   &is_pad); // Read from input buffer\n"
+        func += f"                    else             next_data = get_next_tconv_{kernel_size}(row, idx, &inbuf[ch],   &is_pad); // Read from input buffer\n"
     func += f"                    slider[ch][idx] = next_data;\n"
     if(num_pe < out_ch):
         func += f"                    if((!is_pad) && (pe_loop != (num_pe_loops - 1))) inbuf[ch].write(next_data); // save for later \n"
@@ -126,9 +126,9 @@ def make_hls_deconv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_wi
     func +=  "                    #pragma HLS UNROLL\n\n"
     func += f"                    bool is_pad = false;\n"
     func += f"                    fixed_4_8_t next_data;\n"
-    func += f"                    if(pe_loop == 0) next_data = get_next_tconv(row, col, &tile_in[ch], &is_pad); // Read from actual tile\n"
+    func += f"                    if(pe_loop == 0) next_data = get_next_tconv_{kernel_size}(row, col, &tile_in[ch], &is_pad); // Read from actual tile\n"
     if(num_pe < out_ch):
-        func += f"                    else             next_data = get_next_tconv(row, col, &inbuf[ch],   &is_pad); // Read from input buffer\n\n"
+        func += f"                    else             next_data = get_next_tconv_{kernel_size}(row, col, &inbuf[ch],   &is_pad); // Read from input buffer\n\n"
     func += f"                    slider[ch][{kernel_size-1}] = next_data;\n"
     if(num_pe < out_ch):
         func +=  "                    if((!is_pad) && (pe_loop != (num_pe_loops - 1))) inbuf[ch].write(next_data);\n"
@@ -339,27 +339,21 @@ def make_hls_conv_func(name:str, in_ch:int, out_ch:int, kernel_size:int, in_widt
 
 if __name__ == '__main__':
     
-    extraction_func, extraction_defines = make_hls_conv_func('feature_extraction0', in_ch=3, out_ch=44, kernel_size=5, in_width_pix=28, num_pe=4)
-    # print(extraction_func)
-    # print(extraction_defines)
-    # exit()
-    shrink_body, shrink_defines = make_hls_1x1('shrink0', in_ch=44, out_ch=12, in_width_pix=28, num_pe=2)
+    extraction_func, extraction_defines = make_hls_conv_func('feature_extraction0', in_ch=3, out_ch=16, kernel_size=5, in_width_pix=28, num_pe=4)
+    shrink_body, shrink_defines = make_hls_1x1('shrink0', in_ch=16, out_ch=12, in_width_pix=28, num_pe=2)
     map0_body, map0_defines = make_hls_conv_func('map0', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
     map2_body, map2_defines = make_hls_conv_func('map2', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map4_body, map4_defines = make_hls_conv_func('map4', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    map6_body, map6_defines = make_hls_conv_func('map6', in_ch=12, out_ch=12, kernel_size=3, in_width_pix=28, num_pe=4)
-    expand_body, expand_defines = make_hls_1x1('expand0', in_ch=12, out_ch=44, in_width_pix=28, num_pe=2)
-    
-    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', 8, 3, 9, 56, 1)
+    map4_body, map4_defines = make_hls_conv_func('map4', in_ch=12, out_ch=8, kernel_size=3, in_width_pix=28, num_pe=4)
+    expand_body, expand_defines = make_hls_1x1('expand0', in_ch=8, out_ch=8, in_width_pix=28, num_pe=2)
+    deconv_body, deconv_defines = make_hls_deconv_func('deconv0', in_ch=8, out_ch=3, kernel_size=7, in_width_pix=56, num_pe=1)
     
     # # The defines
-    # print(extraction_defines[0])
-    # print(shrink_defines[0])
-    # print(map0_defines[0])
-    # print(map2_defines[0])
-    # print(map4_defines[0])
-    # print(map6_defines[0])
-    # print(expand_defines[0])
+    print(extraction_defines[0])
+    print(shrink_defines[0])
+    print(map0_defines[0])
+    print(map2_defines[0])
+    print(map4_defines[0])
+    print(expand_defines[0])
     print(deconv_defines[0])
     
     # # The weight array declarations
@@ -368,15 +362,13 @@ if __name__ == '__main__':
     # print(map0_defines[1])
     # print(map2_defines[1])
     # print(map4_defines[1])
-    # print(map6_defines[1])
     # print(expand_defines[1])
-    print(deconv_defines[1])
+    # print(deconv_defines[1])
     
     # print(extraction_func)
     # print(shrink_body)
     # print(map0_body)
     # print(map2_body)
     # print(map4_body)
-    # print(map6_body)
     # print(expand_body)
-    print(deconv_body)
+    # print(deconv_body)
