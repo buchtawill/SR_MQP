@@ -21,7 +21,7 @@
 
 #define IN_CHN_LAYER_SHRINK0    16
 #define OUT_CHN_LAYER_SHRINK0   12
-#define NUM_PE_LAYER_SHRINK0    2
+#define NUM_PE_LAYER_SHRINK0    6
 
 #define IN_CHN_LAYER_MAP0    12
 #define OUT_CHN_LAYER_MAP0   12
@@ -29,7 +29,7 @@
 
 #define IN_CHN_LAYER_MAP2    12
 #define OUT_CHN_LAYER_MAP2   12
-#define NUM_PE_LAYER_MAP2    4
+#define NUM_PE_LAYER_MAP2    2
 
 #define IN_CHN_LAYER_MAP4    12
 #define OUT_CHN_LAYER_MAP4   8
@@ -37,7 +37,7 @@
 
 #define IN_CHN_LAYER_EXPAND0    8
 #define OUT_CHN_LAYER_EXPAND0   8
-#define NUM_PE_LAYER_EXPAND0    2
+#define NUM_PE_LAYER_EXPAND0    4
 
 #define IN_CHN_LAYER_DECONV0    8
 #define OUT_CHN_LAYER_DECONV0   3
