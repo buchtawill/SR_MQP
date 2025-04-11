@@ -179,6 +179,10 @@ if __name__ == '__main__':
 
     # print_weights_as_c_array(state_dict)
     # exit()
+    
+    print(state_dict["deconv.weight"][0,0,0])
+    exit()
+    
     for param_name, param_tensor in state_dict.items():
         flip = 'deconv' in param_name and 'bias' not in param_name
         print_weights_as_c_array(state_dict, param_name, flip)
