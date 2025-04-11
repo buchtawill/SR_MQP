@@ -526,17 +526,18 @@ if __name__ == '__main__':
     #     print(input_channels[ch][:5])
     
     inference = model.feature_extraction(low_res_coin.to(device))
-    # inference = model.shrink(inference)
-    # inference = model.map(inference)
-    # pre_deconv = model.expand(inference)
-    # inference = model.deconv(pre_deconv)
+    inference = model.shrink(inference)
+    inference = model.map(inference)
+    inference = model.expand(inference)
+    inference = model.deconv(inference)
     inference = inference.squeeze(0).cpu().detach().numpy()
     
     print(np.max(inference.flatten()))
     print(np.min(inference.flatten()))
     # exit()
     
-    compare_hls_pytorch(inference, 28*28, nmaps=16)
+    # compare_hls_pytorch(inference, 28*28, nmaps=8)
+    compare_hls_pytorch(inference, 56*56, nmaps=3)
     
     # print(inference[0,0])
     # compare_tconv_conv_fmod(input=pre_deconv, fsrcnn=model)
