@@ -747,11 +747,11 @@ int main(int argc, char *argv[]){
     var.set_override(VARIARNCE_OVERRIDE_MODE_INTERP);
 
     // Initialize the output buffer to cyan for debugging purposes
-    for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
-        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
-        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
-        ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
-    }
+    // for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){
+    //     ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
+    //     ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
+    //     ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
+    // }
 
     for(uint32_t i = 0; i < resources.input888_block->size() / 4; i++){
         // YUYV Cyan --> 0x00B2AAB2 (don't ask me how, it's from chatgpt)
@@ -795,15 +795,16 @@ int main(int argc, char *argv[]){
 
     // Open up the image and copy it to input888 block
     // Open the file "test_yuyv_720_576.bin" and read 200 bytes into resources.input888_block->get_mem_ptr()
-    // FILE *file = fopen("test_yuyv_720_576.bin", "rb");
-    // if (file == nullptr) {
-    //     die_with_error("ERROR [upscale-zcu102] Failed to open test_yuyv_720_576.bin\n", strerror(errno), &resources);
-    // }
-    // size_t bytes_read = fread((void*)resources.input888_block->get_mem_ptr(), 1, INPUT_VIDEO_HEIGHT*INPUT_VIDEO_WIDTH*2, file);
-    // if (bytes_read != 200) {
-    //     die_with_error("ERROR [upscale-zcu102] Failed to read 200 bytes from test_yuyv_720_576.bin\n", nullptr, &resources);
-    // }
-    // fclose(file);
+    FILE *file = fopen("example_yuyv_img.bin", "rb");
+    if (file == nullptr) {
+        die_with_error("ERROR [upscale-zcu102] Failed to open test_yuyv_720_576.bin\n", strerror(errno), &resources);
+    }
+    size_t expected = INPUT_VIDEO_HEIGHT*INPUT_VIDEO_WIDTH*2;
+    size_t bytes_read = fread((void*)resources.input888_block->get_mem_ptr(), 1, INPUT_VIDEO_HEIGHT*INPUT_VIDEO_WIDTH*2, file);
+    if (bytes_read != expected) {
+        die_with_error("ERROR [upscale-zcu102] Failed to read bytes from example_yuyv_img.bin\n", nullptr, &resources);
+    }
+    fclose(file);
 
     int queued_buffer = 0;
     int next_buffer   = 1;
@@ -843,7 +844,7 @@ int main(int argc, char *argv[]){
 
         unsigned long before_tile_jiffies = get_jiffies();
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
-            for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
+            for(uint16_t ty = 2; ty < num_vert_tiles - 2; ty++){
                 
                 // Calculate physical addresses for each row of the tile
                 // Set the BD rings appropriately
