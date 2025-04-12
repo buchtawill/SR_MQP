@@ -448,18 +448,23 @@ void compute_tile_src_addr(PhysMem *src_block, TileInfo *tile, uint16_t xres, ui
  * @param xres_out The width of the output buffer (AKA the frame buffer) in pixels. 
  * @param start_x x coordinate on the screen of top left corner of frame
  * @param start_y y coordinate on the screen of top left corner of frame
- * @return None
+ * @return 0 on success, -1 on error
  */
-void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_screen, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds, \
-                            uint32_t start_x = 0, uint32_t start_y = 0){
+int compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_screen, uint32_t upscale_factor, uint8_t bytes_pp, PhysMem** s2mm_bds, \
+                            int start_x = 0, int start_y = 0){
 
     uint32_t dst_pixel_x = tile->src_pixel_x * upscale_factor;
     uint32_t dst_pixel_y = tile->src_pixel_y * upscale_factor;
 
     // Memory address of the top left corner of the tile
-    uint32_t tile_start_offset = ((dst_pixel_y * (xres_screen)) + dst_pixel_x) * bytes_pp;
+    int tile_start_offset = ((dst_pixel_y * (xres_screen)) + dst_pixel_x) * bytes_pp;
 
     tile_start_offset += (start_y * xres_screen + start_x) * bytes_pp;
+
+    // Do not write into memory that is before the frame buffer
+    if(tile_start_offset < 0) {
+        return -1;
+    }
 
     for(uint16_t row = 0; row < (TILE_HEIGHT_PIX * upscale_factor); row++){
         uint32_t row_offset = row * (xres_screen) * bytes_pp;
@@ -470,6 +475,7 @@ void compute_tile_dst_addr(PhysMem* dst_block, TileInfo *tile, uint16_t xres_scr
         ((BD_PTR)(s2mm_bds[row]->get_mem_ptr()))->buffer_address = tile->dst_row_phys_addr[row];
         clear_cmplt_bit((BD_PTR)(s2mm_bds[row]->get_mem_ptr()));
     }
+    return 0;
 }
 
 /**
@@ -824,7 +830,8 @@ int main(int argc, char *argv[]){
 
         unsigned long before_tile_jiffies = get_jiffies();
         for(uint16_t tx = 0; tx < num_horz_tiles; tx++){
-            for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
+            for(uint16_t ty = 2; ty < num_vert_tiles-2; ty++){
+                // for(uint16_t ty = 0; ty < num_vert_tiles; ty++){
                 
                 // Calculate physical addresses for each row of the tile
                 // Set the BD rings appropriately
@@ -842,9 +849,10 @@ int main(int argc, char *argv[]){
                 // Calculate destination addresses for each row of the tile
                 // compute_tile_dst_addr(resources.interp888_block, &tile, INPUT_VIDEO_WIDTH, UPSCALE_FACTOR, 3, s2mm_bds);
 
-                compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual,\
+                int result = compute_tile_dst_addr(resources.fb_mem_block, &tile, resources.configurable_fb_info.xres_virtual,\
                     UPSCALE_FACTOR, 2, s2mm_bds, parser.get<int>("-x"), parser.get<int>("-y"));
 
+                if(result < 0) continue;
                 // Wait for MM2S transfer to complete
                 if(dma1.poll_bd_cmplt(last_mm2s_bd, DMA_SYNC_TRIES) < 0) {
                     dma1.print_debug_info();
@@ -926,7 +934,7 @@ int main(int argc, char *argv[]){
                 float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
                 
                 frame_loop_count = 0;
-                elapsed_jiffies = 0;
+                start_jiffies = end_jiffies;
                 printf("INFO [sg-interpolate2x] FPS: %0.3f\n", fps);
             }    
         }
