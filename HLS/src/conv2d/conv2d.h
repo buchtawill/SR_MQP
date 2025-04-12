@@ -7,8 +7,8 @@
 #include "ap_fixed.h"
 
 #define STREAM_WIDTH            128 // Must be a power of 2 greater than 8
-#define INPUT_WIDTH_PIX         28
-#define INPUT_HEIGHT_PIX        28
+#define INPUT_WIDTH_PIX         32
+#define INPUT_HEIGHT_PIX        32
 #define BYTES_PER_PIXEL         4
 #define BYTES_PER_TRANSFER      (STREAM_WIDTH / 8)
 #define BEATS_PER_ROW           (INPUT_WIDTH_PIX * BYTES_PER_PIXEL) / BYTES_PER_TRANSFER
