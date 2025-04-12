@@ -1,6 +1,7 @@
 #!/bin/bash
 
-BOARD_TARGET="kv260-b"
+BOARD_TARGET="zcu102-mqp"
+# IP = "130.215.23.96"
 
 UNIX_TIME_START=$(date +%s)
 echo "INFO [cross_compile_apps.sh] Sourcing petalinux settings"
@@ -12,7 +13,7 @@ else
     exit 1
 fi
 
-APPS_LIST=("sg-interpolate2x")
+APPS_LIST=("upscale-zcu102")
 
 # App location: 
 # kv260_plnx_proj/build/tmp/work/cortexa72-cortexa53-xilinx-linux/<app name>/1.0-r0/<app name>
@@ -44,6 +45,7 @@ done
 
 echo "INFO [cross_compile_apps.sh] SCPing new binaries to machine"
 scp -r ./remade_app_binaries petalinux@$BOARD_TARGET.dyn.wpi.edu:/home/petalinux
+# scp -r ./remade_app_binaries petalinux@$IP:/home/petalinux
 
 if [ $? -ne 0 ]; then
     echo "ERROR [cross_compile_apps.sh] Error SCPing new binaries to machine"

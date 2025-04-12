@@ -16,6 +16,8 @@ hardware/xilinx-zcu102-2023.1/**
 !hardware/xilinx-zcu102-2023.1/xilinx-zcu102-2023.1.srcs
 !*.sh
 
+remade_app_binaries
+
 components/*
 !components/yocto
 components/yocto/*

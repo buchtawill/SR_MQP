@@ -175,11 +175,10 @@ void sigint_handler(int sig){
  * Open the framebuffer device
  * Set up buffers for the RGB888 frame and interpolated RGB888 frame
  * @param p_res Pointer to the resources struct
- * @param video_device The video device
  * @param fb_device The framebuffer device
  * @return None
  */
-void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev){
+void init_resources(Resources *p_res, const char* fb_dev){
     p_res->v4l2_fd         = -1;
     p_res->fb_dev_fd       = -1;
     p_res->dev_mem_fd      = -1;
@@ -216,11 +215,11 @@ void init_resources(Resources *p_res, const char* video_dev, const char* fb_dev)
     }
 
     // Open the video device
-    printf("INFO [upscale-zcu102::init_resources()] Opening video device %s\n", video_dev);
-    p_res->v4l2_fd = open(video_dev, O_RDWR);
-    if(p_res->v4l2_fd < 0){
-        die_with_error("ERROR [upscale-zcu102::init_resources()] Error opening video device: ", strerror(errno), p_res);
-    }
+    // printf("INFO [upscale-zcu102::init_resources()] Opening video device %s\n", video_dev);
+    // p_res->v4l2_fd = open(video_dev, O_RDWR);
+    // if(p_res->v4l2_fd < 0){
+    //     die_with_error("ERROR [upscale-zcu102::init_resources()] Error opening video device: ", strerror(errno), p_res);
+    // }
 
     // Open the framebuffer device
     printf("INFO [upscale-zcu102::init_resources()] Opening framebuffer device %s\n", fb_dev);
@@ -664,7 +663,7 @@ int main(int argc, char *argv[]){
     Resources resources;
 
     argparse::ArgumentParser parser("sg-interpolate2x");
-    parser.add_argument("-vid", "--video_device").help("Video device to read frames from").default_value("/dev/video0");
+    // parser.add_argument("-vid", "--video_device").help("Video device to read frames from").default_value("/dev/video0");
     parser.add_argument("-fbd", "--fb_device").help("Framebuffer device to write frames to").default_value("/dev/fb0");
     parser.add_argument("-x").help("Starting x-coordinate of frame on screen").scan<'d', int>().default_value(0);
     parser.add_argument("-y").help("Starting y-coordinate of frame on screen").scan<'d', int>().default_value(0);
@@ -683,13 +682,13 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    std::string video_dev_str = parser.get<std::string>("--video_device");
+    // std::string video_dev_str = parser.get<std::string>("--video_device");
     std::string fb_dev_str = parser.get<std::string>("--fb_device");
 
-    const char *video_device = video_dev_str.c_str();
+    // const char *video_device = video_dev_str.c_str();
     const char *fb_device = fb_dev_str.c_str();
 
-    printf("INFO [upscale-zcu102::main()] Video device: %s\n", video_device);
+    // printf("INFO [upscale-zcu102::main()] Video device: %s\n", video_device);
     printf("INFO [upscale-zcu102::main()] Framebuffer device: %s\n", fb_device);
 
     if(parser["--dots"] == true){
@@ -708,7 +707,7 @@ int main(int argc, char *argv[]){
     // Open /dev/mem, video device, framebuffer device
     // Initialize Physical Memory Manager
     // Initialize input888 buffer, interpolated888 buffer
-    init_resources(&resources, video_device, fb_device);
+    init_resources(&resources, fb_device);
 
     // Setup video reosources
     // setup_video(&resources);
@@ -752,6 +751,11 @@ int main(int argc, char *argv[]){
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3] = 0;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 1] = 0x8F;
         ((uint8_t*)(resources.interp888_block->get_mem_ptr()))[i * 3 + 2] = 0x8F;
+    }
+
+    for(uint32_t i = 0; i < resources.input888_block->size() / 4; i++){
+        // YUYV Cyan --> 0x00B2AAB2 (don't ask me how, it's from chatgpt)
+        ((uint32_t*)(resources.input888_block->get_mem_ptr()))[i] = 0x00B2AAB2;
     }
     
     uint32_t frame_loop_count = 0;
@@ -925,7 +929,7 @@ int main(int argc, char *argv[]){
             float fps = (float)frame_loop_count / ((float)elapsed_jiffies / (float)jiffies_per_sec);
 
             frame_loop_count = 0;
-            start_jiffies = 0;
+            start_jiffies = end_jiffies;
             printf("INFO [upscale-zcu102] FPS: %0.3f\n", fps);
         }    
     } // End of while loop

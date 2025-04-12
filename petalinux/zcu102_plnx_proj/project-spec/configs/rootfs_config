@@ -2274,14 +2274,14 @@ CONFIG_linux-xlnx-udev-rules=y
 #
 # fbset 
 #
-# CONFIG_fbset is not set
+CONFIG_fbset=y
 # CONFIG_fbset-dev is not set
 # CONFIG_fbset-dbg is not set
 
 #
 # fbset-modes 
 #
-# CONFIG_fbset-modes is not set
+CONFIG_fbset-modes=y
 # CONFIG_fbset-modes-dbg is not set
 # CONFIG_fbset-modes-dev is not set
 
@@ -4086,7 +4086,7 @@ CONFIG_Init-manager-systemd=y
 #
 # CONFIG_gpio-demo is not set
 # CONFIG_peekpoke is not set
-# CONFIG_upscale-zcu102 is not set
+CONFIG_upscale-zcu102=y
 
 #
 # PetaLinux RootFS Settings
