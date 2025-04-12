@@ -39,6 +39,7 @@ proc checkRequiredFiles { origin_dir} {
   set status true
   set files [list \
  "[file normalize "$origin_dir/src/bd/zcu102/design_1.tcl"]"\
+ "[file normalize "$origin_dir/src/hdl/RGB888_to_565.v"]"\
   ]
   foreach ifile $files {
     if { ![file isfile $ifile] } {
@@ -64,7 +65,7 @@ if { [info exists ::user_project_name] } {
 }
 
 variable script_file
-set script_file "zcu102_vivado_project.tcl"
+set script_file "create_project_zcu102.tcl"
 
 # Help information for this script
 proc print_help {} {
@@ -165,6 +166,14 @@ update_ip_catalog -rebuild
 
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
+set files [list \
+ [file normalize "${origin_dir}/src/hdl/RGB888_to_565.v" ]\
+]
+set added_files [add_files -fileset sources_1 $files]
+
+# Important: read the verilog sources
+set_property source_mgmt_mode All [current_project]
+# set_property top_auto_order true [current_fileset]
 
 # Create 'design_1' block design
 # puts "DEBUG: Sourcing [file normalize "${origin_dir}/src/bd/zcu102/design_1.tcl"]"
