@@ -7,4 +7,8 @@ config peekpoke
 	 bool "peekpoke"
 	 help
 	
+config upscale-zcu102  
+	 bool "upscale-zcu102"
+	 help
+	
 endmenu

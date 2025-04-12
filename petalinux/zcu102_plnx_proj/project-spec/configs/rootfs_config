@@ -4086,6 +4086,7 @@ CONFIG_Init-manager-systemd=y
 #
 # CONFIG_gpio-demo is not set
 # CONFIG_peekpoke is not set
+# CONFIG_upscale-zcu102 is not set
 
 #
 # PetaLinux RootFS Settings
