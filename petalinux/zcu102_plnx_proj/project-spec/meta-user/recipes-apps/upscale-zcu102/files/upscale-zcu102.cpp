@@ -672,6 +672,8 @@ int main(int argc, char *argv[]){
     parser.add_argument("--no_self_test").help("Flag to skip the DMA self test").flag();
     parser.add_argument("--double_test").help("Flag to run the self test twice").flag();
     parser.add_argument("--no_fps").help("Flag to disable printing fps").flag();
+    parser.add_argument("--conv").help("Override to send only to conv").flag();
+    parser.add_argument("--interp").help("Override to send only to interp").flag();
     parser.add_argument("--screenshot").help("Set this flag to take a single screenshot of the before frame and after frame").flag();
 
     try{
@@ -744,7 +746,14 @@ int main(int argc, char *argv[]){
     printf("INFO [upscale-zcu102] Variance ready bit: %d\n", var.is_ready());
     var.start();
     var.enable_auto_restart();
-    var.set_override(VARIARNCE_OVERRIDE_MODE_INTERP);
+    if(parser["--conv"] == true){
+        printf("INFO [upscale-zcu102] Overriding to convolution only\n");
+        var.set_override(VARIARNCE_OVERRIDE_MODE_CONV);
+    }
+    else if(parser["--interp"] == true){
+        printf("INFO [upscale-zcu102] Overriding to interpolation only\n");
+        var.set_override(VARIARNCE_OVERRIDE_MODE_INTERP);
+    }
 
     // Initialize the output buffer to cyan for debugging purposes
     // for(uint32_t i = 0; i < resources.interp888_block->size() / 3; i++){

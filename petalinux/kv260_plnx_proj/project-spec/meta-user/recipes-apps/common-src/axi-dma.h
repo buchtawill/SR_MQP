@@ -32,7 +32,7 @@
 #define DMA_SELF_TEST_BYTES_PER_BD  ((uint32_t)96) // 32 pixels * 3 bytes per pixel
 #define DMA_SELF_TEST_SG_LEN        (DMA_SELF_TEST_SG_NUM_BDS * DMA_SELF_TEST_BYTES_PER_BD)
 
-#define DMA_SYNC_TRIES				10000
+#define DMA_SYNC_TRIES				100000
 #define MAX_DMA_SYNC_TRIES          0xFFFFFFFF
 
 #ifndef DMA_SG_MODE
