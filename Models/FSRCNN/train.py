@@ -16,6 +16,9 @@ from low_hi_res_dataset import SR_image_dataset
 from low_hi_res_dataset import SR_tensor_dataset
 from torch.utils.tensorboard import SummaryWriter
 
+# For interpolation
+from scipy.ndimage import zoom
+
 NUM_EPOCHS = 100
 BATCH_SIZE = 64
 LEARN_RATE = 0.0002
@@ -82,15 +85,16 @@ def plot_images(low_res, inference, truths, title):
 
     fig, axs = plt.subplots(3, 4, figsize=(12, 8))
     for i in range(3):
+        low_res_img = tensor_to_image(normalize_tensor_image(low_res[i]))
         axs[i, 0].set_title('Low Res')
-        axs[i, 0].imshow(tensor_to_image(normalize_tensor_image(low_res[i])))
+        axs[i, 0].imshow(low_res_img)
         axs[i, 0].axis('off')
         
-        axs[i, 1].set_title('Upscaled')
-        axs[i, 1].imshow(tensor_to_image(inference[i]))
+        axs[i, 1].set_title('Bilinear')
+        axs[i, 1].imshow(zoom(low_res_img, (2, 2, 1), order=1))
         axs[i, 1].axis('off')
         
-        axs[i, 2].set_title('Normalized')
+        axs[i, 2].set_title('Modeled, Normalized')
         axs[i, 2].imshow(tensor_to_image(normalize_tensor_image(inference[i])))
         axs[i, 2].axis('off')
         
@@ -104,7 +108,6 @@ def plot_images(low_res, inference, truths, title):
     plt.savefig(title)
     # plt.show()
     plt.close()
-
 
 def model_dataloader_inference(model, dataloader, device, criterion, optimzer):
     """
@@ -209,8 +212,9 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     print("INFO [train.py] Loading Tensor pair dataset")
     # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors.pt', low_res_tensors_path='../data/data/low_res_tensors.pt')
+    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_100k.pt', low_res_tensors_path='../data/data/low_res_100k.pt')
     # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/challenge/challenge_high_res.pt', low_res_tensors_path='../data/data/challenge/challenge_low_res.pt')
-    full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/high_res_tensors_10k.pt', low_res_tensors_path='../data/data/low_res_tensors_10k.pt')
+    # full_dataset = SR_tensor_dataset(high_res_tensors_path='../data/data/1280_16x9_1000.pt', low_res_tensors_path='../data/data/640_16x9_1000.pt')
     # print("INFO [train.py] Loading image pair dataset")
     # transform = transforms.Compose([transforms.ToTensor()])
     # full_dataset = SR_image_dataset(lowres_path='../', highres_path='../data/', transform=transform)
@@ -243,7 +247,7 @@ if __name__ == '__main__':
                  device=device)
                 
     tb_writer.flush()
-    torch.save(model.state_dict(), './saved_weights/example_vitis_hls_weights.pth')
+    torch.save(model.state_dict(), './saved_weights/good_emulated_56.pth')
     
     tEnd = time.time()
     print(f"INFO [train.py] Ending script. Took {tEnd-tstart:.2f} seconds.")

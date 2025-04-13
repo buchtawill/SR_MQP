@@ -220,7 +220,7 @@ if __name__ == '__main__':
     output_dir = os.path.join(current_dir, './data/1280_16x9_tiles_hi_res4x')
     downscaled_dir = os.path.join(current_dir, './data/1280_16x9_tiles_downscaled4x_augmented')
 
-    tile_size = 112
+    tile_size = 64
     n_threads = 5
     downscale_factor = 4
 
