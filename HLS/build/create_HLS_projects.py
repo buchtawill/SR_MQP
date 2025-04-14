@@ -68,6 +68,7 @@ def create_hls_project(project_name:str, hls_build_info:dict, auto_overwrite: bo
             
         file.write('open_solution "solution1" -flow_target vivado\n')
         file.write('set_part {xck26-sfvc784-2LV-c}\n')
+        # file.write('set_part {xczu9eg-ffvb1156-2-e}\n')
         file.write('create_clock -period 10 -name default\n')
 
     # Create the tcl script to create the project
