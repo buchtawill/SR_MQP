@@ -54,7 +54,7 @@
             "fsrcnn_weights.h"
         ],
         "tb": [
-            "conv2d_tb.cpp"
+            "tb_fsrcnn.cpp"
         ],
         "top_func": "conv2d_top"
     }
