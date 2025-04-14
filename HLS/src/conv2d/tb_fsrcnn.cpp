@@ -128,9 +128,6 @@ std::vector<float> get_reference_from_pytorch_full(
 // Main testbench for the full Netwrok.
 // Runs multiple tests: For each test, a random 28x28 (configurable) RGB image is generated,
 // sent to the DUT via a 128-bit AXI stream, and compared with the Python predictor
-extern void full_cnn_top(hls::stream<axis_t>& in_stream, hls::stream<axis_t>& out_stream,
-                         int in_width, int in_height); // DUT top function
-
 int main() {
     // Configuration
     const int num_tests = 10;            // number of tests to run
