@@ -932,7 +932,7 @@ void conv2d_top(hls::stream<axis_t> &in_stream, hls::stream<axis_t> &out_stream)
     #pragma HLS INTERFACE axis port=out_stream
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
-#pragma HLS bind_storage variable=weights_layer_deconv0 type=RAM_2P impl=BRAM
+//#pragma HLS bind_storage variable=weights_layer_deconv0 type=RAM_2P impl=BRAM
 // #pragma HLS bind_storage variable=weights_layer_map0 type=RAM_2P impl=BRAM
 // #pragma HLS bind_storage variable=weights_layer_map2 type=RAM_2P impl=BRAM
 // #pragma HLS bind_storage variable=weights_layer_map4 type=RAM_2P impl=BRAM
