@@ -7,7 +7,7 @@
 #include <iostream>
 #include <ap_axi_sdata.h>
 
-// tile dimensions
+// tile dimensions & transfer information
 #define TRANSFER_WIDTH 128
 #define YUYV_BITS_PER_PIXEL 16
 #define RGB_BITS_PER_PIXEL 32
@@ -23,7 +23,7 @@
 
 #define ACCEPTABLE_ERROR 1
 
-// Override mode definitions
+// override mode definitions
 #define OVERRIDE_MODE_DEFAULT 0
 #define OVERRIDE_MODE_CONV 1
 #define OVERRIDE_MODE_INTERP 2
@@ -34,10 +34,10 @@ typedef ap_uint<128> ap_uint_128; // 128-bit YUYV pixel stream (8 pixels)
 typedef ap_fixed<32, 9, AP_RND, AP_SAT> fixed_pixel; // for channel conversion math
 typedef ap_fixed<32, 24> fixed_32; // fixed point instead of float
 
-// Define axis_t with data width of 128 bits and no additional signals
+// define axis_t with data width of 128 bits and no additional signals
 typedef hls::axis<ap_uint_128, 0, 0, 0> axis_t;
 
-// Function prototype
+// function prototypes
 void process_tile(hls::stream<axis_t> &pixel_stream_in,
                   hls::stream<axis_t> &conv_out,
                   hls::stream<axis_t> &interp_out,

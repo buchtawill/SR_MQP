@@ -32,7 +32,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 		i++;
 	}
 
-    // calculate sum
+    // calculate mean
     if (override_mode == OVERRIDE_MODE_DEFAULT){
 		for (i = 0; i < YUYV_NUM_TRANSFERS; i++) {
 			#pragma HLS PIPELINE II=1
@@ -72,7 +72,10 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
 	axis_t temp_output;
 	temp_output.data = 0;
 
-	// send all tiles to convolution
+
+	/* 			output logic			*/
+
+	// send all tiles to convolution (variance is not calculated)
     if (override_mode == OVERRIDE_MODE_CONV) {
     	for (i = 0; i < RGB_NUM_TRANSFERS; i++) {
 			temp_output.last = (i == RGB_NUM_TRANSFERS - 1);
@@ -83,7 +86,7 @@ void process_tile(		hls::stream<axis_t> &pixel_stream_in,
     	}
 	}
 
-    // send all tiles to interpolation
+    // send all tiles to interpolation (variance is not calculated)
     else if (override_mode == OVERRIDE_MODE_INTERP) {
     	for (i = 0; i < RGB_NUM_TRANSFERS; i++) {
 			temp_output.last = (i == RGB_NUM_TRANSFERS - 1);
@@ -140,6 +143,7 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
         	fixed_pixel B1 = (fixed_pixel)(Y1 + ((1811 * (U - 128) + 512) >> 10));
 //        	///////////////////////////////////
 
+        	// test print statements by pixel
 //			std::cout << "INFO: R0: " << R0 << std::endl;
 //			std::cout << "INFO: G0: " << G0 << std::endl;
 //			std::cout << "INFO: B0: " << B0 << std::endl;
@@ -168,6 +172,7 @@ void rgb_convert(ap_uint_128 *RGB_pixel_data, ap_uint_128 *pixel_data) {
             ap_8 G1_clamped = (G1 < RGB_MIN) ? RGB_MIN : ((G1 > RGB_MAX) ? RGB_MAX : G1);
             ap_8 B1_clamped = (B1 < RGB_MIN) ? RGB_MIN : ((B1 > RGB_MAX) ? RGB_MAX : B1);
 
+            // test print statements by clamped pixel
 //			std::cout << "INFO: R0 CLAMPED: " << R0_clamped << std::endl;
 //			std::cout << "INFO: G0 CLAMPED: " << G0_clamped << std::endl;
 //			std::cout << "INFO: B0 CLAMPED: " << B0_clamped << std::endl;
