@@ -37,7 +37,7 @@ if {[catch {wait_on_run synth_1} result]} {
 
 # Write debug probes file
 open_run synth_1 -name synth_1
-write_debug_probes "./src/bd/zcu102/debug_probes.ltx"
+write_debug_probes -force "./bitstreams/debug_probes_zcu.ltx"
 close_design
 
 # Run implementation, generate the bitstream
