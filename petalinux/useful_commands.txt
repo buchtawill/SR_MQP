@@ -39,3 +39,27 @@ all:
 
      - bootgen -arch zynqmp -image <path to bif> -process_bitstream bin
      - petalinux@kv260> fpgautil -b <bitstream.bit.bin>
+
+
+Repository structure:
+
+Project root/
+|--- HLS/
+|    |-- src/
+|    |-- build/
+|
+|--- vivado/
+|    |-- kv260_build/
+|    |-- zcu102_build/
+|    |-- src/
+|        |-- block_diagrams/
+|        |-- hdl/
+|
+|--- petalinux/
+|    |-- kv260_project/
+|    |-- zcu102_project/
+|
+|--- Models/
+|    |-- FSRCNN/
+|    |-- ARSR/
+|    |-- data/
