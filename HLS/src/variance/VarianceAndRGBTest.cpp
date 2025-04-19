@@ -18,7 +18,8 @@ int main() {
     pixel_data.keep = 0xffff;
     pixel_data.strb = 0xffff;
     pixel_data.last = 0;
-    // Simulate 28x28 pixels in YUYV422 format --> HIGH VARIANCE
+
+    // Simulate 32x32 pixels in YUYV422 format --> HIGH VARIANCE
     for (int i = 0; i < YUYV_NUM_TRANSFERS; i++) {
         for (int j = 0; j < 4; j++) { // 4 32-bit YUYV pixel groups per transfer
         	int Y0 = (i*4 + j) % 256;
@@ -44,7 +45,7 @@ int main() {
         std::cout << "Interpolation: " << std::hex << interp_out.read().data << std::endl;
     }
 
-    // Simulate 28x28 pixels in YUYV422 format --> LOW VARIANCE
+    // Simulate 32x32 pixels in YUYV422 format --> LOW VARIANCE
     for (int i = 0; i < YUYV_NUM_TRANSFERS; i++) {
 		for (int j = 0; j < 4; j++) {
     		int Y0 = (i*4 + j) % 10;
@@ -103,8 +104,6 @@ int test_rgb_convert(){
 	    for (int j = 0; j < 16; j++){
 	        packed_data |= ((ap_uint_128)conversion_tile_yuyv[i * 16 + j]) << (8 * j);
 	    }
-//        std::cout << "Packed YUYV pixels: " << std::hex << packed_data << std::endl; // data is correct here
-
 	    packed_YUYV_input[i] = packed_data;
 	}
 
