@@ -35,6 +35,11 @@ if {[catch {wait_on_run synth_1} result]} {
     exit 1
 }
 
+# Write debug probes file
+open_run synth_1 -name synth_1
+write_debug_probes "./src/bd/zcu102/debug_probes.ltx"
+close_design
+
 # Run implementation, generate the bitstream
 reset_run impl_1
 launch_runs impl_1 -to_step write_bitstream -jobs 6
